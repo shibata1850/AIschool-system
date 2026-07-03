@@ -22,7 +22,16 @@ export async function postJson<T = unknown>(
     if (!res.ok) {
       return { ok: false, message: await res.text() };
     }
-    const data = (await res.json().catch(() => undefined)) as T;
+    let data: T;
+    try {
+      data = (await res.json()) as T;
+    } catch {
+      // 200でもJSONでない応答（中間層のエラーページ等）は成功扱いにしない
+      return {
+        ok: false,
+        message: "サーバーの応答を読み取れませんでした。もう一度ためしてください",
+      };
+    }
     return { ok: true, data };
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {

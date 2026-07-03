@@ -109,6 +109,11 @@ export function getLessonRecords(studentId: string): LessonRecord[] {
   return getStore().lessonRecords.get(studentId) ?? [];
 }
 
+/** 1席のデバイス割当（存在しない座席は undefined） */
+export function getDeviceAssignment(seatNo: number): DeviceAssignment | undefined {
+  return getStore().deviceAssignments.get(seatNo);
+}
+
 /** 全席のデバイス割当（座席番号順） */
 export function getDeviceAssignments(): DeviceAssignment[] {
   return [...getStore().deviceAssignments.values()].sort(

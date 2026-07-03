@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { recordAudit } from "@/lib/audit/log";
-import { setDeviceBackup } from "@/lib/f3/store";
+import { getDeviceAssignment, setDeviceBackup } from "@/lib/f3/store";
 
 /**
  * S9: 座席の表示デバイスを予備機（モバイルモニター）へ切替/復帰する。
@@ -28,19 +28,26 @@ export async function POST(
     });
   }
 
-  const updated = setDeviceBackup(seatNo, body.usingBackup);
-  if (!updated) {
+  const current = getDeviceAssignment(seatNo);
+  if (!current) {
     return new NextResponse("座席が見つかりません", { status: 404 });
   }
 
+  // 無変更（二重タップ・同時操作）は監査ログに記録しない — 変更前後は実測値のみ
+  const beforeValue = current.usingBackup;
+  if (beforeValue === body.usingBackup) {
+    return NextResponse.json({ seatNo, usingBackup: beforeValue, changed: false });
+  }
+
+  setDeviceBackup(seatNo, body.usingBackup);
   recordAudit({
     actorRole: request.cookies.get("role")?.value ?? "unknown",
     action: "update",
     entity: "device_assignment",
     entityId: `seat-${seatNo}`,
-    before: { usingBackup: !body.usingBackup },
+    before: { usingBackup: beforeValue },
     after: { usingBackup: body.usingBackup },
   });
 
-  return NextResponse.json({ seatNo, usingBackup: updated.usingBackup });
+  return NextResponse.json({ seatNo, usingBackup: body.usingBackup, changed: true });
 }
