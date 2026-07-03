@@ -12,11 +12,23 @@ import type { Assignment, Submission } from "./types";
 /** いま教室で扱っている課題（モニタリングの対象。本番は授業コマから解決する） */
 export const CURRENT_ASSIGNMENT_ID = "a1";
 
+/** デバイス割当（要件定義書6.1 device_assignments） */
+export interface DeviceAssignment {
+  seatNo: number;
+  nucId: string;
+  goovisId: string;
+  studentId: string;
+  /** GOOVIS不調時にモバイルモニター（予備機）へ切替中か（未決事項#4の仮運用） */
+  usingBackup: boolean;
+}
+
 interface DomainStore {
   assignments: Map<string, Assignment>;
   submissions: Map<string, Submission>;
   /** 受講生ID → 授業コマごとの学習記録（到達度の入力） */
   lessonRecords: Map<string, LessonRecord[]>;
+  /** 座席番号 → デバイス割当 */
+  deviceAssignments: Map<number, DeviceAssignment>;
 }
 
 declare global {
@@ -54,7 +66,20 @@ function seed(): DomainStore {
     Object.entries(structuredClone(SEED_LESSON_RECORDS)),
   );
 
-  return { assignments, submissions, lessonRecords };
+  // 座席1〜16にNUC/GOOVISを対応付ける（識別子は資産管理番号の架空値）
+  const deviceAssignments = new Map<number, DeviceAssignment>();
+  for (let seatNo = 1; seatNo <= 16; seatNo += 1) {
+    const pad = String(seatNo).padStart(2, "0");
+    deviceAssignments.set(seatNo, {
+      seatNo,
+      nucId: `NUC-${pad}`,
+      goovisId: `GOOVIS-${pad}`,
+      studentId: seatNo === 1 ? "student-demo" : `s${pad}`,
+      usingBackup: false,
+    });
+  }
+
+  return { assignments, submissions, lessonRecords, deviceAssignments };
 }
 
 export function getStore(): DomainStore {
@@ -82,6 +107,24 @@ export function findSubmission(
 /** 受講生の学習記録（到達度の入力）を取得する */
 export function getLessonRecords(studentId: string): LessonRecord[] {
   return getStore().lessonRecords.get(studentId) ?? [];
+}
+
+/** 全席のデバイス割当（座席番号順） */
+export function getDeviceAssignments(): DeviceAssignment[] {
+  return [...getStore().deviceAssignments.values()].sort(
+    (a, b) => a.seatNo - b.seatNo,
+  );
+}
+
+/** 予備機（モバイルモニター）への切替状態を変更する。存在しない座席は undefined */
+export function setDeviceBackup(
+  seatNo: number,
+  usingBackup: boolean,
+): DeviceAssignment | undefined {
+  const assignment = getStore().deviceAssignments.get(seatNo);
+  if (!assignment) return undefined;
+  assignment.usingBackup = usingBackup;
+  return assignment;
 }
 
 /**

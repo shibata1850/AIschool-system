@@ -46,6 +46,11 @@ const PAGES: Array<{ path: string; name: string; allowed: Record<Role, boolean> 
     allowed: { student: false, teacher: true, admin: true, guest: false },
   },
   {
+    path: "/teacher/devices",
+    name: "S9 デバイス割当",
+    allowed: { student: false, teacher: true, admin: true, guest: false },
+  },
+  {
     path: "/admin/audit",
     name: "S10 監査ログ閲覧",
     allowed: { student: false, teacher: false, admin: true, guest: false },

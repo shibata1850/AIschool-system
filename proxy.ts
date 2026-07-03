@@ -14,7 +14,12 @@ import { NextResponse, type NextRequest } from "next/server";
 const ADMIN_ONLY_PREFIXES = ["/admin"];
 
 /** 講師・管理者のみ（開発用リセットAPIも破壊的操作のためここに含める） */
-const TEACHER_ONLY_PREFIXES = ["/teacher", "/api/submissions", "/api/dev"];
+const TEACHER_ONLY_PREFIXES = [
+  "/teacher",
+  "/api/submissions",
+  "/api/devices",
+  "/api/dev",
+];
 
 /** ゲスト（体験会）不可: 演習・チャット・到達度（トップと公開教材のみ閲覧可） */
 const NO_GUEST_PREFIXES = [
