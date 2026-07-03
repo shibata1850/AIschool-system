@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { QUESTION_LIMIT } from "@/lib/f2/constants";
 
 interface ChatEntry {
   question: string; // マスキング済みの質問のみ保持する
@@ -8,8 +9,6 @@ interface ChatEntry {
   blocked: boolean;
   piiDetected: boolean;
 }
-
-const QUESTION_LIMIT = 2000;
 
 /** S3 チャット本体: 「考え中」表示・10秒タイムアウト（F2例外1） */
 export function ChatPanel() {

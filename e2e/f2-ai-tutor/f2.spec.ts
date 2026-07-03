@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test";
-import { resetStore, setRole } from "../helpers";
+import { setRole } from "../helpers";
 
 /**
  * F2 AI講師チャットのE2E（docs/テスト計画書.md 3章 F2）。
- * 4パス: 正常系 / 入力エラー系 / 権限系 / 例外（フィルタ・マスキング）
+ * 4パス: 正常系 / 入力エラー系 / 権限系 / 境界値（＋例外: フィルタ・マスキング）
  * AI応答はモック（AI_PROVIDER未設定=mock）で外部通信なし。
  */
 
@@ -61,6 +61,24 @@ test("F2-E3 例外: 電話番号はマスキングされ、生の番号が画面
   ).toBeVisible();
   await expect(page.getByText("（電話番号）").first()).toBeVisible();
   await expect(page.locator("body")).not.toContainText("090-1234-5678");
+});
+
+test("F2-B1 境界値: 2,000文字ちょうどは送信でき、2,001文字は送信不可", async ({
+  page,
+}) => {
+  await setRole(page, "student");
+  await page.goto("/chat");
+
+  // 上限+1文字: エラー表示＋送信ボタン無効
+  await page.getByLabel("質問（しつもん）").fill("あ".repeat(2001));
+  await expect(page.getByText("質問は2000文字以内で入力してください")).toBeVisible();
+  await expect(page.getByRole("button", { name: "きく" })).toBeDisabled();
+
+  // 上限ちょうど: 送信できて応答が返る
+  await page.getByLabel("質問（しつもん）").fill("あ".repeat(2000));
+  await expect(page.getByText("のこり 0 文字")).toBeVisible();
+  await page.getByRole("button", { name: "きく" }).click();
+  await expect(page.getByText("AI講師:")).toBeVisible();
 });
 
 test("F2-P1 権限系: ゲストがチャットのURLを直接開くと403", async ({ page }) => {

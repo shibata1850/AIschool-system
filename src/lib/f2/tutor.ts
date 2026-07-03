@@ -1,4 +1,5 @@
 import { createAiClient, type AiClient } from "@/lib/ai";
+import { QUESTION_LIMIT } from "./constants";
 import { filterContent } from "./contentFilter";
 import { maskPersonalInfo } from "./masking";
 
@@ -35,8 +36,10 @@ export async function answerQuestion(
   if (question.trim().length === 0) {
     throw new ValidationError("質問を入力してください");
   }
-  if (question.length > 2000) {
-    throw new ValidationError("質問は2,000文字以内で入力してください");
+  if (question.length > QUESTION_LIMIT) {
+    throw new ValidationError(
+      `質問は${QUESTION_LIMIT.toLocaleString("ja-JP")}文字以内で入力してください`,
+    );
   }
 
   const { masked, piiDetected } = maskPersonalInfo(question);

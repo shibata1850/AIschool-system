@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { applyAiGrade, resume, start, submit, TransitionError } from "@/lib/f3/stateMachine";
 import { createGrader } from "@/lib/f3/grading";
 import { getCurrentStudentId } from "@/lib/auth";
+import { recordAudit } from "@/lib/audit/log";
 import { getStore } from "@/lib/f3/store";
 
 /**
@@ -47,6 +48,14 @@ export async function POST(
       reflectionText: body.reflectionText,
     });
     store.submissions.set(next.id, next);
+    recordAudit({
+      actorRole: request.cookies.get("role")?.value ?? "student",
+      action: "update",
+      entity: "submission",
+      entityId: next.id,
+      before: { status: submission.status, version: submission.version },
+      after: { status: next.status, version: next.version, isLate: next.isLate },
+    });
 
     try {
       const grade = await createGrader().grade(assignment, next.promptText);

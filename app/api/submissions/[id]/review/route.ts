@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { complete, returnToStudent, TransitionError } from "@/lib/f3/stateMachine";
+import { recordAudit } from "@/lib/audit/log";
 import { getStore } from "@/lib/f3/store";
 
 /**
@@ -41,6 +42,18 @@ export async function POST(
         ? returnToStudent(submission, typeof body.comment === "string" ? body.comment : "")
         : complete(submission, body.score as number | undefined);
     store.submissions.set(next.id, next);
+    recordAudit({
+      actorRole: request.cookies.get("role")?.value ?? "unknown",
+      action: "update",
+      entity: "submission",
+      entityId: next.id,
+      before: { status: submission.status, teacherScore: submission.teacherScore },
+      after: {
+        status: next.status,
+        teacherScore: next.teacherScore,
+        hasDeviation: next.hasDeviation,
+      },
+    });
     return NextResponse.json({ status: next.status, hasDeviation: next.hasDeviation });
   } catch (error) {
     if (error instanceof TransitionError) {
