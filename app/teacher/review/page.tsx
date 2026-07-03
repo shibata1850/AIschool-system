@@ -3,11 +3,15 @@ import { ReviewForm } from "./review-form";
 
 export const dynamic = "force-dynamic";
 
-/** S7 採点・差戻し（docs/画面仕様書.md S7）。権限ガードは middleware.ts */
+/**
+ * S7 採点・差戻し（docs/画面仕様書.md S7）。権限ガードは proxy.ts。
+ * AI採点済に加え、AI採点が失敗して提出済のまま止まっている提出も表示し、
+ * 講師の手動採点で完了・差戻しできるようにする（監査指摘#5）。
+ */
 export default async function ReviewPage() {
   const store = getStore();
   const pending = [...store.submissions.values()].filter(
-    (s) => s.status === "ai_graded",
+    (s) => s.status === "ai_graded" || s.status === "submitted",
   );
 
   return (
@@ -38,7 +42,7 @@ export default async function ReviewPage() {
               </p>
               <h3 style={{ fontSize: "1rem", marginTop: "0.5rem" }}>提出されたプロンプト</h3>
               <p style={{ whiteSpace: "pre-wrap" }}>{submission.promptText}</p>
-              {submission.aiGrade && (
+              {submission.aiGrade ? (
                 <>
                   <h3 style={{ fontSize: "1rem", marginTop: "0.5rem" }}>AI一次採点</h3>
                   <p>
@@ -48,10 +52,14 @@ export default async function ReviewPage() {
                     採点根拠（講師向け）: {submission.aiGrade.rationale}
                   </p>
                 </>
+              ) : (
+                <p style={{ color: "var(--warn)" }}>
+                  AI採点なし（失敗または処理中）。手動でスコアを入力してください
+                </p>
               )}
               <ReviewForm
                 submissionId={submission.id}
-                aiScore={submission.aiGrade?.totalScore ?? 0}
+                aiScore={submission.aiGrade?.totalScore}
               />
             </section>
           );

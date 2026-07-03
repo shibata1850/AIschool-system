@@ -3,8 +3,8 @@ import { complete, returnToStudent, TransitionError } from "@/lib/f3/stateMachin
 import { getStore } from "@/lib/f3/store";
 
 /**
- * 講師の確認（F3）: AI採点済→完了 または 差戻し。
- * 権限（講師・管理者のみ）は middleware.ts で403ガード済み。
+ * 講師の確認（F3）: 提出済・AI採点済→完了 または 差戻し。
+ * 権限（講師・管理者のみ）は proxy.ts で403ガード済み。
  */
 export async function POST(
   request: NextRequest,
@@ -17,17 +17,29 @@ export async function POST(
     return new NextResponse("提出が見つかりません", { status: 404 });
   }
 
-  const body = (await request.json()) as {
-    action?: "complete" | "return";
-    score?: number;
-    comment?: string;
-  };
+  let body: { action?: unknown; score?: unknown; comment?: unknown };
+  try {
+    body = await request.json();
+  } catch {
+    return new NextResponse("リクエストの形式が正しくありません", { status: 400 });
+  }
+
+  // 不明な action を「完了」に倒さない（2026-07-03 監査指摘#3: 完了は不可逆のため）
+  if (body.action !== "complete" && body.action !== "return") {
+    return new NextResponse(
+      'action には "complete" または "return" を指定してください',
+      { status: 400 },
+    );
+  }
+  if (body.score !== undefined && typeof body.score !== "number") {
+    return new NextResponse("score は数値で指定してください", { status: 400 });
+  }
 
   try {
     const next =
       body.action === "return"
-        ? returnToStudent(submission, body.comment ?? "")
-        : complete(submission, body.score);
+        ? returnToStudent(submission, typeof body.comment === "string" ? body.comment : "")
+        : complete(submission, body.score as number | undefined);
     store.submissions.set(next.id, next);
     return NextResponse.json({ status: next.status, hasDeviation: next.hasDeviation });
   } catch (error) {

@@ -109,6 +109,22 @@ describe("F3 状態遷移", () => {
     expect(() => returnToStudent({ ...s }, "あ".repeat(1001))).toThrow(/1,000/);
   });
 
+  it("回帰(2026-07-03 監査指摘#5): AI採点失敗の提出済は講師スコア必須で手動完了できる", () => {
+    let s = start(newSubmission());
+    s = submit(s, assignment, { promptText: "採点失敗した提出" }, before);
+    expect(s.status).toBe("submitted");
+    // スコアなしの完了は拒否（AI採点がないため既定値が存在しない）
+    expect(() => complete({ ...s })).toThrow(/講師スコア/);
+    // スコアを明示すれば手動採点で完了できる（乖離フラグは立てない）
+    const done = complete({ ...s }, 65);
+    expect(done.status).toBe("completed");
+    expect(done.teacherScore).toBe(65);
+    expect(done.hasDeviation).toBe(false);
+    // 差戻しも提出済から直接できる
+    const returned = returnToStudent({ ...s }, "もう一度書いてみよう");
+    expect(returned.status).toBe("returned");
+  });
+
   it("不正な遷移は TransitionError", () => {
     const s = newSubmission();
     expect(() => submit(s, assignment, { promptText: "x" }, before)).toThrow(

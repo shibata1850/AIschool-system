@@ -68,33 +68,40 @@ export function applyAiGrade(
   return { ...submission, status: "ai_graded", aiGrade: grade };
 }
 
-/** 講師が確認して完了にする: AI採点済→完了（講師採点が最終・乖離フラグ算出） */
+/**
+ * 講師が確認して完了にする: AI採点済→完了（講師採点が最終・乖離フラグ算出）。
+ * AI採点が失敗した提出（提出済のまま）も、講師スコアを明示すれば手動で完了できる
+ * （2026-07-03 監査指摘#5: 採点失敗提出のデッドエンド解消）。
+ */
 export function complete(
   submission: Submission,
   teacherScore?: number,
 ): Submission {
-  if (submission.status !== "ai_graded") {
-    throw new TransitionError("AI採点済の課題だけが完了にできます");
+  if (submission.status !== "ai_graded" && submission.status !== "submitted") {
+    throw new TransitionError("提出済・AI採点済の課題だけが完了にできます");
   }
-  if (!submission.aiGrade) {
-    throw new TransitionError("AI採点結果がありません");
+  if (!submission.aiGrade && teacherScore === undefined) {
+    throw new TransitionError(
+      "AI採点がないため、講師スコアの入力が必要です（手動採点）",
+    );
   }
-  const finalScore = teacherScore ?? submission.aiGrade.totalScore;
+  const finalScore = teacherScore ?? submission.aiGrade!.totalScore;
   if (finalScore < 0 || finalScore > 100) {
     throw new TransitionError("スコアは0〜100で入力してください");
   }
-  const hasDeviation =
-    Math.abs(finalScore - submission.aiGrade.totalScore) >= DEVIATION_THRESHOLD;
+  const hasDeviation = submission.aiGrade
+    ? Math.abs(finalScore - submission.aiGrade.totalScore) >= DEVIATION_THRESHOLD
+    : false;
   return { ...submission, status: "completed", teacherScore: finalScore, hasDeviation };
 }
 
-/** 講師が差戻す: AI採点済→差戻し（コメント必須・最大1,000文字） */
+/** 講師が差戻す: AI採点済（または採点失敗で提出済のまま）→差戻し（コメント必須） */
 export function returnToStudent(
   submission: Submission,
   comment: string,
 ): Submission {
-  if (submission.status !== "ai_graded") {
-    throw new TransitionError("AI採点済の課題だけが差戻しできます");
+  if (submission.status !== "ai_graded" && submission.status !== "submitted") {
+    throw new TransitionError("提出済・AI採点済の課題だけが差戻しできます");
   }
   if (comment.trim().length === 0) {
     throw new TransitionError("差戻しにはコメントが必要です");

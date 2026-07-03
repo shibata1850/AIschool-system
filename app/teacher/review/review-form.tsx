@@ -3,22 +3,40 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-/** S7 確認フォーム: 完了（講師スコア確定）または差戻し（コメント必須） */
+/**
+ * S7 確認フォーム: 完了（講師スコア確定）または差戻し（コメント必須）。
+ * スコアは文字列stateで保持し、空欄のままの確定を拒否する
+ * （2026-07-03 監査指摘#4: Number("")===0 による0点確定の防止）。
+ */
 export function ReviewForm({
   submissionId,
   aiScore,
 }: {
   submissionId: string;
-  aiScore: number;
+  aiScore?: number;
 }) {
   const router = useRouter();
-  const [score, setScore] = useState(aiScore);
+  const [scoreText, setScoreText] = useState(
+    aiScore !== undefined ? String(aiScore) : "",
+  );
   const [comment, setComment] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function send(action: "complete" | "return") {
     setError("");
+    let score: number | undefined;
+    if (action === "complete") {
+      if (scoreText.trim() === "") {
+        setError("スコアを入力してください（空欄のままでは確定できません）");
+        return;
+      }
+      score = Number(scoreText);
+      if (!Number.isFinite(score) || score < 0 || score > 100) {
+        setError("スコアは0〜100の数値で入力してください");
+        return;
+      }
+    }
     if (action === "return" && comment.trim().length === 0) {
       setError("差戻しにはコメントが必要です");
       return;
@@ -35,6 +53,9 @@ export function ReviewForm({
         return;
       }
       router.refresh();
+    } catch {
+      // 監査指摘: ネットワーク断で無反応にならないよう必ずエラーを表示する
+      setError("送信できませんでした。通信を確認してもう一度押してください");
     } finally {
       setBusy(false);
     }
@@ -44,15 +65,15 @@ export function ReviewForm({
     <div style={{ marginTop: "1rem" }}>
       <div style={{ marginBottom: "0.75rem" }}>
         <label htmlFor={`score-${submissionId}`} style={{ marginRight: 8 }}>
-          講師スコア（0〜100・はじめはAIスコア）
+          講師スコア（0〜100{aiScore !== undefined ? "・はじめはAIスコア" : "・手動採点"}）
         </label>
         <input
           id={`score-${submissionId}`}
           type="number"
           min={0}
           max={100}
-          value={score}
-          onChange={(e) => setScore(Number(e.target.value))}
+          value={scoreText}
+          onChange={(e) => setScoreText(e.target.value)}
           style={{
             fontSize: "1rem",
             padding: "0.5rem",
