@@ -17,11 +17,13 @@ export function proxy(request: NextRequest) {
     );
   }
 
-  // ゲスト（体験会）は教材閲覧のみ。AIチャット・演習提出は不可（権限マトリクス 5.1）
+  // ゲスト（体験会）はトップと公開教材のみ。演習・チャット・到達度は不可（権限マトリクス 5.1）
   const noGuest =
     path.startsWith("/chat") ||
     path.startsWith("/api/chat") ||
-    path.startsWith("/api/exercises");
+    path.startsWith("/exercises") ||
+    path.startsWith("/api/exercises") ||
+    path.startsWith("/achievement");
   if (noGuest && role === "guest") {
     return new NextResponse(
       "この機能を使う権限がありません（受講生として登録すると使えます）",
@@ -38,6 +40,8 @@ export const config = {
     "/api/submissions/:path*",
     "/chat",
     "/api/chat",
+    "/exercises/:path*",
     "/api/exercises/:path*",
+    "/achievement",
   ],
 };
