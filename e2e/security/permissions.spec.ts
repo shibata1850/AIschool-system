@@ -45,6 +45,11 @@ const PAGES: Array<{ path: string; name: string; allowed: Record<Role, boolean> 
     name: "S8 週次到達度レポート",
     allowed: { student: false, teacher: true, admin: true, guest: false },
   },
+  {
+    path: "/admin/audit",
+    name: "S10 監査ログ閲覧",
+    allowed: { student: false, teacher: false, admin: true, guest: false },
+  },
 ];
 
 const ROLES: Role[] = ["student", "teacher", "admin", "guest"];

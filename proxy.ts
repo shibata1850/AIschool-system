@@ -10,6 +10,9 @@ import { NextResponse, type NextRequest } from "next/server";
  * matcherは静的アセット以外の全リクエストを通す）。配下パスも前方一致で守る。
  */
 
+/** 管理者のみ（監査ログ閲覧 — 要件定義書5.2） */
+const ADMIN_ONLY_PREFIXES = ["/admin"];
+
 /** 講師・管理者のみ（開発用リセットAPIも破壊的操作のためここに含める） */
 const TEACHER_ONLY_PREFIXES = ["/teacher", "/api/submissions", "/api/dev"];
 
@@ -29,6 +32,13 @@ function matchesPrefix(path: string, prefixes: string[]): boolean {
 export function proxy(request: NextRequest) {
   const role = request.cookies.get("role")?.value ?? "student";
   const path = request.nextUrl.pathname;
+
+  if (matchesPrefix(path, ADMIN_ONLY_PREFIXES) && role !== "admin") {
+    return new NextResponse(
+      "この画面を見る権限がありません（管理者だけが使えます）",
+      { status: 403, headers: { "content-type": "text/plain; charset=utf-8" } },
+    );
+  }
 
   if (
     matchesPrefix(path, TEACHER_ONLY_PREFIXES) &&
