@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { resetStore, setRole } from "../helpers";
 
 /**
  * F2 AI講師チャットのE2E（docs/テスト計画書.md 3章 F2）。
@@ -6,11 +7,6 @@ import { expect, test, type Page } from "@playwright/test";
  * AI応答はモック（AI_PROVIDER未設定=mock）で外部通信なし。
  */
 
-async function setRole(page: Page, role: "student" | "guest") {
-  await page.context().addCookies([
-    { name: "role", value: role, domain: "localhost", path: "/" },
-  ]);
-}
 
 test("F2-N1 正常系: 質問すると応答と定型注記が表示される", async ({ page }) => {
   await setRole(page, "student");

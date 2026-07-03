@@ -7,9 +7,9 @@ out/
 *.tsbuildinfo
 
 # 環境変数（シークレットは絶対にコミットしない — CLAUDE.md 2章）
-.env
-.env.local
-.env.*.local
+# .env.development / .env.production 等の変種も含めてすべて除外する
+.env*
+!.env.example
 
 # テスト成果物
 test-results/

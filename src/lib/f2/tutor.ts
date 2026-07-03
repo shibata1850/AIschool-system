@@ -8,6 +8,9 @@ import { maskPersonalInfo } from "./masking";
  * → 出力フィルタ → 表示。この順序を変えない（マスキング前のテキストを外部へ送らない）。
  */
 
+/** 利用者の入力起因のエラー（400にしてよいもの）。それ以外はサーバー都合として扱う */
+export class ValidationError extends Error {}
+
 export const TUTOR_SYSTEM_PROMPT = [
   "あなたはNext Gen AI SchoolのAI講師です。受講生には小学生からシニアまでが含まれます。",
   "・平易な日本語で答え、専門用語には言い換えを添える",
@@ -30,10 +33,10 @@ export async function answerQuestion(
   client: AiClient = createAiClient(),
 ): Promise<TutorAnswer> {
   if (question.trim().length === 0) {
-    throw new Error("質問を入力してください");
+    throw new ValidationError("質問を入力してください");
   }
   if (question.length > 2000) {
-    throw new Error("質問は2,000文字以内で入力してください");
+    throw new ValidationError("質問は2,000文字以内で入力してください");
   }
 
   const { masked, piiDetected } = maskPersonalInfo(question);

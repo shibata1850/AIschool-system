@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { resetStore, setRole } from "../helpers";
 
 /**
  * 回帰テスト（2026-07-03 コード監査の指摘#3・#4）:
@@ -6,16 +7,9 @@ import { expect, test, type Page } from "@playwright/test";
  * - スコア空欄のままの確定が0点にならない
  */
 
-async function setRole(page: Page, role: "student" | "teacher") {
-  await page.context().addCookies([
-    { name: "role", value: role, domain: "localhost", path: "/" },
-  ]);
-}
 
 test.beforeEach(async ({ request }) => {
-  await request.post("/api/dev/reset", {
-    headers: { cookie: "role=teacher" },
-  });
+  await resetStore(request);
 });
 
 async function submitAsStudent(page: Page) {

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getCurrentStudentId } from "@/lib/auth";
 import { getStore } from "@/lib/f3/store";
 import { STATUS_LABELS } from "@/lib/f3/types";
 import { SubmissionForm } from "./submission-form";
@@ -17,7 +18,7 @@ export default async function ExercisePage({
   if (!assignment) notFound();
 
   const submission = [...store.submissions.values()].find(
-    (s) => s.assignmentId === id && s.studentId === "student-demo",
+    (s) => s.assignmentId === id && s.studentId === getCurrentStudentId(),
   );
   if (!submission) notFound();
 

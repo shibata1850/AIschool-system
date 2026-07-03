@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { resetStore, setRole } from "../helpers";
 
 /**
  * F4 学習ログ・到達度ダッシュボードのE2E（docs/テスト計画書.md 3章 F4）。
@@ -6,14 +7,9 @@ import { expect, test, type Page } from "@playwright/test";
  * （src/lib/f4/__tests__/achievement.test.ts）。
  */
 
-async function setRole(page: Page, role: "student" | "teacher") {
-  await page.context().addCookies([
-    { name: "role", value: role, domain: "localhost", path: "/" },
-  ]);
-}
 
 test.beforeEach(async ({ request }) => {
-  await request.post("/api/dev/reset");
+  await resetStore(request);
 });
 
 test("F4-N1 正常系: 週次レポートに到達度・出席率・提出率が並ぶ", async ({ page }) => {

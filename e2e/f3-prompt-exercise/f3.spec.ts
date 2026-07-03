@@ -1,15 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
+import { resetStore, setRole } from "../helpers";
 
 /**
  * F3 プロンプト演習のE2E（docs/テスト計画書.md 3章 F3）。
  * 4パス: 正常系 / 入力エラー系 / 権限系 / 境界値
  */
 
-async function setRole(page: Page, role: "student" | "teacher") {
-  await page.context().addCookies([
-    { name: "role", value: role, domain: "localhost", path: "/" },
-  ]);
-}
 
 async function submitAsStudent(page: Page, text: string) {
   await setRole(page, "student");
@@ -20,7 +16,7 @@ async function submitAsStudent(page: Page, text: string) {
 }
 
 test.beforeEach(async ({ request }) => {
-  await request.post("/api/dev/reset");
+  await resetStore(request);
 });
 
 test("F3-N1 正常系: 提出→AI採点→講師確認→完了（点数が受講生に見える）", async ({

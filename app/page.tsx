@@ -1,14 +1,34 @@
+import { cookies } from "next/headers";
 import Link from "next/link";
+import { getCurrentStudentId } from "@/lib/auth";
 import { getStore } from "@/lib/f3/store";
 import { STATUS_LABELS } from "@/lib/f3/types";
 
 export const dynamic = "force-dynamic";
 
-/** S1 受講生ホーム（docs/画面仕様書.md S1） */
-export default function Home() {
+/**
+ * S1 受講生ホーム（docs/画面仕様書.md S1）。
+ * ゲスト（体験会）には受講生の学習状況を表示しない
+ * （2026-07-03 監査指摘#6: 学習ログは要配慮データ）。
+ */
+export default async function Home() {
+  const role = (await cookies()).get("role")?.value ?? "student";
+
+  if (role === "guest") {
+    return (
+      <main>
+        <h1>Next Gen AI School へようこそ</h1>
+        <p>
+          体験会用のアカウントです。授業のようすは、スタッフがご案内します。
+        </p>
+      </main>
+    );
+  }
+
   const store = getStore();
+  const studentId = getCurrentStudentId();
   const items = [...store.submissions.values()]
-    .filter((s) => s.studentId === "student-demo" && s.status !== "completed")
+    .filter((s) => s.studentId === studentId && s.status !== "completed")
     .map((s) => ({
       submission: s,
       assignment: store.assignments.get(s.assignmentId),

@@ -2,6 +2,7 @@ import {
   computeWeeklyAchievements,
   latestAchievement,
 } from "@/lib/f4/achievement";
+import { getCurrentStudentId } from "@/lib/auth";
 import { LESSON_RECORDS } from "@/lib/f4/fixtures";
 
 export const dynamic = "force-dynamic";
@@ -11,8 +12,8 @@ export const dynamic = "force-dynamic";
  * 他人との比較は表示しない。下降時も否定的な表現を使わない。
  */
 export default function AchievementPage() {
-  // 参照実装ではデモ受講生（student-demo）固定。本番はログインユーザーのIDを使う
-  const records = LESSON_RECORDS["student-demo"] ?? [];
+  // 現在ユーザーのID取得は src/lib/auth.ts に集約（LTI実装時の置換点）
+  const records = LESSON_RECORDS[getCurrentStudentId()] ?? [];
   const weekly = computeWeeklyAchievements(records);
   const latest = latestAchievement(weekly);
 

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { applyAiGrade, resume, start, submit, TransitionError } from "@/lib/f3/stateMachine";
 import { createGrader } from "@/lib/f3/grading";
+import { getCurrentStudentId } from "@/lib/auth";
 import { getStore } from "@/lib/f3/store";
 
 /**
@@ -19,17 +20,22 @@ export async function POST(
   }
 
   const submission = [...store.submissions.values()].find(
-    (s) => s.assignmentId === id && s.studentId === "student-demo",
+    (s) => s.assignmentId === id && s.studentId === getCurrentStudentId(),
   );
   if (!submission) {
     return new NextResponse("提出データが見つかりません", { status: 404 });
   }
 
-  const body = (await request.json()) as {
+  let body: {
     promptText?: string;
     aiOutputText?: string;
     reflectionText?: string;
   };
+  try {
+    body = await request.json();
+  } catch {
+    return new NextResponse("リクエストの形式が正しくありません", { status: 400 });
+  }
 
   try {
     let next = submission;
