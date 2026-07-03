@@ -2,7 +2,8 @@ import {
   computeWeeklyAchievements,
   latestAchievement,
 } from "@/lib/f4/achievement";
-import { LESSON_RECORDS, STUDENTS } from "@/lib/f4/fixtures";
+import { getLessonRecords } from "@/lib/f3/store";
+import { STUDENTS } from "@/lib/f4/fixtures";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ export const dynamic = "force-dynamic";
  */
 export default function ReportPage() {
   const rows = STUDENTS.map((student) => {
-    const records = LESSON_RECORDS[student.id] ?? [];
+    const records = getLessonRecords(student.id);
     const weekly = computeWeeklyAchievements(records);
     const latest = latestAchievement(weekly);
     // 停滞アラート: 計測可能な直近2週で到達度が連続下降（要件定義書F4）

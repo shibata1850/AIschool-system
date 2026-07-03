@@ -3,17 +3,17 @@ import {
   latestAchievement,
 } from "@/lib/f4/achievement";
 import { getCurrentStudentId } from "@/lib/auth";
-import { LESSON_RECORDS } from "@/lib/f4/fixtures";
+import { getLessonRecords } from "@/lib/f3/store";
 
 export const dynamic = "force-dynamic";
 
 /**
  * S5 自分の到達度（docs/画面仕様書.md S5）。
  * 他人との比較は表示しない。下降時も否定的な表現を使わない。
+ * 学習記録はストア経由で取得する（成績確定が反映される — F3→F4連携）。
  */
 export default function AchievementPage() {
-  // 現在ユーザーのID取得は src/lib/auth.ts に集約（LTI実装時の置換点）
-  const records = LESSON_RECORDS[getCurrentStudentId()] ?? [];
+  const records = getLessonRecords(getCurrentStudentId());
   const weekly = computeWeeklyAchievements(records);
   const latest = latestAchievement(weekly);
 

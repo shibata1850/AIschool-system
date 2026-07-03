@@ -1,4 +1,4 @@
-import { getStore } from "@/lib/f3/store";
+import { CURRENT_ASSIGNMENT_ID, findSubmission, getLessonRecords } from "@/lib/f3/store";
 import { STATUS_LABELS, type ExerciseStatus } from "@/lib/f3/types";
 import { isAttendedWithoutSubmission, STUDENTS } from "@/lib/f4/fixtures";
 
@@ -20,7 +20,6 @@ const STATUS_COLORS: Record<ExerciseStatus, string> = {
 };
 
 export default async function MonitorPage() {
-  const store = getStore();
 
   return (
     <main style={{ maxWidth: "64rem" }}>
@@ -33,11 +32,9 @@ export default async function MonitorPage() {
         }}
       >
         {STUDENTS.map((student) => {
-          const submission = [...store.submissions.values()].find(
-            (s) => s.studentId === student.id,
-          );
+          const submission = findSubmission(CURRENT_ASSIGNMENT_ID, student.id);
           const status: ExerciseStatus = submission?.status ?? "not_started";
-          const attendedNoSubmit = isAttendedWithoutSubmission(student.id);
+          const attendedNoSubmit = isAttendedWithoutSubmission(getLessonRecords(student.id));
           return (
             <section
               key={student.id}

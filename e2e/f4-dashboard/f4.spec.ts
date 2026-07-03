@@ -45,6 +45,35 @@ test("F4-N2 正常系: 受講生の提出がモニタリングのタイルに反
   await expect(tile).toContainText("AI採点済");
 });
 
+test("F4-N3 正常系: 講師の成績確定が到達度・週次レポートに反映される（F3→F4連携）", async ({
+  page,
+}) => {
+  // 受講生が提出する
+  await setRole(page, "student");
+  await page.goto("/exercises/a1");
+  await page.getByLabel("プロンプト本文").fill("メロンパンの紹介文を書いて。");
+  await page.getByRole("button", { name: "提出する" }).click();
+  await expect(page.getByLabel("状態")).toContainText("AI採点済");
+
+  // 講師が90点で確定する
+  await setRole(page, "teacher");
+  await page.goto("/teacher/review");
+  await page.getByLabel(/講師スコア/).fill("90");
+  await page.getByRole("button", { name: "完了にする" }).click();
+  await expect(page.getByText("採点待ちの提出はありません")).toBeVisible();
+
+  // 受講生の到達度に反映される: 90*0.6 + 100*0.2 + 100*0.2 = 94
+  await setRole(page, "student");
+  await page.goto("/achievement");
+  await expect(page.getByLabel("2026-10-19の週")).toContainText("到達度 94");
+
+  // 週次レポートにも反映される
+  await setRole(page, "teacher");
+  await page.goto("/teacher/report");
+  const row = page.getByRole("row").filter({ hasText: "デモ生徒01" });
+  await expect(row).toContainText("94");
+});
+
 test("F4-E1 例外: 計測不能週は「記録がありません」と表示され0点にならない", async ({
   page,
 }) => {

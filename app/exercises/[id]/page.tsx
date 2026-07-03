@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { getCurrentStudentId } from "@/lib/auth";
-import { getStore } from "@/lib/f3/store";
+import { findSubmission, getStore } from "@/lib/f3/store";
 import { STATUS_LABELS } from "@/lib/f3/types";
+import { AutoRefresh } from "./auto-refresh";
 import { SubmissionForm } from "./submission-form";
 
 export const dynamic = "force-dynamic";
@@ -17,9 +18,7 @@ export default async function ExercisePage({
   const assignment = store.assignments.get(id);
   if (!assignment) notFound();
 
-  const submission = [...store.submissions.values()].find(
-    (s) => s.assignmentId === id && s.studentId === getCurrentStudentId(),
-  );
+  const submission = findSubmission(id, getCurrentStudentId());
   if (!submission) notFound();
 
   const editable = ["not_started", "in_progress", "returned"].includes(
@@ -28,12 +27,19 @@ export default async function ExercisePage({
 
   return (
     <main>
+      <AutoRefresh active={submission.status === "submitted"} />
       <h1>{assignment.title}</h1>
       <p aria-label="状態">
         いまの状態: <strong>{STATUS_LABELS[submission.status]}</strong>
         {submission.isLate && <strong>（遅延）</strong>}
         {submission.version > 1 && <span> ・第{submission.version}版</span>}
       </p>
+
+      {submission.status === "submitted" && (
+        <p aria-label="採点中" style={{ color: "var(--accent)" }}>
+          AIが採点中（さいてんちゅう）です。そのまま待っていてね…
+        </p>
+      )}
 
       <section aria-label="課題の説明" style={{ margin: "1rem 0" }}>
         <p>{assignment.description}</p>

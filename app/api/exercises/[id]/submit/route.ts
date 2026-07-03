@@ -3,11 +3,13 @@ import { applyAiGrade, resume, start, submit, TransitionError } from "@/lib/f3/s
 import { createGrader } from "@/lib/f3/grading";
 import { getCurrentStudentId } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit/log";
-import { getStore } from "@/lib/f3/store";
+import { findSubmission, getStore } from "@/lib/f3/store";
+import type { Assignment } from "@/lib/f3/types";
 
 /**
- * 受講生の提出（F3）: 取組中→提出済→（同期でAI一次採点）→AI採点済。
- * AI採点失敗時は提出済のまま保持する（F3例外5。リトライは今後実装）。
+ * 受講生の提出（F3）: 取組中→提出済。AI一次採点は応答返却後にバックグラウンドで
+ * 実行する（実プロバイダでは数十秒かかるため、提出応答をブロックしない）。
+ * AI採点失敗時は提出済のまま保持し、講師の手動採点で処理できる（F3例外5）。
  */
 export async function POST(
   request: NextRequest,
@@ -20,9 +22,7 @@ export async function POST(
     return new NextResponse("課題が見つかりません", { status: 404 });
   }
 
-  const submission = [...store.submissions.values()].find(
-    (s) => s.assignmentId === id && s.studentId === getCurrentStudentId(),
-  );
+  const submission = findSubmission(id, getCurrentStudentId());
   if (!submission) {
     return new NextResponse("提出データが見つかりません", { status: 404 });
   }
@@ -57,13 +57,7 @@ export async function POST(
       after: { status: next.status, version: next.version, isLate: next.isLate },
     });
 
-    try {
-      const grade = await createGrader().grade(assignment, next.promptText);
-      next = applyAiGrade(next, grade);
-      store.submissions.set(next.id, next);
-    } catch {
-      // AI採点失敗: 提出済のまま保持（受講生の提出は失わない）
-    }
+    void gradeInBackground(next.id, assignment);
 
     return NextResponse.json({ status: next.status, isLate: next.isLate });
   } catch (error) {
@@ -71,5 +65,37 @@ export async function POST(
       return new NextResponse(error.message, { status: 400 });
     }
     throw error;
+  }
+}
+
+/** バックグラウンドのAI一次採点。失敗しても提出は失わない（手動採点で処理可能） */
+async function gradeInBackground(
+  submissionId: string,
+  assignment: Assignment,
+): Promise<void> {
+  const store = getStore();
+  try {
+    const submitted = store.submissions.get(submissionId);
+    if (!submitted || submitted.status !== "submitted") return;
+    const grade = await createGrader().grade(assignment, submitted.promptText);
+    // 採点中に講師が手動処理した場合は上書きしない
+    const fresh = store.submissions.get(submissionId);
+    if (!fresh || fresh.status !== "submitted") return;
+    const next = applyAiGrade(fresh, grade);
+    store.submissions.set(next.id, next);
+    recordAudit({
+      actorRole: "system",
+      action: "update",
+      entity: "submission",
+      entityId: next.id,
+      before: { status: fresh.status },
+      after: { status: next.status, aiScore: grade.totalScore },
+    });
+  } catch (error) {
+    // 質問・提出本文はログしない（個人情報を含み得るため）
+    console.error(
+      "AI採点に失敗しました（提出は保持されます）:",
+      error instanceof Error ? error.message : error,
+    );
   }
 }

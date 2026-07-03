@@ -2,6 +2,7 @@ import type { LessonRecord } from "./achievement";
 
 /**
  * 参照実装用の架空データ（CLAUDE.md 2章: 実個人情報の使用禁止）。
+ * 学習記録の実体は src/lib/f3/store.ts が保持する（ここはシード値のみ）。
  * 本番はCanvas REST API（出席・提出・成績）からの収集に置き換える。
  */
 
@@ -22,12 +23,12 @@ export const STUDENTS: StudentProfile[] = [
 ];
 
 /**
- * 授業コマの学習記録（週次到達度の入力）。
+ * 授業コマの学習記録のシード値。
  * - 2026-10-12 の週はシステム障害を想定した「計測不能」コマ（F4例外3）
  * - s02 は最新コマが「出席・未提出」（F4例外4の表示確認用）
  * - s03 は途中入会（最新週のみレコードあり — F4例外1）
  */
-export const LESSON_RECORDS: Record<string, LessonRecord[]> = {
+export const SEED_LESSON_RECORDS: Record<string, LessonRecord[]> = {
   "student-demo": [
     { lessonId: "l1", weekStart: "2026-10-05", attended: true, submitted: true, score: 80 },
     { lessonId: "l2", weekStart: "2026-10-12", attended: false, submitted: false, score: null, dataMissing: true },
@@ -44,8 +45,7 @@ export const LESSON_RECORDS: Record<string, LessonRecord[]> = {
 };
 
 /** 最新コマが「出席・未提出」かどうか（S6のバッジ表示に使用） */
-export function isAttendedWithoutSubmission(studentId: string): boolean {
-  const records = LESSON_RECORDS[studentId];
+export function isAttendedWithoutSubmission(records: LessonRecord[] | undefined): boolean {
   if (!records || records.length === 0) return false;
   const latest = records[records.length - 1];
   return !latest.dataMissing && latest.attended && !latest.submitted;
