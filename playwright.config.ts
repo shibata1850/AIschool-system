@@ -7,7 +7,9 @@ import { defineConfig, devices } from "@playwright/test";
  */
 export default defineConfig({
   testDir: "./e2e",
-  fullyParallel: true,
+  // 参照実装は共有インメモリストアを使うため直列実行（並列だとリセットが衝突する）
+  fullyParallel: false,
+  workers: 1,
   forbidOnly: true, // .only を残したコミット禁止（CLAUDE.md 7章）
   retries: 0,
   reporter: "list",
