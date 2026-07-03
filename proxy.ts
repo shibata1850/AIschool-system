@@ -28,6 +28,7 @@ const NO_GUEST_PREFIXES = [
   "/exercises",
   "/api/exercises",
   "/achievement",
+  "/jupyter",
 ];
 
 function matchesPrefix(path: string, prefixes: string[]): boolean {

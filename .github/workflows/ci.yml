@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 依存関係のインストール
+        run: npm ci
+
+      - name: 型チェック
+        run: npm run typecheck
+
+      - name: 単体テスト
+        run: npm run test:unit
+
+      - name: 本番ビルド
+        run: npm run build
+
+      - name: Playwrightブラウザのインストール
+        run: npx playwright install --with-deps chromium
+
+      - name: E2Eテスト（正常・入力エラー・権限・境界値）
+        run: npx playwright test
+        env:
+          CI: "1"
+
+      - name: 失敗時のトレースを保存
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
