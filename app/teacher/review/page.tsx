@@ -42,6 +42,14 @@ export default async function ReviewPage() {
               </p>
               <h3 style={{ fontSize: "1rem", marginTop: "0.5rem" }}>提出されたプロンプト</h3>
               <p style={{ whiteSpace: "pre-wrap" }}>{submission.promptText}</p>
+              {submission.aiOutputText && (
+                <>
+                  <h3 style={{ fontSize: "1rem", marginTop: "0.5rem" }}>AIの実行結果（受講生の貼り付け）</h3>
+                  <p style={{ whiteSpace: "pre-wrap", color: "var(--fg-sub)" }}>
+                    {submission.aiOutputText}
+                  </p>
+                </>
+              )}
               {submission.aiGrade ? (
                 <>
                   <h3 style={{ fontSize: "1rem", marginTop: "0.5rem" }}>AI一次採点</h3>

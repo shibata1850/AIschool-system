@@ -1,5 +1,6 @@
 import {
   computeWeeklyAchievements,
+  isDeclining,
   latestAchievement,
 } from "@/lib/f4/achievement";
 import { getLessonRecords } from "@/lib/f3/store";
@@ -18,12 +19,7 @@ export default function ReportPage() {
     const records = getLessonRecords(student.id);
     const weekly = computeWeeklyAchievements(records);
     const latest = latestAchievement(weekly);
-    // 停滞アラート: 計測可能な直近2週で到達度が連続下降（要件定義書F4）
-    const measurable = weekly.filter((w) => w.measurable);
-    const declining =
-      measurable.length >= 3 &&
-      measurable[measurable.length - 1].total < measurable[measurable.length - 2].total &&
-      measurable[measurable.length - 2].total < measurable[measurable.length - 3].total;
+    const declining = isDeclining(weekly);
     return { student, weekly, latest, declining };
   }).filter((row) => row.weekly.length > 0);
 

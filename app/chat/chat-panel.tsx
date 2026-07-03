@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { postJson } from "@/lib/client/postJson";
 import { QUESTION_LIMIT } from "@/lib/f2/constants";
 
 interface ChatEntry {
@@ -8,6 +9,13 @@ interface ChatEntry {
   reply?: string;
   blocked: boolean;
   piiDetected: boolean;
+}
+
+interface ChatResponse {
+  maskedQuestion: string;
+  piiDetected: boolean;
+  blocked: boolean;
+  reply?: string;
 }
 
 /** S3 チャット本体: 「考え中」表示・10秒タイムアウト（F2例外1） */
@@ -26,39 +34,33 @@ export function ChatPanel() {
     setThinking(true);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10_000);
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ question }),
-        signal: controller.signal,
-      });
-      if (!res.ok) {
-        setError(await res.text());
-        return;
-      }
-      const answer = (await res.json()) as {
-        maskedQuestion: string;
-        piiDetected: boolean;
-        blocked: boolean;
-        reply?: string;
-      };
-      setEntries((prev) => [
-        ...prev,
-        {
-          question: answer.maskedQuestion,
-          reply: answer.reply,
-          blocked: answer.blocked,
-          piiDetected: answer.piiDetected,
-        },
-      ]);
-      setQuestion("");
-    } catch {
-      setError("時間がかかりすぎています。「もう一度きく」を押してください");
-    } finally {
-      clearTimeout(timeout);
-      setThinking(false);
+    const result = await postJson<ChatResponse>(
+      "/api/chat",
+      { question },
+      { signal: controller.signal },
+    );
+    clearTimeout(timeout);
+    setThinking(false);
+
+    if (!result.ok) {
+      setError(
+        result.aborted
+          ? "時間がかかりすぎています。「もう一度きく」を押してください"
+          : result.message,
+      );
+      return;
     }
+    const answer = result.data;
+    setEntries((prev) => [
+      ...prev,
+      {
+        question: answer.maskedQuestion,
+        reply: answer.reply,
+        blocked: answer.blocked,
+        piiDetected: answer.piiDetected,
+      },
+    ]);
+    setQuestion("");
   }
 
   return (
@@ -93,15 +95,7 @@ export function ChatPanel() {
           rows={3}
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          style={{
-            width: "100%",
-            fontSize: "1rem",
-            padding: "0.75rem",
-            background: "var(--bg-panel)",
-            color: "var(--fg)",
-            border: `2px solid ${overLimit ? "var(--error)" : "var(--fg-sub)"}`,
-            borderRadius: 8,
-          }}
+          className={`text-input${overLimit ? " text-input--error" : ""}`}
         />
         <p aria-live="polite" style={{ color: overLimit ? "var(--error)" : "var(--fg-sub)" }}>
           {overLimit

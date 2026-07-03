@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { postJson } from "@/lib/client/postJson";
 
 /**
  * S7 確認フォーム: 完了（講師スコア確定）または差戻し（コメント必須）。
@@ -42,23 +43,17 @@ export function ReviewForm({
       return;
     }
     setBusy(true);
-    try {
-      const res = await fetch(`/api/submissions/${submissionId}/review`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action, score, comment }),
-      });
-      if (!res.ok) {
-        setError(await res.text());
-        return;
-      }
-      router.refresh();
-    } catch {
-      // 監査指摘: ネットワーク断で無反応にならないよう必ずエラーを表示する
-      setError("送信できませんでした。通信を確認してもう一度押してください");
-    } finally {
-      setBusy(false);
+    const result = await postJson(`/api/submissions/${submissionId}/review`, {
+      action,
+      score,
+      comment,
+    });
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.message);
+      return;
     }
+    router.refresh();
   }
 
   return (
@@ -74,15 +69,8 @@ export function ReviewForm({
           max={100}
           value={scoreText}
           onChange={(e) => setScoreText(e.target.value)}
-          style={{
-            fontSize: "1rem",
-            padding: "0.5rem",
-            width: "6rem",
-            background: "var(--bg-panel)",
-            color: "var(--fg)",
-            border: "2px solid var(--fg-sub)",
-            borderRadius: 8,
-          }}
+          className="text-input"
+          style={{ width: "6rem", padding: "0.5rem" }}
         />
       </div>
       <div style={{ marginBottom: "0.75rem" }}>
@@ -98,15 +86,7 @@ export function ReviewForm({
           maxLength={1000}
           value={comment}
           onChange={(e) => setComment(e.target.value)}
-          style={{
-            width: "100%",
-            fontSize: "1rem",
-            padding: "0.75rem",
-            background: "var(--bg-panel)",
-            color: "var(--fg)",
-            border: "2px solid var(--fg-sub)",
-            borderRadius: 8,
-          }}
+          className="text-input"
         />
       </div>
       {error && (

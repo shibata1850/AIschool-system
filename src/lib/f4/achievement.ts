@@ -144,3 +144,14 @@ export function latestAchievement(
   }
   return null;
 }
+
+/**
+ * 停滞アラート: 計測可能な直近3週で到達度が2回連続下降しているか（S8）。
+ * 計測不能週は判定から除外する（0点扱いにしない規則と整合）。
+ */
+export function isDeclining(weekly: WeeklyAchievement[]): boolean {
+  const measurable = weekly.filter((w) => w.measurable);
+  if (measurable.length < 3) return false;
+  const [a, b, c] = measurable.slice(-3);
+  return c.total < b.total && b.total < a.total;
+}

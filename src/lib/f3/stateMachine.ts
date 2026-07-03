@@ -33,21 +33,21 @@ export function submit(
     );
   }
   const isLate = now.getTime() > new Date(assignment.deadline).getTime();
-  const versions =
-    submission.submittedAt !== undefined
-      ? [
-          ...submission.versions,
-          {
-            version: submission.version,
-            promptText: submission.promptText,
-            submittedAt: submission.submittedAt,
-          },
-        ]
-      : submission.versions;
+  const isResubmission = submission.submittedAt !== undefined;
+  const versions = isResubmission
+    ? [
+        ...submission.versions,
+        {
+          version: submission.version,
+          promptText: submission.promptText,
+          submittedAt: submission.submittedAt!,
+        },
+      ]
+    : submission.versions;
   return {
     ...submission,
     status: "submitted",
-    version: submission.submittedAt ? submission.version + 1 : submission.version,
+    version: isResubmission ? submission.version + 1 : submission.version,
     promptText: text,
     aiOutputText: input.aiOutputText ?? "",
     reflectionText: input.reflectionText ?? "",

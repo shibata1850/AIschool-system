@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { postJson } from "@/lib/client/postJson";
 
 /** S2 提出フォーム: 残り文字数を常時表示し、超過時は提出不可（F3例外4） */
 export function SubmissionForm({
@@ -13,6 +14,7 @@ export function SubmissionForm({
 }) {
   const router = useRouter();
   const [promptText, setPromptText] = useState("");
+  const [aiOutputText, setAiOutputText] = useState("");
   const [reflectionText, setReflectionText] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -23,22 +25,17 @@ export function SubmissionForm({
   async function handleSubmit() {
     setError("");
     setSubmitting(true);
-    try {
-      const res = await fetch(`/api/exercises/${assignmentId}/submit`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ promptText, reflectionText }),
-      });
-      if (!res.ok) {
-        setError(`送信できませんでした: ${await res.text()}`);
-        return;
-      }
-      router.refresh();
-    } catch {
-      setError("送信できませんでした。もう一度「提出する」を押してください");
-    } finally {
-      setSubmitting(false);
+    const result = await postJson(`/api/exercises/${assignmentId}/submit`, {
+      promptText,
+      aiOutputText,
+      reflectionText,
+    });
+    setSubmitting(false);
+    if (!result.ok) {
+      setError(result.message);
+      return;
     }
+    router.refresh();
   }
 
   return (
@@ -52,15 +49,7 @@ export function SubmissionForm({
           rows={8}
           value={promptText}
           onChange={(e) => setPromptText(e.target.value)}
-          style={{
-            width: "100%",
-            fontSize: "1rem",
-            padding: "0.75rem",
-            background: "var(--bg-panel)",
-            color: "var(--fg)",
-            border: `2px solid ${overLimit ? "var(--error)" : "var(--fg-sub)"}`,
-            borderRadius: 8,
-          }}
+          className={`text-input${overLimit ? " text-input--error" : ""}`}
         />
         <p
           aria-live="polite"
@@ -73,6 +62,20 @@ export function SubmissionForm({
       </div>
 
       <div style={{ marginBottom: "1rem" }}>
+        <label htmlFor="ai-output-text" style={{ display: "block", marginBottom: 4 }}>
+          AIの実行結果の貼り付け（なくても提出できます）
+        </label>
+        <textarea
+          id="ai-output-text"
+          rows={4}
+          maxLength={16000}
+          value={aiOutputText}
+          onChange={(e) => setAiOutputText(e.target.value)}
+          className="text-input"
+        />
+      </div>
+
+      <div style={{ marginBottom: "1rem" }}>
         <label htmlFor="reflection-text" style={{ display: "block", marginBottom: 4 }}>
           ふりかえりメモ（なくても提出できます）
         </label>
@@ -82,15 +85,7 @@ export function SubmissionForm({
           maxLength={500}
           value={reflectionText}
           onChange={(e) => setReflectionText(e.target.value)}
-          style={{
-            width: "100%",
-            fontSize: "1rem",
-            padding: "0.75rem",
-            background: "var(--bg-panel)",
-            color: "var(--fg)",
-            border: "2px solid var(--fg-sub)",
-            borderRadius: 8,
-          }}
+          className="text-input"
         />
       </div>
 
