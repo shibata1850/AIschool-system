@@ -8,7 +8,10 @@
 
 const EMAIL_PATTERN = /[\w.+-]+@[\w-]+\.[\w.-]+/g;
 const PHONE_PATTERN = /(?<!\d)0\d{1,4}-\d{1,4}-\d{3,4}(?!\d)|(?<!\d)0\d{9,10}(?!\d)/g;
-const POSTAL_PATTERN = /〒?\s?(?<!\d)\d{3}-\d{4}(?!\d)/g;
+// 郵便番号は〒プレフィックス必須。裸の「3桁-4桁」は「500-1000文字」のような
+// 数値範囲と区別できず、質問文を破壊する誤検出になるため対象外とする
+// （回帰: 2026-07-03 監査指摘#7）
+const POSTAL_PATTERN = /〒\s?\d{3}-\d{4}(?!\d)/g;
 
 export interface MaskResult {
   masked: string;

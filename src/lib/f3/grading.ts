@@ -1,7 +1,13 @@
 import { createAiClient, type AiClient } from "@/lib/ai";
+import { filterContent } from "@/lib/f2/contentFilter";
+import { maskPersonalInfo } from "@/lib/f2/masking";
 import type { AiGradeResult, Assignment } from "./types";
 
 export const GRADING_PROMPT_VERSION = "grading-v1";
+
+/** 講評がフィルタでブロックされたときに受講生へ見せる定型文 */
+export const BLOCKED_FEEDBACK_FALLBACK =
+  "講評（こうひょう）は先生が確認してから伝えます。";
 
 export interface Grader {
   grade(assignment: Assignment, promptText: string): Promise<AiGradeResult>;
@@ -25,11 +31,18 @@ export class MockGrader implements Grader {
   }
 }
 
-/** AI推論の抽象化レイヤー経由で採点する実装（JSON応答を検証して採用） */
+/**
+ * AI推論の抽象化レイヤー経由で採点する実装。
+ * F2チャットと同じ安全順序を守る（2026-07-03 監査指摘#1・#2の修正）:
+ * 提出文をマスキングしてから外部送信し、受講生に見せる講評は
+ * コンテンツフィルタを通す（ブロック時は定型文に差し替え）。
+ */
 export class AiGrader implements Grader {
   constructor(private client: AiClient) {}
 
   async grade(assignment: Assignment, promptText: string): Promise<AiGradeResult> {
+    const { masked } = maskPersonalInfo(promptText);
+
     const result = await this.client.complete({
       system: [
         "あなたはプロンプト演習の採点者です。受講生には小中高生も含まれます。",
@@ -39,9 +52,10 @@ export class AiGrader implements Grader {
       messages: [
         {
           role: "user",
-          content: `課題:「${assignment.title}」\n${assignment.description}\n\n提出されたプロンプト:\n${promptText}`,
+          content: `課題:「${assignment.title}」\n${assignment.description}\n\n提出されたプロンプト:\n${masked}`,
         },
       ],
+      maxTokens: 300, // 要求出力は短いJSONのみ。暴走出力の課金と遅延を抑える
     });
 
     const parsed = JSON.parse(result.content) as {
@@ -56,9 +70,15 @@ export class AiGrader implements Grader {
     ) {
       throw new Error("AI採点の応答形式が不正です（totalScore）");
     }
+
+    // 講評は受講生に表示されるため、未成年向けフィルタを必ず通す（CLAUDE.md 9章）
+    const feedback = filterContent(parsed.feedback).allowed
+      ? parsed.feedback
+      : BLOCKED_FEEDBACK_FALLBACK;
+
     return {
       totalScore: Math.round(parsed.totalScore),
-      feedback: parsed.feedback,
+      feedback,
       rationale: parsed.rationale,
       model: result.model,
       promptVersion: GRADING_PROMPT_VERSION,

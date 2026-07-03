@@ -14,11 +14,17 @@ describe("個人情報マスキング（F2例外4）", () => {
     );
   });
 
-  it("メールアドレス・郵便番号をマスクする", () => {
+  it("メールアドレス・〒付き郵便番号をマスクする", () => {
     const result = maskPersonalInfo("test.user+1@example.com と 〒020-0857");
     expect(result.masked).toContain("（メールアドレス）");
     expect(result.masked).toContain("（郵便番号）");
     expect(result.piiDetected).toBe(true);
+  });
+
+  it("回帰(2026-07-03 監査指摘#7): 数値範囲「500-1000文字」を郵便番号と誤検出しない", () => {
+    const result = maskPersonalInfo("500-1000文字で紹介文を書かせるには？");
+    expect(result.masked).toBe("500-1000文字で紹介文を書かせるには？");
+    expect(result.piiDetected).toBe(false);
   });
 
   it("個人情報がなければ原文のまま・検出フラグなし", () => {
