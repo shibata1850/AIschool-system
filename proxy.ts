@@ -16,9 +16,28 @@ export function proxy(request: NextRequest) {
       { status: 403, headers: { "content-type": "text/plain; charset=utf-8" } },
     );
   }
+
+  // ゲスト（体験会）は教材閲覧のみ。AIチャット・演習提出は不可（権限マトリクス 5.1）
+  const noGuest =
+    path.startsWith("/chat") ||
+    path.startsWith("/api/chat") ||
+    path.startsWith("/api/exercises");
+  if (noGuest && role === "guest") {
+    return new NextResponse(
+      "この機能を使う権限がありません（受講生として登録すると使えます）",
+      { status: 403, headers: { "content-type": "text/plain; charset=utf-8" } },
+    );
+  }
+
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/teacher/:path*", "/api/submissions/:path*"],
+  matcher: [
+    "/teacher/:path*",
+    "/api/submissions/:path*",
+    "/chat",
+    "/api/chat",
+    "/api/exercises/:path*",
+  ],
 };

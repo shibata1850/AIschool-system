@@ -34,6 +34,14 @@ export default function Home() {
           ))}
         </ul>
       )}
+      <nav aria-label="そのほかのページ" style={{ marginTop: "2rem", display: "flex", gap: "1rem" }}>
+        <Link href="/chat" className="button" style={{ display: "inline-block", textDecoration: "none" }}>
+          AI講師にきく
+        </Link>
+        <Link href="/achievement" className="button" style={{ display: "inline-block", textDecoration: "none" }}>
+          じぶんの到達度
+        </Link>
+      </nav>
     </main>
   );
 }
