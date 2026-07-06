@@ -16,13 +16,23 @@
 Canvas LMSの公式リポジトリ（instructure/canvas-lms）の手順に従う。
 バージョンにより手順が変わるため、必ずリポジトリ同梱のドキュメントを正とする:
 
-1. 公式リポジトリを取得する（本体は改変しないため、fork せず clone のみ）
-2. リポジトリ内の `doc/docker/`（`developing_with_docker.md`・`./script/docker_dev_setup.sh`）
-   に従って Rails・PostgreSQL・Redis のコンテナ群を起動する
+構築の実行部は **`infra/canvas/setup-staging.sh`** に用意済み（サーバー上で
+`bash setup-staging.sh` を実行するだけ。動作確認済み）。行うことは:
+
+1. 公式リポジトリを**バージョン固定で**取得する（2026-07-06時点の固定先:
+   `stable/2026-05-20`。本体は改変しないため fork せず clone のみ。
+   **Canvasのソースを本リポジトリや自組織のGitHubへコピーしない** —
+   セキュリティ更新の追従責任を抱え込むため）
+2. Canvas同梱の `doc/docker/`（`developing_with_docker.md`・
+   `./script/docker_dev_setup.sh`）に従って Rails・PostgreSQL・Redis の
+   コンテナ群を起動する
 3. 初回セットアップで管理者アカウントとルートアカウント名を設定する
    （管理者のメール・パスワードは架空値でなく実運用値。パスワード管理台帳へ）
 4. 授業時間帯（平日夕方〜夜・土日）を避けて作業する。メンテナンス窓は
    日曜5:00-7:00（要件定義書F1例外4）
+
+バージョン更新は `setup-staging.sh` 内の `CANVAS_REF` を変えてコミット
+（いつ・どの版に上げたかをgit履歴で追える）。
 
 【注意1】`doc/docker/` の構成は開発・検証向け。本番（10月開校）は公式の
 Production Start ガイドに沿って再構築し、バックアップ（日次スナップショット

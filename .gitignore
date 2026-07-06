@@ -8,8 +8,10 @@ out/
 
 # 環境変数（シークレットは絶対にコミットしない — CLAUDE.md 2章）
 # .env.development / .env.production 等の変種も含めてすべて除外する
+# 見本（*.example）のみ架空値でコミット可
 .env*
 !.env.example
+!.env.staging.example
 
 # テスト成果物
 test-results/
