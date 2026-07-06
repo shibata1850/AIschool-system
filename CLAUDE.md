@@ -31,7 +31,7 @@
 [クラウド層] Canvas LMS OSS（Docker: Rails + PostgreSQL + Redis）
      │        ホスティング先: さくらのクラウド or AWS（未決 → docs/未決事項 #2）
      │ HTTPS / LTI 1.3 / REST API
-[サーバー層] NVIDIA L40S 48GB（校舎内オンプレ）
+[サーバー層] HP Z4 G5 + NVIDIA RTX 6000 Ada 48GB（校舎内オンプレGPUサーバー）
      │        AI講師推論・CloudXR配信・JupyterHub
      │ 校内LAN: Aruba AP-655 ×8 / Mellanox 100GbE コアSW
 [端末層]     下記4デバイス構成
@@ -44,7 +44,7 @@
 | デバイス | 台数 | 接続元 | 用途 |
 |---|---|---|---|
 | GOOVIS G3 MAX | 16 | ASUS NUC 13 Pro ×16 に直結 | 通常演習の個人画面（Canvas・Jupyter・プロンプト演習） |
-| Meta Quest 3 | 16 | L40S から CloudXR 配信 | VR/MR 没入授業（AI講師） |
+| Meta Quest 3 | 16 | 校内GPUサーバーから CloudXR 配信 | VR/MR 没入授業（AI講師） |
 | ASKA3D-Plate | 2 | 専用出力 | 裸眼・空中ディスプレイ（共有デモ、ローテーション運用） |
 | NearHub S65 + Aladdin X2 Light | 各1 | 講師機 HP Z4 G5 | 講師画面の教室投影・板書 |
 
@@ -61,8 +61,8 @@
 
 - Canvas LMS: OSS版最新安定リリース、Docker Compose 構成
 - カスタム層: TypeScript / Next.js（LTI 1.3 ツール、ダッシュボード）
-- AI推論: L40S 上のローカルLLM か Claude API か未決（未決事項 #3）。**推論クライアントは必ず抽象化レイヤー（interface）を挟み、後から切替可能に実装する**
-- 演習環境: JupyterHub（L40S 上、受講生16名同時）
+- AI推論: 校内GPUサーバー上のローカルLLM か Claude API か未決（未決事項 #3）。**推論クライアントは必ず抽象化レイヤー（interface）を挟み、後から切替可能に実装する**
+- 演習環境: JupyterHub（校内GPUサーバー上、受講生16名同時）
 - E2E: Playwright
 
 ## 6. 開発環境

@@ -1,6 +1,6 @@
 /**
  * AI推論クライアントの抽象化レイヤー（CLAUDE.md 5章・未決事項#3）。
- * 推論基盤（Claude API / L40SローカルLLM）は本interfaceの実装として提供し、
+ * 推論基盤（Claude API / 校内GPUサーバーのローカルLLM）は本interfaceの実装として提供し、
  * 呼び出し側は環境変数 AI_PROVIDER の切替のみで基盤を変更できる。
  */
 

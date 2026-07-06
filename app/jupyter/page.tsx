@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * S4 Jupyter演習（docs/画面仕様書.md S4）。
- * JupyterHub（校内L40S）へのワンタップ導線。参照実装では接続先を環境変数で
+ * JupyterHub（校内GPUサーバー）へのワンタップ導線。参照実装では接続先を環境変数で
  * 指定し、未設定時は準備中の案内を表示する。本番はLTI連携で再ログイン不要にする。
  */
 export default function JupyterPage() {

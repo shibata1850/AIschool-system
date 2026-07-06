@@ -8,7 +8,7 @@ export type { AiClient, AiCompletionRequest, AiCompletionResult, AiMessage } fro
  * 環境変数 AI_PROVIDER に従って推論クライアントを生成する。
  * - mock（既定）: 外部通信なし。開発・E2E用
  * - claude: Claude API（ANTHROPIC_API_KEY 必須）
- * - local: L40SローカルLLM（未実装 — 未決事項#3確定後に追加）
+ * - local: 校内GPUサーバーのローカルLLM（未実装 — 未決事項#3確定後に追加）
  */
 export function createAiClient(
   env: Record<string, string | undefined> = process.env,
