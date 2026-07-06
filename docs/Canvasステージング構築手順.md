@@ -17,16 +17,27 @@ Canvas LMSの公式リポジトリ（instructure/canvas-lms）の手順に従う
 バージョンにより手順が変わるため、必ずリポジトリ同梱のドキュメントを正とする:
 
 1. 公式リポジトリを取得する（本体は改変しないため、fork せず clone のみ）
-2. リポジトリ内の `doc/docker/` にあるDocker構築ドキュメントに従って
-   Rails・PostgreSQL・Redis のコンテナ群を起動する
+2. リポジトリ内の `doc/docker/`（`developing_with_docker.md`・`./script/docker_dev_setup.sh`）
+   に従って Rails・PostgreSQL・Redis のコンテナ群を起動する
 3. 初回セットアップで管理者アカウントとルートアカウント名を設定する
    （管理者のメール・パスワードは架空値でなく実運用値。パスワード管理台帳へ）
 4. 授業時間帯（平日夕方〜夜・土日）を避けて作業する。メンテナンス窓は
    日曜5:00-7:00（要件定義書F1例外4）
 
-【注意】`doc/docker/` の構成は開発・検証向け。本番（10月開校）は公式の
+【注意1】`doc/docker/` の構成は開発・検証向け。本番（10月開校）は公式の
 Production Start ガイドに沿って再構築し、バックアップ（日次スナップショット
 ＋7日保持 — 要件定義書8章）を必ず設定する。
+
+【注意2】Docker Hub の `instructure/canvas-lms` イメージは約7年更新されて
+おらず使用しない。コミュニティ製イメージも非公式のため採用しない。
+**保守された公式本番イメージは存在しない**ので、ステージングは上記の同梱
+docker-compose 構成、本番はリポジトリ同梱 `Dockerfile` からの自前ビルドとする
+（調査根拠: docs/Canvas調査メモ.md 6章）。
+
+【注意3】セルフホストでも**レート制限が既定で有効**（超過時は403）。カスタム層
+からの応答判別を単純にするため、ステージング構築時に管理コンソールで
+`request_throttle.send_429_response=true` を設定し、429を返す構成にする
+（調査メモ2章。カスタム層クライアントは403/429どちらでも再試行する実装済み）。
 
 ## 3. カスタム層（本リポジトリ）との接続設定
 
@@ -52,13 +63,28 @@ curl -H "Authorization: Bearer %CANVAS_API_TOKEN%" %CANVAS_BASE_URL%/api/v1/user
 ```
 
 カスタム層のクライアント実装は `src/lib/canvas/client.ts`
-（接続確認 getSelf / コース一覧 / 提出一覧 / 成績反映）。
+（接続確認 getSelf / コース一覧 / 受講生名簿 / 提出一覧 / 成績反映。
+全一覧はLinkヘッダーで全ページ取得、レート制限時は自動再試行）。
 
 ### 3.3 LTI 1.3 の開発者キー登録（AIチャット・演習ツールの埋め込み用）
 
 1. 管理者 → 開発者キー →「+ 開発者キー」→「+ LTIキー」
-2. ターゲットURI等にカスタム層のURLを設定（詳細はLTI実装時に追記する）
-3. 発行された Client ID を控える
+2. JSON設定に次の必須フィールドを入れる（値はLTI実装時に確定）:
+   `title` / `description` / `target_link_uri` / `oidc_initiation_url` /
+   `public_jwk`（または `public_jwk_url`）/ extensions 内 `privacy_level`
+3. キーの状態を **ON** に切り替える
+4. コース（またはアカウント）の「外部アプリ」で **Client ID** を入力してインストール
+
+カスタム層側で用意する3エンドポイント（LTI実装タスク）:
+(a) OIDCログイン開始URL、(b) target link URI（id_token JWTの検証・起動）、
+(c) JWKSエンドポイント（公開鍵セット）。詳細は docs/Canvas調査メモ.md 7章
+
+### 3.4 出席データの方針
+
+Canvas本体に出席用REST APIは**存在しない**（公式のRoll Call AttendanceはLTI別体で、
+セルフホストでは自前デプロイ＋S3互換ストレージが必要になり16名規模には過大）。
+出席はカスタム層で独自管理し、必要に応じて成績としてCanvasへ書き戻す方針を推奨
+（docs/未決事項.md #11、調査メモ5章）。
 
 ## 4. 接続後にカスタム層側で行う作業（開発タスク）
 
