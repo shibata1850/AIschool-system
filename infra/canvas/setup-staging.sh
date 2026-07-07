@@ -76,6 +76,28 @@ else
 fi
 echo "[OK] 権限調整完了"
 
+# 上流の壊れた依存の回避（${CANVAS_REF} 時点で発生）:
+# 開発用リンター xsslint が yarn.lock で固定するコミットがGitHubから削除され、
+# yarn install が 404 で失敗する。xsslint は lint:xss（開発時のXSSチェック）専用で
+# Canvasの動作には不要なため、参照を外す。Canvasの機能は一切変更しない。
+# 参照が生きているバージョンでは grep が空振りして何もしない（冪等）。
+if grep -q 'instructure/xsslint' "${CANVAS_DIR}/package.json" 2>/dev/null; then
+  echo "壊れた開発用依存 xsslint を除去しています（上流バグ回避・動作には影響なし）..."
+  python3 - "${CANVAS_DIR}/package.json" <<'PY'
+import json, sys
+f = sys.argv[1]
+p = json.load(open(f))
+p.get("devDependencies", {}).pop("xsslint", None)
+p.get("dependencies", {}).pop("xsslint", None)
+json.dump(p, open(f, "w"), indent=2, ensure_ascii=False)
+open(f, "a").write("\n")
+PY
+  awk '/^xsslint@instructure\/xsslint#babel7:/{s=1} s{if($0==""){s=0}; next} {print}' \
+    "${CANVAS_DIR}/yarn.lock" > "${CANVAS_DIR}/yarn.lock.tmp" \
+    && mv "${CANVAS_DIR}/yarn.lock.tmp" "${CANVAS_DIR}/yarn.lock"
+  echo "[OK] xsslint 除去完了"
+fi
+
 # ---- 3. 以降はCanvas同梱のセットアップに委ねる ------------------------------
 cat <<EOS
 

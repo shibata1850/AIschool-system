@@ -124,6 +124,29 @@ cd ~/canvas-lms
 - 恒久対策: `infra/canvas/setup-staging.sh` がクローン直後に権限調整を行う
   よう修正済み（再構築時は再発しない）
 
+### Yarn install が xsslint の 404 で失敗する
+
+- 症状: `Yarn install [FAIL]`、ログに
+  `codeload.github.com/instructure/xsslint/tar.gz/<sha>: 404 Not Found`
+- 原因: Canvasが開発用リンター `xsslint` を固定コミットで参照しているが、
+  そのコミットが上流（instructure/xsslint の babel7 ブランチ）から削除され、
+  取得不能になっている（2026-07-07 時点で `stable/2026-05-20` に発生）
+- 影響: `xsslint` は `lint:xss`（開発時のXSS静的チェック）専用で、Canvasの
+  動作・API・LTIには**一切不要**。除去してもステージングの動作に影響なし
+- 対処（実サーバーでこの手順で解消）:
+
+```
+cd ~/canvas-lms
+python3 -c "import json; p=json.load(open('package.json')); p.get('devDependencies',{}).pop('xsslint',None); p.get('dependencies',{}).pop('xsslint',None); json.dump(p, open('package.json','w'), indent=2, ensure_ascii=False); open('package.json','a').write('\n')"
+awk '/^xsslint@instructure\/xsslint#babel7:/{s=1} s{if($0==""){s=0}; next} {print}' yarn.lock > yarn.lock.tmp && mv yarn.lock.tmp yarn.lock
+./script/docker_dev_setup.sh
+```
+
+- 恒久対策: `infra/canvas/setup-staging.sh` がクローン後に、この参照が
+  残っている場合のみ自動で除去する（冪等。参照が生きている版では何もしない）
+- 補足: これはCanvasの機能変更ではなく上流の壊れた依存への回避であり、
+  「本体を改変しない」規約（CLAUDE.md 2章）の趣旨には反しない
+
 ## 6. やってはいけないこと
 
 - Canvas本体ソースの改変・フォーク（CLAUDE.md 絶対ルール）
