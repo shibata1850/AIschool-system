@@ -104,7 +104,27 @@ Canvas本体に出席用REST APIは**存在しない**（公式のRoll Call Atte
 3. ステージングに対するE2Eの実行（テストデータは架空受講生のみ — CLAUDE.md 2章）
 4. 16クライアント模擬負荷の実施（docs/テスト計画書.md 4章）
 
-## 5. やってはいけないこと
+## 5. トラブルシューティング（構築時の既知問題）
+
+### Bundle install が「write permissions」エラーで失敗する
+
+- 症状: `There was an error while trying to write to /usr/src/app/Gemfile.lock ...
+  grant write permissions` で `docker_dev_setup.sh` が停止する
+- 原因: コンテナ内ユーザー（uid 9999）がホスト側のマウント先へ書き込めない
+  （Linux実機の既知問題。公式 doc/docker/developing_with_docker.md の
+  Troubleshooting > Permissions）
+- 対処（2026-07-07 実サーバーで発生・この手順で解消）:
+
+```
+sudo chmod -R a+rwX ~/canvas-lms
+cd ~/canvas-lms
+./script/docker_dev_setup.sh
+```
+
+- 恒久対策: `infra/canvas/setup-staging.sh` がクローン直後に権限調整を行う
+  よう修正済み（再構築時は再発しない）
+
+## 6. やってはいけないこと
 
 - Canvas本体ソースの改変・フォーク（CLAUDE.md 絶対ルール）
 - アクセストークン・DBパスワードのリポジトリへのコミット

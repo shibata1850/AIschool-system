@@ -65,6 +65,17 @@ else
 fi
 echo "[OK] クローン完了: $(git -C "${CANVAS_DIR}" rev-parse --short HEAD)（${CANVAS_REF}）"
 
+# Linux実機での既知問題対策: コンテナ内ユーザー（uid 9999）がマウント先へ
+# 書き込めず Bundle install が失敗するため、全体を書き込み可能にしておく
+# （公式 doc/docker/developing_with_docker.md の Troubleshooting > Permissions）
+echo "権限を調整しています（コンテナからの書き込み許可）..."
+if command -v sudo >/dev/null 2>&1; then
+  sudo chmod -R a+rwX "${CANVAS_DIR}"
+else
+  chmod -R a+rwX "${CANVAS_DIR}"
+fi
+echo "[OK] 権限調整完了"
+
 # ---- 3. 以降はCanvas同梱のセットアップに委ねる ------------------------------
 cat <<EOS
 
