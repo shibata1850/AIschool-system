@@ -46,6 +46,17 @@ export interface CanvasSubmission {
   late: boolean;
 }
 
+export interface CanvasAssignment {
+  id: number;
+  name: string;
+  /** 課題説明（HTMLを含み得る） */
+  description: string | null;
+  points_possible: number | null;
+  /** 提出期限（ISO 8601）。未設定なら null */
+  due_at: string | null;
+  published: boolean;
+}
+
 /**
  * Linkヘッダーから rel="next" のURLを取り出す（RFC 5988 / Canvasのページネーション）。
  * 例: <https://canvas/api/v1/courses?page=2&per_page=100>; rel="next", <...>; rel="last"
@@ -159,6 +170,13 @@ export class CanvasClient {
   async listStudents(courseId: number): Promise<CanvasUser[]> {
     return this.requestAllPages<CanvasUser>(
       `/api/v1/courses/${courseId}/users?enrollment_type[]=student&per_page=100`,
+    );
+  }
+
+  /** コースの課題一覧（F3: プロンプト演習の出題元・全ページ取得） */
+  async listAssignments(courseId: number): Promise<CanvasAssignment[]> {
+    return this.requestAllPages<CanvasAssignment>(
+      `/api/v1/courses/${courseId}/assignments?per_page=100`,
     );
   }
 
