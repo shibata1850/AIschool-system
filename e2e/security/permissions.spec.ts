@@ -60,6 +60,11 @@ const PAGES: Array<{ path: string; name: string; allowed: Record<Role, boolean> 
     name: "S10 監査ログ閲覧",
     allowed: { student: false, teacher: false, admin: true, guest: false },
   },
+  {
+    path: "/admin/canvas",
+    name: "Canvas連携状況",
+    allowed: { student: false, teacher: false, admin: true, guest: false },
+  },
 ];
 
 const ROLES: Role[] = ["student", "teacher", "admin", "guest"];

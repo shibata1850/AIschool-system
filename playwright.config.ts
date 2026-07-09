@@ -39,5 +39,12 @@ export default defineConfig({
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
+    // E2Eは決定的にする: ローカルに .env（Canvas接続情報）があっても
+    // 未接続（デモモード）として動かす。実接続の表示確認はステージングで行う
+    env: {
+      ...process.env,
+      CANVAS_BASE_URL: "",
+      CANVAS_API_TOKEN: "",
+    },
   },
 });
