@@ -3,17 +3,30 @@
  * - GOOVIS越しの視認性最優先: 本文16px以上・ダークテーマ標準
  * - Quest 3 (CloudXR圧縮): 高コントラスト・細線禁止
  * - NearHub タッチ: タップターゲット44px以上
+ * デザイントークンはこの1ファイルに集約し、各画面は素のセマンティックHTML＋
+ * 共通クラス（.card / .banner / .badge / .actions 等）で組む。
  */
 
 :root {
-  --bg: #101418;
-  --bg-panel: #1a2027;
-  --fg: #e8edf2;
-  --fg-sub: #aab4bf;
+  --bg: #0e1216;
+  --bg-elev: #161c23;
+  --bg-panel: #1b232c;
+  --bg-panel-2: #212b35;
+  --line: #2b3742;
+  --fg: #eef3f8;
+  --fg-sub: #9fb0be;
   --accent: #4db6ff;
-  --ok: #4caf7d;
-  --warn: #e0a030;
-  --error: #e05c5c;
+  --accent-strong: #7cc9ff;
+  --accent-ink: #06222f;
+  --ok: #46c98a;
+  --ok-bg: rgba(70, 201, 138, 0.12);
+  --warn: #eeb04a;
+  --warn-bg: rgba(238, 176, 74, 0.12);
+  --error: #ff6b6b;
+  --error-bg: rgba(255, 107, 107, 0.12);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
 }
 
 * {
@@ -23,59 +36,294 @@
 }
 
 html {
-  font-size: 16px; /* 本文16px以上（GOOVIS制約） */
+  font-size: 17px; /* 本文16px以上（GOOVIS制約）。17pxで判読性を上げる */
 }
 
 body {
-  background: var(--bg);
+  background: radial-gradient(1200px 600px at 50% -10%, #16202b 0%, var(--bg) 60%);
   color: var(--fg);
   font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI",
     sans-serif;
   line-height: 1.8;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 
-main {
-  max-width: 720px;
+/* ---- アプリ共通シェル（ヘッダー／本文／フッター） ------------------------ */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-header {
+  border-bottom: 1px solid var(--line);
+  background: rgba(14, 18, 22, 0.7);
+  backdrop-filter: blur(8px);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.app-header__inner,
+.app-footer__inner {
+  max-width: 900px;
   margin: 0 auto;
-  padding: 2rem 1.5rem;
+  padding: 0.85rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-decoration: none;
+  color: var(--fg);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.brand__mark {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--accent), #2f8fd6);
+  color: var(--accent-ink);
+  font-size: 0.9rem;
+}
+
+.brand__name {
+  font-size: 1.05rem;
+}
+
+.app-footer {
+  margin-top: auto;
+  border-top: 1px solid var(--line);
+  color: var(--fg-sub);
+  font-size: 0.9rem;
+}
+
+/* ---- 本文レイアウト ------------------------------------------------------ */
+main {
+  width: 100%;
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 2.25rem 1.5rem 3rem;
+  flex: 1;
 }
 
 h1 {
-  font-size: 1.75rem;
+  font-size: 1.85rem;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+  margin-bottom: 0.5rem;
+}
+
+h2 {
+  font-size: 1.35rem;
+  margin: 1.75rem 0 0.75rem;
+}
+
+h3 {
+  font-size: 1.12rem;
+  margin: 1.25rem 0 0.5rem;
+}
+
+p {
+  margin: 0.5rem 0;
+}
+
+a {
+  color: var(--accent-strong);
+}
+
+.muted {
+  color: var(--fg-sub);
+}
+
+.lead {
+  color: var(--fg-sub);
   margin-bottom: 1.5rem;
 }
 
+/* ---- ボタン -------------------------------------------------------------- */
 button,
 a.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 44px; /* タップターゲット44px以上（NearHub制約） */
   min-width: 44px;
   font-size: 1rem;
-  padding: 0.6rem 1.4rem;
-  border-radius: 8px;
+  font-weight: 600;
+  padding: 0.6rem 1.35rem;
+  border-radius: var(--radius-sm);
   border: 2px solid var(--accent);
   background: transparent;
   color: var(--accent);
   cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.05s ease;
+}
+
+button:hover,
+a.button:hover {
+  background: rgba(77, 182, 255, 0.12);
+}
+
+button:active,
+a.button:active {
+  transform: translateY(1px);
+}
+
+.button--primary,
+button.button--primary {
+  background: linear-gradient(135deg, var(--accent), #2f8fd6);
+  border-color: transparent;
+  color: var(--accent-ink);
+}
+
+.button--primary:hover {
+  background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 button:focus-visible,
-a:focus-visible {
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 2px;
 }
 
-/* 入力欄の共通スタイル（4デバイス視認性の調整はここ1箇所で行う） */
-.text-input {
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  margin-top: 1.5rem;
+}
+
+/* ---- カード -------------------------------------------------------------- */
+.card {
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.15rem 1.25rem;
+  box-shadow: var(--shadow);
+}
+
+.card + .card {
+  margin-top: 0.85rem;
+}
+
+a.card {
+  display: block;
+  text-decoration: none;
+  color: var(--fg);
+  transition: border-color 0.15s ease, transform 0.05s ease, background-color 0.15s ease;
+}
+
+a.card:hover {
+  border-color: var(--accent);
+  background: var(--bg-panel-2);
+}
+
+.card-list {
+  list-style: none;
+  margin: 1rem 0;
+}
+
+/* ---- バッジ -------------------------------------------------------------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: var(--bg-panel-2);
+  color: var(--fg-sub);
+  border: 1px solid var(--line);
+}
+
+.badge--ok { color: var(--ok); border-color: var(--ok); background: var(--ok-bg); }
+.badge--warn { color: var(--warn); border-color: var(--warn); background: var(--warn-bg); }
+.badge--accent { color: var(--accent); border-color: var(--accent); background: rgba(77, 182, 255, 0.12); }
+
+/* ---- バナー（お知らせ・状態表示） --------------------------------------- */
+.banner {
+  padding: 1rem 1.15rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+}
+
+.banner--ok { border-color: var(--ok); background: var(--ok-bg); }
+.banner--warn { border-color: var(--warn); background: var(--warn-bg); }
+.banner--error { border-color: var(--error); background: var(--error-bg); }
+.banner__title { font-weight: 700; margin-bottom: 0.25rem; }
+
+/* ---- テーブル ------------------------------------------------------------ */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.75rem 0.85rem;
+}
+
+thead th {
+  background: var(--bg-panel-2);
+  border-bottom: 1px solid var(--line);
+  font-size: 0.95rem;
+  color: var(--fg-sub);
+}
+
+tbody tr + tr td {
+  border-top: 1px solid var(--line);
+}
+
+/* ---- 入力欄 -------------------------------------------------------------- */
+.text-input,
+input[type="text"],
+input[type="number"],
+textarea {
   width: 100%;
   font-size: 1rem;
-  padding: 0.75rem;
-  background: var(--bg-panel);
+  font-family: inherit;
+  padding: 0.7rem 0.85rem;
+  background: var(--bg-elev);
   color: var(--fg);
-  border: 2px solid var(--fg-sub);
-  border-radius: 8px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.text-input:focus,
+input:focus,
+textarea:focus {
+  border-color: var(--accent);
 }
 
 .text-input--error {
   border-color: var(--error);
+}
+
+ul {
+  padding-left: 1.3rem;
 }
