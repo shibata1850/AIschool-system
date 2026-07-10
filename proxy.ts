@@ -19,6 +19,7 @@ const TEACHER_ONLY_PREFIXES = [
   "/api/submissions",
   "/api/devices",
   "/api/dev",
+  "/api/teacher",
 ];
 
 /** ゲスト（体験会）不可: 演習・チャット・到達度（トップと公開教材のみ閲覧可） */
