@@ -2,7 +2,7 @@ import {
   computeWeeklyAchievements,
   latestAchievement,
 } from "@/lib/f4/achievement";
-import { getCurrentStudentId } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 import { getLessonRecords } from "@/lib/f3/store";
 
 export const dynamic = "force-dynamic";
@@ -12,8 +12,9 @@ export const dynamic = "force-dynamic";
  * 他人との比較は表示しない。下降時も否定的な表現を使わない。
  * 学習記録はストア経由で取得する（成績確定が反映される — F3→F4連携）。
  */
-export default function AchievementPage() {
-  const records = getLessonRecords(getCurrentStudentId());
+export default async function AchievementPage() {
+  const { userId } = await getCurrentUser();
+  const records = getLessonRecords(userId);
   const weekly = computeWeeklyAchievements(records);
   const latest = latestAchievement(weekly);
 

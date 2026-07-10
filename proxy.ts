@@ -1,4 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { getLtiConfig } from "@/lib/lti/config";
+import { LTI_SESSION_COOKIE, verifySession } from "@/lib/lti/session";
+import { resolveEffectiveRole } from "@/lib/lti/resolve";
 
 /**
  * 権限ガード（docs/要件定義書.md 5.1）。
@@ -36,8 +39,24 @@ function matchesPrefix(path: string, prefixes: string[]): boolean {
   return prefixes.some((p) => path === p || path.startsWith(`${p}/`));
 }
 
-export function proxy(request: NextRequest) {
-  const role = request.cookies.get("role")?.value ?? "student";
+/**
+ * 有効なロールを解決する。LTIセッションがあればそれを正とし、無ければロールCookie
+ * （開発・デモ）。LTI設定済みでセッションが無ければ guest（Cookieロールは信用しない）。
+ */
+async function resolveRole(request: NextRequest): Promise<string> {
+  const token = request.cookies.get(LTI_SESSION_COOKIE)?.value;
+  const session = token
+    ? await verifySession(token, process.env.LTI_SESSION_SECRET ?? "")
+    : null;
+  return resolveEffectiveRole({
+    ltiRole: session?.role ?? null,
+    ltiConfigured: getLtiConfig() != null,
+    cookieRole: request.cookies.get("role")?.value,
+  });
+}
+
+export async function proxy(request: NextRequest) {
+  const role = await resolveRole(request);
   const path = request.nextUrl.pathname;
 
   if (matchesPrefix(path, ADMIN_ONLY_PREFIXES) && role !== "admin") {

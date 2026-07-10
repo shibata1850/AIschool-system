@@ -1,6 +1,5 @@
-import { cookies } from "next/headers";
 import Link from "next/link";
-import { getCurrentStudentId } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 import { getStore } from "@/lib/f3/store";
 import { STATUS_LABELS, type ExerciseStatus } from "@/lib/f3/types";
 
@@ -19,7 +18,7 @@ function badgeClass(status: ExerciseStatus): string {
  * （2026-07-03 監査指摘#6: 学習ログは要配慮データ）。
  */
 export default async function Home() {
-  const role = (await cookies()).get("role")?.value ?? "student";
+  const { role, userId } = await getCurrentUser();
 
   if (role === "guest") {
     return (
@@ -33,9 +32,8 @@ export default async function Home() {
   }
 
   const store = getStore();
-  const studentId = getCurrentStudentId();
   const items = [...store.submissions.values()]
-    .filter((s) => s.studentId === studentId && s.status !== "completed")
+    .filter((s) => s.studentId === userId && s.status !== "completed")
     .map((s) => ({
       submission: s,
       assignment: store.assignments.get(s.assignmentId),

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { resume, start, submit, TransitionError } from "@/lib/f3/stateMachine";
 import { runAiGrading } from "@/lib/f3/gradingTask";
-import { getCurrentStudentId } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit/log";
 import { findSubmission, getStore } from "@/lib/f3/store";
 
@@ -21,7 +21,8 @@ export async function POST(
     return new NextResponse("課題が見つかりません", { status: 404 });
   }
 
-  const submission = findSubmission(id, getCurrentStudentId());
+  const { userId } = await getCurrentUser();
+  const submission = findSubmission(id, userId);
   if (!submission) {
     return new NextResponse("提出データが見つかりません", { status: 404 });
   }

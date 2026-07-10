@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getCurrentStudentId } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 import { findSubmission, getStore } from "@/lib/f3/store";
 import { STATUS_LABELS } from "@/lib/f3/types";
 import { AutoRefresh } from "./auto-refresh";
@@ -18,7 +18,8 @@ export default async function ExercisePage({
   const assignment = store.assignments.get(id);
   if (!assignment) notFound();
 
-  const submission = findSubmission(id, getCurrentStudentId());
+  const { userId } = await getCurrentUser();
+  const submission = findSubmission(id, userId);
   if (!submission) notFound();
 
   const editable = ["not_started", "in_progress", "returned"].includes(
