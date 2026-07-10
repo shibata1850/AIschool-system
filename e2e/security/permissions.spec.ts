@@ -75,6 +75,11 @@ const PAGES: Array<{ path: string; name: string; allowed: Record<Role, boolean> 
     name: "成績入力（Canvas連携）",
     allowed: { student: false, teacher: true, admin: true, guest: false },
   },
+  {
+    path: "/teacher/summary",
+    name: "クラス成績サマリ（Canvas）",
+    allowed: { student: false, teacher: true, admin: true, guest: false },
+  },
 ];
 
 const ROLES: Role[] = ["student", "teacher", "admin", "guest"];
