@@ -1,3 +1,6 @@
+/** アプリ内のロール（本番はLTI 1.3のロールから写像する — src/lib/lti/roles.ts） */
+export type Role = "student" | "teacher" | "admin" | "guest";
+
 /**
  * 現在の受講生IDを返す。
  * 参照実装ではデモ受講生に固定。Canvas/LTI 1.3のログイン実装時は
