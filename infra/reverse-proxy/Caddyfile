@@ -1,0 +1,25 @@
+# Caddy 自動HTTPS リバースプロキシ（仮ドメイン sslip.io 用）
+#
+# 目的: ドメイン購入なしで、CanvasとカスタムP層を正式HTTPS（Let's Encrypt自動取得）で公開する。
+#       sslip.io により <label>.133-125-225-64.sslip.io が 133.125.225.64 へ自動解決される。
+# 前提: さくらのパケットフィルタで 80/443 を全開放（ACME HTTP-01チャレンジと配信に必要）。
+#       Canvasは 127.0.0.1:8080、カスタム層は 127.0.0.1:3001 で待受け（下記READMEの手順で移設）。
+# 使い方: docs/暫定ドメイン・HTTPS化手順.md
+#
+# ※ IPが変わったらホスト名も変える（133-125-225-64 の部分）。
+
+# ---- カスタム層（本リポジトリのNext.js） ----
+app.133-125-225-64.sslip.io {
+	encode gzip
+	reverse_proxy 127.0.0.1:3001
+}
+
+# ---- Canvas LMS本体 ----
+canvas.133-125-225-64.sslip.io {
+	encode gzip
+	# 大きめの提出・アップロードに備える
+	request_body {
+		max_size 100MB
+	}
+	reverse_proxy 127.0.0.1:8080
+}
