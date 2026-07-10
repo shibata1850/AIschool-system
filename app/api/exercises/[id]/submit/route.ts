@@ -21,8 +21,8 @@ export async function POST(
     return new NextResponse("課題が見つかりません", { status: 404 });
   }
 
-  const { userId } = await getCurrentUser();
-  const submission = findSubmission(id, userId);
+  const actor = await getCurrentUser();
+  const submission = findSubmission(id, actor.userId);
   if (!submission) {
     return new NextResponse("提出データが見つかりません", { status: 404 });
   }
@@ -60,7 +60,8 @@ export async function POST(
     });
     store.submissions.set(next.id, next);
     recordAudit({
-      actorRole: request.cookies.get("role")?.value ?? "student",
+      actorRole: actor.role,
+      actorId: actor.viaLti ? actor.userId : undefined,
       action: "update",
       entity: "submission",
       entityId: next.id,

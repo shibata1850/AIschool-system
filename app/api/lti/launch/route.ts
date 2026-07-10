@@ -17,13 +17,17 @@ export async function POST(request: NextRequest) {
     return new NextResponse("LTI_SESSION_SECRET が未設定です", { status: 500 });
   }
 
-  const form = await request.formData();
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch {
+    return new NextResponse("リクエストの形式が正しくありません", { status: 400 });
+  }
   const idToken = form.get("id_token")?.toString();
   const state = form.get("state")?.toString();
 
   const cookieState = request.cookies.get("lti_state")?.value;
   const nonce = request.cookies.get("lti_nonce")?.value;
-  const target = request.cookies.get("lti_target")?.value;
 
   if (!idToken || !state) {
     return new NextResponse("起動パラメータが不足しています", { status: 400 });
@@ -49,10 +53,19 @@ export async function POST(request: NextRequest) {
     sessionSecret,
   );
 
-  // 遷移先は自ホスト内のみ許可（それ以外はトップへ）
+  // 遷移先は id_token の検証済み target_link_uri を使い、自ホストのオリジンに限定する。
+  // Cookie由来の値や protocol-relative（//evil.com）によるオープンリダイレクトを防ぐため、
+  // URLとして解析してオリジン一致を確認し、pathname（必ず単一スラッシュ始まり）のみ使う。
   let dest = "/";
-  if (target && target.startsWith(`${cfg.toolUrl}/`)) {
-    dest = target.slice(cfg.toolUrl.length) || "/";
+  if (launch.targetLinkUri) {
+    try {
+      const t = new URL(launch.targetLinkUri);
+      if (t.origin === new URL(cfg.toolUrl).origin) {
+        dest = `${t.pathname}${t.search}`;
+      }
+    } catch {
+      // 不正なURLは既定のトップへ
+    }
   }
 
   const res = NextResponse.redirect(new URL(dest, cfg.toolUrl), 302);

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { recordAudit } from "@/lib/audit/log";
 import { getDeviceAssignment, setDeviceBackup } from "@/lib/f3/store";
+import { getCurrentUser } from "@/lib/auth";
 
 /**
  * S9: 座席の表示デバイスを予備機（モバイルモニター）へ切替/復帰する。
@@ -40,8 +41,10 @@ export async function POST(
   }
 
   setDeviceBackup(seatNo, body.usingBackup);
+  const actor = await getCurrentUser();
   recordAudit({
-    actorRole: request.cookies.get("role")?.value ?? "unknown",
+    actorRole: actor.role,
+    actorId: actor.viaLti ? actor.userId : undefined,
     action: "update",
     entity: "device_assignment",
     entityId: `seat-${seatNo}`,

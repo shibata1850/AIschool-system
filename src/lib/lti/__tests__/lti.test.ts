@@ -127,6 +127,13 @@ describe("verifyLaunch", () => {
     });
     await expect(verifyLaunch(token, CFG, "NONCE1", getKey)).rejects.toThrow(LtiLaunchError);
   });
+
+  it("sub（利用者ID）が無ければ拒否", async () => {
+    const claims = { ...baseClaims };
+    // subを空にする（jose setSubject を空文字で上書き）
+    const { token, getKey } = await signedIdToken({ ...claims, sub: "" });
+    await expect(verifyLaunch(token, CFG, "NONCE1", getKey)).rejects.toThrow(LtiLaunchError);
+  });
 });
 
 describe("session（署名Cookie）", () => {

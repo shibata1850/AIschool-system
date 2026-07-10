@@ -3,6 +3,7 @@ import { createCanvasClient } from "@/lib/canvas/client";
 import { CanvasApiError } from "@/lib/canvas/client";
 import { parseScore, resolveGradebook } from "@/lib/canvas/gradebook";
 import { recordAudit } from "@/lib/audit/log";
+import { getCurrentUser } from "@/lib/auth";
 
 /**
  * 講師採点をCanvasの成績表へ書き込む（B-3）。
@@ -64,8 +65,10 @@ export async function POST(request: NextRequest) {
       parsed.score,
       typeof body.comment === "string" && body.comment.length > 0 ? body.comment : undefined,
     );
+    const actor = await getCurrentUser();
     recordAudit({
-      actorRole: request.cookies.get("role")?.value ?? "unknown",
+      actorRole: actor.role,
+      actorId: actor.viaLti ? actor.userId : undefined,
       action: "update",
       entity: "canvas_grade",
       // 監査ログに氏名は残さない（IDのみ — CLAUDE.md 9章）

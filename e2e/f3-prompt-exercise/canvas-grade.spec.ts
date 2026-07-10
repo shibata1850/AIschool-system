@@ -34,11 +34,13 @@ test.describe("成績入力（デモモード）", () => {
     expect([400, 409]).toContain(res.status());
   });
 
-  test("権限: 生徒は成績反映APIを使えない（403）", async ({ request }) => {
-    const res = await request.post("/api/teacher/grade", {
-      headers: { cookie: "role=student" },
-      data: { userId: 11, score: 80 },
-    });
-    expect(res.status()).toBe(403);
+  test("権限: 生徒・ゲストは成績反映APIを使えない（403）", async ({ request }) => {
+    for (const role of ["student", "guest"]) {
+      const res = await request.post("/api/teacher/grade", {
+        headers: { cookie: `role=${role}` },
+        data: { userId: 11, score: 80 },
+      });
+      expect(res.status(), `role=${role}`).toBe(403);
+    }
   });
 });

@@ -40,8 +40,3 @@ export async function getCurrentUser(): Promise<CurrentUser> {
   // デモ・E2E: 学習データは架空のデモ受講生に紐づく
   return { role, userId: "student-demo", viaLti: false };
 }
-
-/** 現在のロールだけが必要な場合の簡易版 */
-export async function getCurrentRole(): Promise<Role> {
-  return (await getCurrentUser()).role;
-}

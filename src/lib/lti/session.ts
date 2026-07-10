@@ -41,7 +41,9 @@ export async function verifySession(
 ): Promise<LtiSession | null> {
   if (!token || !secret) return null;
   try {
-    const { payload } = await jwtVerify(token, secretKey(secret));
+    const { payload } = await jwtVerify(token, secretKey(secret), {
+      algorithms: ["HS256"], // 署名アルゴリズムを固定
+    });
     if (!payload.sub || !payload.role) return null;
     return {
       sub: String(payload.sub),

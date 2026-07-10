@@ -10,6 +10,8 @@
 export interface AuditEntry {
   at: string; // ISO 8601
   actorRole: string;
+  /** 操作者のID（LTI起動時はCanvas利用者ID。デモ・Cookie運用時は未記録） */
+  actorId?: string;
   action: "create" | "update" | "delete";
   entity: string;
   entityId: string;

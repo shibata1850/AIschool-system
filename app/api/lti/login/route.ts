@@ -9,7 +9,12 @@ import { buildAuthRequestUrl, LtiLoginError, validateLoginParams, type LoginPara
  */
 async function readParams(request: NextRequest): Promise<LoginParams> {
   if (request.method === "POST") {
-    const form = await request.formData();
+    let form: FormData;
+    try {
+      form = await request.formData();
+    } catch {
+      return { iss: "", login_hint: "", target_link_uri: "" };
+    }
     return {
       iss: String(form.get("iss") ?? ""),
       login_hint: String(form.get("login_hint") ?? ""),
@@ -56,8 +61,8 @@ async function handle(request: NextRequest) {
   };
   res.cookies.set("lti_state", state, cookieOpts);
   res.cookies.set("lti_nonce", nonce, cookieOpts);
-  // 起動後の遷移先（自ホスト内のみ許可するため検証はlaunch側で行う）
-  res.cookies.set("lti_target", params.target_link_uri, cookieOpts);
+  // 遷移先はCookieに保存しない: launch側で id_token の検証済み target_link_uri を使う
+  // （オープンリダイレクト対策）
   return res;
 }
 

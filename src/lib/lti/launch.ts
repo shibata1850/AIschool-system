@@ -40,12 +40,16 @@ export async function verifyLaunch(
     ({ payload } = await jwtVerify(idToken, getKey, {
       issuer: cfg.issuer,
       audience: cfg.clientId,
+      algorithms: ["RS256"], // 署名アルゴリズムを固定（alg混同・alg:noneを防ぐ）
     }));
   } catch {
     // 署名・iss・aud・期限の不正はまとめて起動失敗にする（詳細は漏らさない）
     throw new LtiLaunchError("id_token の検証に失敗しました");
   }
 
+  if (!payload.sub) {
+    throw new LtiLaunchError("利用者ID（sub）がありません");
+  }
   if (!payload.nonce || payload.nonce !== expectedNonce) {
     throw new LtiLaunchError("nonce が一致しません（再送・改ざんの疑い）");
   }

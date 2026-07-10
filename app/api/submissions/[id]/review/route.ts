@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { complete, returnToStudent, TransitionError } from "@/lib/f3/stateMachine";
 import { recordAudit } from "@/lib/audit/log";
 import { getStore, recordCompletionScore } from "@/lib/f3/store";
+import { getCurrentUser } from "@/lib/auth";
 
 /**
  * 講師の確認（F3）: 提出済・AI採点済→完了 または 差戻し。
@@ -46,8 +47,10 @@ export async function POST(
       // 成績確定を到達度の学習記録へ反映する（F3→F4連携）
       recordCompletionScore(next.studentId, next.teacherScore);
     }
+    const actor = await getCurrentUser();
     recordAudit({
-      actorRole: request.cookies.get("role")?.value ?? "unknown",
+      actorRole: actor.role,
+      actorId: actor.viaLti ? actor.userId : undefined,
       action: "update",
       entity: "submission",
       entityId: next.id,

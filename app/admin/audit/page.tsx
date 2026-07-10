@@ -42,7 +42,15 @@ export default function AuditLogPage() {
                 <td style={{ padding: "0.6rem", whiteSpace: "nowrap" }}>
                   {entry.at.replace("T", " ").slice(0, 19)}
                 </td>
-                <td style={{ padding: "0.6rem" }}>{entry.actorRole}</td>
+                <td style={{ padding: "0.6rem" }}>
+                  {entry.actorRole}
+                  {entry.actorId ? (
+                    <span style={{ color: "var(--fg-sub)", fontSize: "0.85rem" }}>
+                      {" "}
+                      （{entry.actorId}）
+                    </span>
+                  ) : null}
+                </td>
                 <td style={{ padding: "0.6rem" }}>
                   {{ create: "作成", update: "更新", delete: "削除" }[entry.action]}
                 </td>
