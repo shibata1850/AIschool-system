@@ -1,6 +1,7 @@
 import type { LessonRecord } from "@/lib/f4/achievement";
 import { SEED_LESSON_RECORDS } from "@/lib/f4/fixtures";
 import type { Assignment, Submission } from "./types";
+import { buildRichSeed, seedRichAudit } from "./demoSeed";
 
 /**
  * 参照実装用のインメモリストア（提出・課題・学習記録の単一データソース）。
@@ -36,7 +37,19 @@ declare global {
   var __f3Store: DomainStore | undefined;
 }
 
+/**
+ * シードを選ぶ。DEMO_RICH_SEED=1 のとき「授業中の教室」を再現したリッチなデモ
+ * （全画面が埋まる）。それ以外は最小シード（E2E・開発の基準・現状維持）。
+ */
 function seed(): DomainStore {
+  if (process.env.DEMO_RICH_SEED === "1") {
+    seedRichAudit();
+    return buildRichSeed();
+  }
+  return seedMinimal();
+}
+
+function seedMinimal(): DomainStore {
   const assignments = new Map<string, Assignment>();
   assignments.set("a1", {
     id: "a1",
