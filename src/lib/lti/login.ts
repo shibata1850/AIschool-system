@@ -19,7 +19,11 @@ export class LtiLoginError extends Error {}
 export function validateLoginParams(cfg: LtiConfig, params: LoginParams): void {
   if (!params.iss) throw new LtiLoginError("iss がありません");
   if (params.iss !== cfg.issuer) {
-    throw new LtiLoginError("issuer が設定と一致しません");
+    // iss は秘密情報ではない。不一致時は両方を示して .env 修正を容易にする
+    throw new LtiLoginError(
+      `issuer が設定と一致しません（Canvasから受信: ${params.iss} ／ 設定(LTI_ISSUER): ${cfg.issuer}）。` +
+        `.env の LTI_ISSUER を「受信」の値に合わせて再起動してください`,
+    );
   }
   if (params.client_id && params.client_id !== cfg.clientId) {
     throw new LtiLoginError("client_id が設定と一致しません");
