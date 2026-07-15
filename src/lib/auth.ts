@@ -34,8 +34,17 @@ export async function getCurrentUser(): Promise<CurrentUser> {
     cookieRole: store.get("role")?.value,
   });
 
+  // デモ表示モード（DEMO_RICH_SEED=1）では、生徒向け画面を「デモ生徒」の
+  // データで見せる。実ユーザー（LTI起動）でも一貫したデモ体験が見えるようにする。
+  const demoMode = process.env.DEMO_RICH_SEED === "1";
+
   if (ltiSession) {
-    return { role, userId: ltiSession.sub, name: ltiSession.name, viaLti: true };
+    return {
+      role,
+      userId: demoMode ? "student-demo" : ltiSession.sub,
+      name: ltiSession.name,
+      viaLti: true,
+    };
   }
   // デモ・E2E: 学習データは架空のデモ受講生に紐づく
   return { role, userId: "student-demo", viaLti: false };
