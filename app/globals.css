@@ -100,6 +100,26 @@ body {
   font-size: 1.05rem;
 }
 
+/* ホームにもどる導線（ホーム以外で表示）。タップしやすく右寄せ */
+.home-back {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 0.9rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  color: var(--accent-strong);
+  text-decoration: none;
+  font-weight: 600;
+  background: var(--bg-panel);
+}
+
+.home-back:hover {
+  border-color: var(--accent);
+  background: var(--bg-panel-2);
+}
+
 .app-footer {
   margin-top: auto;
   border-top: 1px solid var(--line);

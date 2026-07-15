@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { HomeLink } from "./home-link";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -23,6 +24,7 @@ export default function RootLayout({
                 </span>
                 <span className="brand__name">Next Gen AI School</span>
               </Link>
+              <HomeLink />
             </div>
           </header>
           {children}
