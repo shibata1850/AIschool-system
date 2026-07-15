@@ -84,6 +84,52 @@ export default async function Home() {
           じぶんの到達度
         </Link>
       </nav>
+
+      {(role === "teacher" || role === "admin") && (
+        <section aria-label="せんせい用メニュー" style={{ marginTop: "2.5rem" }}>
+          <h2>せんせい用メニュー</h2>
+          <ul className="card-list">
+            {[
+              { href: "/teacher/monitor", title: "授業中モニタリング", desc: "16席の状態を色で把握" },
+              { href: "/teacher/review", title: "採点・差戻し", desc: "AI一次採点の確認と確定" },
+              { href: "/teacher/report", title: "週次到達度レポート", desc: "クラス全体の伸び・停滞" },
+              { href: "/teacher/class", title: "クラス名簿（Canvas）", desc: "受講生と課題の一覧" },
+              { href: "/teacher/grade", title: "成績入力（Canvas）", desc: "点数をCanvasへ反映" },
+              { href: "/teacher/summary", title: "成績サマリ（Canvas）", desc: "提出率・平均点の集計" },
+            ].map((m) => (
+              <li key={m.href}>
+                <Link href={m.href} className="card">
+                  <span style={{ fontSize: "1.05rem", fontWeight: 600 }}>{m.title}</span>
+                  <span className="muted" style={{ display: "block" }}>
+                    {m.desc}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {role === "admin" && (
+        <section aria-label="管理者メニュー" style={{ marginTop: "1.5rem" }}>
+          <h2>管理者メニュー</h2>
+          <ul className="card-list">
+            {[
+              { href: "/admin/audit", title: "監査ログ", desc: "操作の記録（作成・更新・削除）" },
+              { href: "/admin/canvas", title: "Canvas連携状況", desc: "接続確認・コース一覧" },
+            ].map((m) => (
+              <li key={m.href}>
+                <Link href={m.href} className="card">
+                  <span style={{ fontSize: "1.05rem", fontWeight: 600 }}>{m.title}</span>
+                  <span className="muted" style={{ display: "block" }}>
+                    {m.desc}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </main>
   );
 }
