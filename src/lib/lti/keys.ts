@@ -1,5 +1,15 @@
 import { exportJWK, importPKCS8 } from "jose";
 
+/** ツールの署名秘密鍵（LTI Advantageのサービス署名用）。未設定なら null */
+export async function getToolPrivateKey(
+  env: Record<string, string | undefined> = process.env,
+): Promise<CryptoKey | null> {
+  const pem = env.LTI_PRIVATE_KEY;
+  if (!pem) return null;
+  const normalized = pem.includes("\\n") ? pem.replace(/\\n/g, "\n") : pem;
+  return importPKCS8(normalized, "RS256", { extractable: false });
+}
+
 /**
  * カスタム層（ツール）側の署名鍵。LTI Advantage サービス（成績・名簿の
  * サービス呼び出し）でツールが署名する際に使う。基本の起動検証には不要。

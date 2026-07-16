@@ -143,6 +143,26 @@ describe("verifyLaunch", () => {
     const { token, getKey } = await signedIdToken(claims);
     await expect(verifyLaunch(token, CFG, "NONCE1", getKey)).rejects.toThrow(LtiLaunchError);
   });
+
+  it("AGS/NRPSのサービスエンドポイントを取り出す", async () => {
+    const { token, getKey } = await signedIdToken({
+      ...baseClaims,
+      "https://purl.imsglobal.org/spec/lti-ags/claim/endpoint": {
+        scope: ["https://purl.imsglobal.org/spec/lti-ags/scope/score"],
+        lineitem: "https://canvas/api/lti/courses/1/line_items/9",
+        lineitems: "https://canvas/api/lti/courses/1/line_items",
+      },
+      "https://purl.imsglobal.org/spec/lti-nrps/claim/namesroleservice": {
+        context_memberships_url: "https://canvas/api/lti/courses/1/names_and_roles",
+      },
+    });
+    const launch = await verifyLaunch(token, CFG, "NONCE1", getKey);
+    expect(launch.services.agsLineItem).toContain("line_items/9");
+    expect(launch.services.nrpsUrl).toContain("names_and_roles");
+    expect(launch.services.agsScopes).toContain(
+      "https://purl.imsglobal.org/spec/lti-ags/scope/score",
+    );
+  });
 });
 
 describe("session（署名Cookie）", () => {

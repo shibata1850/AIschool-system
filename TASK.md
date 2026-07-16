@@ -33,8 +33,8 @@
 ## C. Canvas連携（書き込み・双方向）
 
 - [ ] B-2: 生徒の提出をCanvasの課題へ保存（LTI Advantage AGS / line items）
-- [ ] AGS（Assignment and Grade Services）で成績をツール署名で書戻し（現状はRESTトークン）
-- [ ] NRPS（Names and Role Provisioning）で名簿取得をLTIサービス化
+- [~] AGS: ツール署名で成績書戻しするクライアント実装（token/ags）＋起動時エンドポイント取得。採点画面への配線は残
+- [~] NRPS: 名簿取得クライアント実装（nrps）＋起動時URL取得。画面への配線は残
 - [ ] 出席管理をカスタム層で実装しCanvasへ書戻し（未決#11。Roll Call不採用）
 - [ ] ストアのCanvas/DB永続化（`src/lib/f3/store.ts` のインメモリ脱却）
 
