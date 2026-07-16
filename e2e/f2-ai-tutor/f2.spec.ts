@@ -21,6 +21,13 @@ test("F2-N1 正常系: 質問すると応答と定型注記が表示される", 
   await expect(page.getByText("forぶんとwhileぶんのちがい", { exact: false }).first()).toBeVisible();
 });
 
+test("F2-N2 待機前は「やめる」ボタンを出さない（考え中のみ中断可）", async ({ page }) => {
+  await setRole(page, "student");
+  await page.goto("/chat");
+  // 質問前は中断ボタンなし（サーバー側キャンセルは考え中のみ）
+  await expect(page.getByRole("button", { name: "やめる" })).toHaveCount(0);
+});
+
 test("F2-E1 入力エラー: 空の質問は送信不可、2,001文字はエラー表示", async ({
   page,
 }) => {

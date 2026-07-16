@@ -33,4 +33,17 @@ describe("MockAiClient", () => {
     expect(result.content).toContain("forぶんとは？");
     expect(result.model).toBe("mock-v1");
   });
+
+  it("中断済みシグナルを渡すと推論せずAbortErrorを投げる（サーバー側キャンセル）", async () => {
+    const client = new MockAiClient();
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      client.complete({
+        system: "s",
+        messages: [{ role: "user", content: "q" }],
+        signal: controller.signal,
+      }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+  });
 });

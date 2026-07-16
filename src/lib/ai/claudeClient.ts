@@ -22,15 +22,19 @@ export class ClaudeAiClient implements AiClient {
   }
 
   async complete(request: AiCompletionRequest): Promise<AiCompletionResult> {
-    const response = await this.client.messages.create({
-      model: this.model,
-      max_tokens: request.maxTokens ?? DEFAULT_MAX_TOKENS,
-      system: request.system,
-      messages: request.messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      })),
-    });
+    const response = await this.client.messages.create(
+      {
+        model: this.model,
+        max_tokens: request.maxTokens ?? DEFAULT_MAX_TOKENS,
+        system: request.system,
+        messages: request.messages.map((m) => ({
+          role: m.role,
+          content: m.content,
+        })),
+      },
+      // HTTPリクエストが切れたらAPI呼び出しも中断する（無駄な課金を避ける）
+      request.signal ? { signal: request.signal } : undefined,
+    );
 
     const text = response.content
       .filter((block) => block.type === "text")

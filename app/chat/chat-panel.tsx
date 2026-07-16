@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { postJson } from "@/lib/client/postJson";
 import { QUESTION_LIMIT } from "@/lib/f2/constants";
 
@@ -24,15 +24,25 @@ export function ChatPanel() {
   const [entries, setEntries] = useState<ChatEntry[]>([]);
   const [thinking, setThinking] = useState(false);
   const [error, setError] = useState("");
+  const controllerRef = useRef<AbortController | null>(null);
+  const canceledRef = useRef(false);
 
   const remaining = QUESTION_LIMIT - question.length;
   const overLimit = remaining < 0;
   const empty = question.trim().length === 0;
 
+  /** 考え中の質問をやめる。中断はサーバー側の推論も止める（無駄打ちを避ける） */
+  function cancel() {
+    canceledRef.current = true;
+    controllerRef.current?.abort();
+  }
+
   async function ask() {
     setError("");
     setThinking(true);
+    canceledRef.current = false;
     const controller = new AbortController();
+    controllerRef.current = controller;
     const timeout = setTimeout(() => controller.abort(), 10_000);
     const result = await postJson<ChatResponse>(
       "/api/chat",
@@ -40,12 +50,15 @@ export function ChatPanel() {
       { signal: controller.signal },
     );
     clearTimeout(timeout);
+    controllerRef.current = null;
     setThinking(false);
 
     if (!result.ok) {
       setError(
         result.aborted
-          ? "時間がかかりすぎています。「もう一度きく」を押してください"
+          ? canceledRef.current
+            ? "質問をやめました。「もう一度きく」を押すと、また聞けます"
+            : "時間がかかりすぎています。「もう一度きく」を押してください"
           : result.message,
       );
       return;
@@ -107,9 +120,16 @@ export function ChatPanel() {
             {error}
           </p>
         )}
-        <button type="button" onClick={ask} disabled={thinking || overLimit || empty}>
-          {error ? "もう一度きく" : thinking ? "考え中…" : "きく"}
-        </button>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+          <button type="button" onClick={ask} disabled={thinking || overLimit || empty}>
+            {error ? "もう一度きく" : thinking ? "考え中…" : "きく"}
+          </button>
+          {thinking && (
+            <button type="button" onClick={cancel}>
+              やめる
+            </button>
+          )}
+        </div>
       </div>
     </section>
   );

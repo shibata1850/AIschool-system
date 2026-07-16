@@ -18,11 +18,18 @@ export async function POST(request: NextRequest) {
   try {
     const answer = await answerQuestion(
       typeof body.question === "string" ? body.question : "",
+      undefined,
+      request.signal,
     );
     return NextResponse.json(answer);
   } catch (error) {
     if (error instanceof ValidationError) {
       return new NextResponse(error.message, { status: 400 });
+    }
+    // 受講生が画面を離れる等でリクエストが切れた場合。応答は破棄されるため
+    // エラーとして記録せず、静かに終える（サーバー側の推論は中断済み）。
+    if (request.signal.aborted || (error instanceof DOMException && error.name === "AbortError")) {
+      return new NextResponse("中断されました", { status: 499 });
     }
     // 個人情報は含めずエラー種別のみ記録する（質問本文はログしない）
     console.error("AIチャット処理エラー:", error instanceof Error ? error.message : error);

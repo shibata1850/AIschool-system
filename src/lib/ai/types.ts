@@ -17,6 +17,11 @@ export interface AiCompletionRequest {
   messages: AiMessage[];
   /** 応答の最大トークン数（既定: 2048） */
   maxTokens?: number;
+  /**
+   * 中断シグナル。受講生が画面を離れる等でHTTPリクエストが切れたら、
+   * サーバー側の推論も止める（実LLM/API利用料・GPU占有の無駄打ちを避ける）。
+   */
+  signal?: AbortSignal;
 }
 
 export interface AiCompletionResult {

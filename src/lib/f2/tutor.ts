@@ -32,6 +32,7 @@ export interface TutorAnswer {
 export async function answerQuestion(
   question: string,
   client: AiClient = createAiClient(),
+  signal?: AbortSignal,
 ): Promise<TutorAnswer> {
   if (question.trim().length === 0) {
     throw new ValidationError("質問を入力してください");
@@ -52,6 +53,7 @@ export async function answerQuestion(
   const result = await client.complete({
     system: TUTOR_SYSTEM_PROMPT,
     messages: [{ role: "user", content: masked }],
+    signal,
   });
 
   const outputCheck = filterContent(result.content);
