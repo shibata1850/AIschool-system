@@ -35,50 +35,65 @@ try:
 except Exception: print('')")"
 [ -n "${ACCOUNT_ID}" ] || { echo "[NG] アカウント取得失敗（接続先/トークンを確認）"; exit 1; }
 
-COURSE_ID="$(api GET "/api/v1/accounts/${ACCOUNT_ID}/courses?search_term=プロンプト演習デモ" | python3 -c "import json,sys
+# コースは一覧を取得して名前で照合する（URLに日本語を入れず確実に）
+COURSES_JSON="$(api GET "/api/v1/accounts/${ACCOUNT_ID}/courses?per_page=100")"
+COURSE_ID="$(python3 -c "import json,sys
 try:
-  c=json.load(sys.stdin); print(c[0]['id'] if isinstance(c,list) and c else '')
-except Exception: print('')")"
-[ -n "${COURSE_ID}" ] || { echo "[NG] 『プロンプト演習デモ（架空）』が見つかりません。先に seed-demo-data.sh を実行"; exit 1; }
+  cs=json.load(sys.stdin)
+  if isinstance(cs,list):
+    for c in cs:
+      if 'プロンプト演習デモ' in (c.get('name') or ''):
+        print(c['id']); break
+except Exception: pass" <<<"${COURSES_JSON}")"
+if [ -z "${COURSE_ID}" ]; then
+  echo "[NG] 『プロンプト演習デモ（架空）』が見つかりません。アカウント${ACCOUNT_ID}のコース一覧:"
+  python3 -c "import json,sys
+try:
+  cs=json.load(sys.stdin)
+  if isinstance(cs,list):
+    [print('  -', c.get('name'),'(id',c.get('id'),')') for c in cs] or print('  (コースが0件)')
+  else:
+    print('  (一覧を取得できませんでした:', str(cs)[:200], ')')
+except Exception as e: print('  (解析失敗)', e)" <<<"${COURSES_JSON}"
+  echo "※ seed-demo-data.sh は実行しないでください（コースが重複します）。上の一覧を共有してください"
+  exit 1
+fi
 echo "[OK] コース: id=${COURSE_ID}"
 
-# --- 既存の登録済み受講生（重複登録を避けるための集合） ---
-declare -A ENROLLED=()
-while IFS= read -r uid; do [ -n "$uid" ] && ENROLLED["$uid"]=1; done < <(
-  api GET "/api/v1/courses/${COURSE_ID}/users?enrollment_type[]=student&per_page=100" \
-    | python3 -c "import json,sys
+# --- 既存の受講生を「名前→ID」で把握（search_termを使わず確実に） ---
+declare -A ROSTER_ID=()
+while IFS=$'\t' read -r rid rname; do
+  [ -n "$rid" ] && ROSTER_ID["$rname"]="$rid"
+done < <(api GET "/api/v1/courses/${COURSE_ID}/users?enrollment_type[]=student&per_page=100" \
+  | python3 -c "import json,sys
 try:
-  [print(u['id']) for u in json.load(sys.stdin)]
+  for u in json.load(sys.stdin): print(str(u['id'])+chr(9)+(u.get('name') or ''))
 except Exception: pass")
 
-# --- 受講生を16名まで用意（find-or-create＋登録） ---
+# --- 受講生を16名まで用意（名簿になければ作成して登録） ---
 declare -a STUDENT_IDS=()
 for n in $(seq 1 16); do
   nn="$(printf '%02d' "$n")"
-  email="demo-student-${nn}@example.com"
-  uid="$(api GET "/api/v1/accounts/${ACCOUNT_ID}/users?search_term=${email}" | python3 -c "import json,sys
-try:
-  u=json.load(sys.stdin); print(u[0]['id'] if isinstance(u,list) and u else '')
-except Exception: print('')")"
+  name="デモ生徒${nn}"
+  uid="${ROSTER_ID[$name]:-}"
   if [ -z "$uid" ]; then
     uid="$(api POST "/api/v1/accounts/${ACCOUNT_ID}/users" \
-      --data-urlencode "user[name]=デモ生徒${nn}" \
+      --data-urlencode "user[name]=${name}" \
       --data-urlencode "user[skip_registration]=true" \
-      --data-urlencode "pseudonym[unique_id]=${email}" \
+      --data-urlencode "pseudonym[unique_id]=demo-student-${nn}@example.com" \
       --data-urlencode "pseudonym[send_confirmation]=false" \
       --data-urlencode "communication_channel[skip_confirmation]=true" | pyget id)"
-  fi
-  if [ -n "$uid" ]; then
-    if [ -z "${ENROLLED[$uid]:-}" ]; then
+    if [ -n "$uid" ]; then
       api POST "/api/v1/courses/${COURSE_ID}/enrollments" \
         --data-urlencode "enrollment[user_id]=${uid}" \
         --data-urlencode "enrollment[type]=StudentEnrollment" \
         --data-urlencode "enrollment[enrollment_state]=active" >/dev/null
-      ENROLLED["$uid"]=1
     fi
+  fi
+  if [ -n "$uid" ]; then
     STUDENT_IDS+=("$uid")
   else
-    echo "[WARN] デモ生徒${nn} を用意できませんでした（スキップ）"
+    echo "[WARN] ${name} を用意できませんでした（スキップ）"
   fi
 done
 echo "[OK] 受講生 ${#STUDENT_IDS[@]} 名を用意"
