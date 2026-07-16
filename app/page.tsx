@@ -91,6 +91,7 @@ export default async function Home() {
           <ul className="card-list">
             {[
               { href: "/teacher/monitor", title: "授業中モニタリング", desc: "16席の状態を色で把握" },
+              { href: "/teacher/attendance", title: "出席の記録", desc: "この授業の出席をつける" },
               { href: "/teacher/review", title: "採点・差戻し", desc: "AI一次採点の確認と確定" },
               { href: "/teacher/report", title: "週次到達度レポート", desc: "クラス全体の伸び・停滞" },
               { href: "/teacher/class", title: "クラス名簿（Canvas）", desc: "受講生と課題の一覧" },

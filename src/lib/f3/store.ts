@@ -13,6 +13,9 @@ import { buildRichSeed, seedRichAudit } from "./demoSeed";
 /** いま教室で扱っている課題（モニタリングの対象。本番は授業コマから解決する） */
 export const CURRENT_ASSIGNMENT_ID = "a1";
 
+/** いま出席を取る授業コマの週（本番は授業コマから解決する） */
+export const CURRENT_LESSON_WEEK = "2026-10-19";
+
 /** デバイス割当（要件定義書6.1 device_assignments） */
 export interface DeviceAssignment {
   seatNo: number;
@@ -143,6 +146,54 @@ export function setDeviceBackup(
   if (!assignment) return undefined;
   assignment.usingBackup = usingBackup;
   return assignment;
+}
+
+/**
+ * 出席を記録する（未決#11: 出席はカスタム層で管理）。
+ * 指定週の学習記録が無ければ作成する。変更前の値（true/false/未記録）を返す。
+ */
+export function setAttendance(
+  studentId: string,
+  weekStart: string,
+  attended: boolean,
+): { before: boolean | "none"; changed: boolean } {
+  const store = getStore();
+  let records = store.lessonRecords.get(studentId);
+  if (!records) {
+    records = [];
+    store.lessonRecords.set(studentId, records);
+  }
+  const existing = records.find((r) => r.weekStart === weekStart);
+  if (!existing) {
+    records.push({
+      lessonId: `w-${weekStart}`,
+      weekStart,
+      attended,
+      submitted: false,
+      score: null,
+    });
+    // 週順を保つ
+    records.sort((a, b) => a.weekStart.localeCompare(b.weekStart));
+    return { before: "none", changed: true };
+  }
+  const before = existing.attended;
+  if (before === attended && !existing.dataMissing) {
+    return { before, changed: false };
+  }
+  existing.attended = attended;
+  // 出席を記録したら「計測不能」フラグは解除する
+  existing.dataMissing = false;
+  return { before, changed: true };
+}
+
+/** 指定週の出席状態（記録が無ければ undefined） */
+export function getAttendance(
+  studentId: string,
+  weekStart: string,
+): boolean | undefined {
+  return getStore()
+    .lessonRecords.get(studentId)
+    ?.find((r) => r.weekStart === weekStart)?.attended;
 }
 
 /**
