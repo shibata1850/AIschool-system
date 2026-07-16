@@ -197,6 +197,27 @@ export function getAttendance(
 }
 
 /**
+ * 退会者の学習データ（提出・学習記録）を削除する（Pマーク保持期限。要件定義書5.3）。
+ * 破壊的操作。呼び出し側で保持期限の判定・管理者権限確認・監査記録を必ず行うこと。
+ * 削除件数を返す（監査の変更前スナップショット用）。再実行しても安全（冪等）。
+ */
+export function purgeStudentData(studentId: string): {
+  deletedSubmissions: number;
+  hadLessonRecords: boolean;
+} {
+  const store = getStore();
+  let deletedSubmissions = 0;
+  for (const [id, s] of store.submissions) {
+    if (s.studentId === studentId) {
+      store.submissions.delete(id);
+      deletedSubmissions += 1;
+    }
+  }
+  const hadLessonRecords = store.lessonRecords.delete(studentId);
+  return { deletedSubmissions, hadLessonRecords };
+}
+
+/**
  * 講師の成績確定を最新の授業コマ記録へ反映する（F3→F4連携）。
  * 記録がない受講生（学習記録の収集前）は何もしない。
  */

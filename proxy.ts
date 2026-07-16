@@ -13,8 +13,8 @@ import { resolveEffectiveRole } from "@/lib/lti/resolve";
  * matcherは静的アセット以外の全リクエストを通す）。配下パスも前方一致で守る。
  */
 
-/** 管理者のみ（監査ログ閲覧 — 要件定義書5.2） */
-const ADMIN_ONLY_PREFIXES = ["/admin"];
+/** 管理者のみ（監査ログ閲覧・保持期限削除 — 要件定義書5.2/5.3） */
+const ADMIN_ONLY_PREFIXES = ["/admin", "/api/admin"];
 
 /** 講師・管理者のみ（開発用リセットAPIも破壊的操作のためここに含める） */
 const TEACHER_ONLY_PREFIXES = [
