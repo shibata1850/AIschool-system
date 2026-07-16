@@ -41,10 +41,10 @@
 ## D. Jupyter演習（S4・現状は骨格のみ）
 
 - [ ] さくらにJupyterHub構築（当面CPU、9月にGPUサーバーへ）〔実機〕
-- [ ] LTI 1.3 SSO（jupyterhub-ltiauthenticator）で再ログイン不要の入室
+- [~] LTI 1.3 SSO（jupyterhub-ltiauthenticator）: 構築手順を用意（本体はCowork）
 - [ ] 受講生ごとの個別ノートブック環境の起動・進捗表示
 - [ ] カーネル再起動（自分の環境のみ）UI
-- [ ] GPUサーバー停止時の静的教材モードへのフォールバック（F2例外3）
+- [~] GPUサーバー停止時の静的教材モードへの導線（JUPYTER_FALLBACK_URL・画面実装済み）
 - [ ] 16名同時起動の負荷確認〔実機〕
 
 ## E. データ永続化・整合性
