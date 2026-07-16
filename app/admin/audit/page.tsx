@@ -16,6 +16,11 @@ export default function AuditLogPage() {
       <p style={{ color: "var(--fg-sub)", marginBottom: "1rem" }}>
         データの作成・更新・削除の記録です（操作者・日時・変更前後）。追記のみで削除できません。
       </p>
+      <p style={{ marginBottom: "1rem" }}>
+        <a href="/admin/audit/export" className="button">
+          CSVでエクスポート
+        </a>
+      </p>
       {entries.length === 0 ? (
         <p>まだ記録がありません。</p>
       ) : (

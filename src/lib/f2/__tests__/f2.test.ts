@@ -36,6 +36,20 @@ describe("個人情報マスキング（F2例外4）", () => {
   it("日付や点数を電話番号と誤検出しない", () => {
     expect(maskPersonalInfo("2026-10-05の週は80点").piiDetected).toBe(false);
   });
+
+  it("氏名（姓＋敬称）をマスクする", () => {
+    expect(maskPersonalInfo("田中さんに聞きたい").masked).toBe("（名前）に聞きたい");
+    expect(maskPersonalInfo("小林先生に相談します").masked).toBe("（名前）に相談します");
+    expect(maskPersonalInfo("田中さんに聞きたい").piiDetected).toBe(true);
+  });
+
+  it("氏名の誤検知ガード: 敬称や姓の断片だけでは誤検出しない", () => {
+    // 姓が前に無い「先生」単体はマスクしない
+    expect(maskPersonalInfo("先生に聞きます").masked).toBe("先生に聞きます");
+    // 「さんぽ」のような語はマスクしない（姓辞書に前置が無い）
+    expect(maskPersonalInfo("たのしいさんぽに行く").masked).toBe("たのしいさんぽに行く");
+    expect(maskPersonalInfo("先生に聞きます").piiDetected).toBe(false);
+  });
 });
 
 describe("コンテンツフィルタ（CLAUDE.md 9章）", () => {
