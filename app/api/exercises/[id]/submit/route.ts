@@ -22,15 +22,12 @@ export async function POST(
   }
 
   const actor = await getCurrentUser();
-  const submission = findSubmission(id, actor.userId);
-  if (!submission) {
-    return new NextResponse("提出データが見つかりません", { status: 404 });
-  }
 
   let body: {
     promptText?: unknown;
     aiOutputText?: unknown;
     reflectionText?: unknown;
+    expectedVersion?: unknown;
   };
   try {
     body = await request.json();
@@ -47,6 +44,34 @@ export async function POST(
     if (value !== undefined && typeof value !== "string") {
       return new NextResponse(`${key} は文字列で指定してください`, { status: 400 });
     }
+  }
+
+  if (
+    body.expectedVersion !== undefined &&
+    (typeof body.expectedVersion !== "number" ||
+      !Number.isInteger(body.expectedVersion))
+  ) {
+    return new NextResponse("expectedVersion は整数で指定してください", {
+      status: 400,
+    });
+  }
+
+  // ここから set まで await を挟まない（同一プロセス内での読取り→版数チェック→
+  // 書込みを不可分にし、二重提出のロストアップデートを防ぐ＝楽観ロック。既知残課題#1）。
+  const submission = findSubmission(id, actor.userId);
+  if (!submission) {
+    return new NextResponse("提出データが見つかりません", { status: 404 });
+  }
+
+  // 版数チェック: 画面が読んだ版と現在の版が食い違えば、別の端末/タブで更新済み。
+  if (
+    body.expectedVersion !== undefined &&
+    body.expectedVersion !== submission.version
+  ) {
+    return new NextResponse(
+      "この課題は別の端末で更新されています。画面を読み込み直して、最新の内容で操作してください。",
+      { status: 409 },
+    );
   }
 
   try {

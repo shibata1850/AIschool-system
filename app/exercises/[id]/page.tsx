@@ -78,7 +78,11 @@ export default async function ExercisePage({
         )}
 
       {editable && (
-        <SubmissionForm assignmentId={assignment.id} charLimit={assignment.charLimit} />
+        <SubmissionForm
+          assignmentId={assignment.id}
+          charLimit={assignment.charLimit}
+          version={submission.version}
+        />
       )}
     </main>
   );

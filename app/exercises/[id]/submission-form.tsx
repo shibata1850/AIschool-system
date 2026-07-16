@@ -8,9 +8,12 @@ import { postJson } from "@/lib/client/postJson";
 export function SubmissionForm({
   assignmentId,
   charLimit,
+  version,
 }: {
   assignmentId: string;
   charLimit: number;
+  /** 画面が読んだ提出の版数（楽観ロック。サーバー側で現在版と照合し、食い違えば409） */
+  version: number;
 }) {
   const router = useRouter();
   const [promptText, setPromptText] = useState("");
@@ -29,10 +32,13 @@ export function SubmissionForm({
       promptText,
       aiOutputText,
       reflectionText,
+      expectedVersion: version,
     });
     setSubmitting(false);
     if (!result.ok) {
       setError(result.message);
+      // 版数の食い違い（別端末で更新済み）の場合は最新状態を取り直す
+      router.refresh();
       return;
     }
     router.refresh();
