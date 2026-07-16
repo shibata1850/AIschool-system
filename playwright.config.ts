@@ -45,6 +45,8 @@ export default defineConfig({
       ...process.env,
       CANVAS_BASE_URL: "",
       CANVAS_API_TOKEN: "",
+      // E2Eはロール総当たりのためCookieロールを許可（本番デプロイでは付けない）
+      DEV_COOKIE_ROLES: "1",
     },
   },
 });

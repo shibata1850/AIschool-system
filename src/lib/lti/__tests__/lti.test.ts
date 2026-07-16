@@ -134,6 +134,15 @@ describe("verifyLaunch", () => {
     const { token, getKey } = await signedIdToken({ ...claims, sub: "" });
     await expect(verifyLaunch(token, CFG, "NONCE1", getKey)).rejects.toThrow(LtiLaunchError);
   });
+
+  it("deployment_id が無ければ拒否（M-3）", async () => {
+    const claims = { ...baseClaims };
+    delete (claims as Record<string, unknown>)[
+      "https://purl.imsglobal.org/spec/lti/claim/deployment_id"
+    ];
+    const { token, getKey } = await signedIdToken(claims);
+    await expect(verifyLaunch(token, CFG, "NONCE1", getKey)).rejects.toThrow(LtiLaunchError);
+  });
 });
 
 describe("session（署名Cookie）", () => {

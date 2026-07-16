@@ -52,6 +52,7 @@ async function resolveRole(request: NextRequest): Promise<string> {
     ltiRole: session?.role ?? null,
     ltiConfigured: getLtiConfig() != null,
     cookieRole: request.cookies.get("role")?.value,
+    devCookieAllowed: process.env.DEV_COOKIE_ROLES === "1",
   });
 }
 

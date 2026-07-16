@@ -57,6 +57,10 @@ export async function verifyLaunch(
     throw new LtiLaunchError("message_type が不正です");
   }
   const deploymentId = payload[CLAIM.deploymentId] as string | undefined;
+  // deployment_id はLTI必須クレーム。欠落を拒否し、設定があれば一致も要求する（M-3）
+  if (!deploymentId) {
+    throw new LtiLaunchError("deployment_id がありません");
+  }
   if (cfg.deploymentId && deploymentId !== cfg.deploymentId) {
     throw new LtiLaunchError("deployment_id が一致しません");
   }

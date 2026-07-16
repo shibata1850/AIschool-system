@@ -32,6 +32,7 @@ export async function getCurrentUser(): Promise<CurrentUser> {
     ltiRole: ltiSession?.role ?? null,
     ltiConfigured: getLtiConfig() != null,
     cookieRole: store.get("role")?.value,
+    devCookieAllowed: process.env.DEV_COOKIE_ROLES === "1",
   });
 
   // デモ表示モード（DEMO_RICH_SEED=1）では、生徒向け画面を「デモ生徒」の
