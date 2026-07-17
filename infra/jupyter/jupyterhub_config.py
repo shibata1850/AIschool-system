@@ -42,7 +42,8 @@ c.LTI13Authenticator.issuer = os.environ["LTI_ISSUER"]
 c.LTI13Authenticator.client_id = [os.environ["JUPYTER_LTI_CLIENT_ID"]]
 c.LTI13Authenticator.authorize_url = os.environ["LTI_AUTH_URL"]
 c.LTI13Authenticator.jwks_endpoint = os.environ["LTI_JWKS_URL"]
-c.LTI13Authenticator.token_url = os.environ.get("LTI_TOKEN_URL", "")
+# token_url はこのバージョンの LTI13Authenticator では未使用（AGS成績連携用・スコープ外）。
+# 設定するとwarningになるため置かない。将来Jupyter側からAGSを使う場合に再検討する。
 # 受講生の識別子: Canvasの安定ID（sub）をユーザー名にする。氏名・メールは使わない
 # （個人情報を最小化 — CLAUDE.md 9章）。
 c.LTI13Authenticator.username_key = "sub"
