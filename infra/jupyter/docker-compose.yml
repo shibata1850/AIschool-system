@@ -1,0 +1,41 @@
+# JupyterHub（S4 演習環境）。Canvas と同じサーバーに相乗り（デモ用）。
+#  - 目的: 受講生がCanvasから再ログインなしで自分のノートブック環境に入れること（SSO疎通）
+#  - 公開: Caddy(TLS)経由のみ。Hubは 127.0.0.1:8000 で待受け、直接は公開しない
+#  - 注意: 16名同時・本番は9月の校内GPUサーバーへ移設する前提。1コア1GBのデモ機では
+#          同時起動を1〜数名に絞ること（メモリ）。詳細は infra/jupyter/README.md
+services:
+  jupyterhub:
+    build: .
+    image: aischool-jupyterhub:local
+    container_name: jupyterhub
+    restart: unless-stopped
+    ports:
+      # 公開はCaddy経由のみ。ホストのローカルにだけbindする（外部へ直接開けない）
+      - "127.0.0.1:8000:8000"
+    volumes:
+      # 受講生コンテナ（single-user）を起動するために Docker ソケットを渡す
+      - /var/run/docker.sock:/var/run/docker.sock:rw
+      - ./jupyterhub_config.py:/srv/jupyterhub/jupyterhub_config.py:ro
+      # HubのDB（cookie secret・稼働状態）を永続化（再起動でログイン維持）
+      - jupyterhub-data:/data
+    environment:
+      # 同じCanvasを指すので、カスタム層 .env と同じ値を入れる（issuer/authorize/jwks/token）
+      LTI_ISSUER: ${LTI_ISSUER}
+      LTI_AUTH_URL: ${LTI_AUTH_URL}
+      LTI_JWKS_URL: ${LTI_JWKS_URL}
+      LTI_TOKEN_URL: ${LTI_TOKEN_URL:-}
+      # JupyterHub専用のCanvas開発者キーの client_id（カスタム層とは別キー）
+      JUPYTER_LTI_CLIENT_ID: ${JUPYTER_LTI_CLIENT_ID}
+      # 受講生コンテナのイメージ・メモリ上限（デモ機では小さめに）
+      SINGLEUSER_IMAGE: ${SINGLEUSER_IMAGE:-quay.io/jupyter/base-notebook:latest}
+      SINGLEUSER_MEM_LIMIT: ${SINGLEUSER_MEM_LIMIT:-512M}
+    networks:
+      - jupyterhub-net
+
+networks:
+  jupyterhub-net:
+    # Hub と受講生コンテナを同じネットワークに載せ、container名で名前解決させる
+    name: jupyterhub-net
+
+volumes:
+  jupyterhub-data:

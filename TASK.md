@@ -40,8 +40,8 @@
 
 ## D. Jupyter演習（S4・現状は骨格のみ）
 
-- [ ] さくらにJupyterHub構築（当面CPU、9月にGPUサーバーへ）〔実機〕
-- [~] LTI 1.3 SSO（jupyterhub-ltiauthenticator）: 構築手順を用意（本体はCowork）
+- [~] さくらにJupyterHub構築（当面CPU相乗り、9月にGPUサーバーへ）: 構築ファイル一式を用意（infra/jupyter/。docker-compose・設定・Caddy）。サーバーでの実行はCowork→手動対応リスト B1
+- [~] LTI 1.3 SSO（jupyterhub-ltiauthenticator）: 設定・Canvas登録手順を用意（Configuration URL方式）。CanvasキーはCowork/柴田→手動対応リスト B2
 - [ ] 受講生ごとの個別ノートブック環境の起動・進捗表示
 - [ ] カーネル再起動（自分の環境のみ）UI
 - [~] GPUサーバー停止時の静的教材モードへの導線（JUPYTER_FALLBACK_URL・画面実装済み）

@@ -2,26 +2,37 @@
 
 - 目的: 受講生がCanvasから再ログインなしで自分のノートブック環境に入れるようにする（S4）
 - 位置づけ: カスタム層側の画面・導線（`app/jupyter`）は実装済み。JupyterHub本体の構築は
-  サーバー作業（Cowork）。当面はさくらにCPU版、9月に校内GPUサーバー（RTX 6000 Ada）へ移す
+  サーバー作業（Cowork）。当面はさくらにCPU版で相乗り、9月に校内GPUサーバー（RTX 6000 Ada）へ移す
 - 手動対応リスト: docs/手動対応リスト.md B1/B2
 
-## 1. JupyterHub をDockerでさくらのサーバーにDVD構築（当面CPU）
+> **実行用の具体的な手順・設定ファイル一式は `infra/jupyter/` にまとめてある。**
+> Cowork向けのステップ・バイ・ステップは `infra/jupyter/README.md` を参照。
+> 本ドキュメントは背景と全体像の説明。
 
-1. さくらのサーバーで JupyterHub を起動（`jupyterhub/jupyterhub` イメージ、または
-   The Littlest JupyterHub / Zero to JupyterHub）。受講生16名同時を見込む
-2. スポナーは DockerSpawner 等で受講生ごとに独立コンテナ（環境分離）
-3. Caddyでサブドメインを割り当ててHTTPS化（例 `jupyter.133-125-225-64.sslip.io`）
+## 1. JupyterHub をDockerでさくらのサーバーに構築（デモは既存サーバーに相乗り）
+
+構築ファイル: `infra/jupyter/`（Dockerfile・docker-compose.yml・jupyterhub_config.py・.env.example）
+
+1. `docker compose up -d --build`（`infra/jupyter/`）でHubを起動
+2. スポナーは DockerSpawner で受講生ごとに独立コンテナ（環境分離）
+3. Caddyで `jupyter.133-125-225-64.sslip.io` → `127.0.0.1:8000`（`infra/reverse-proxy/Caddyfile` に追記済み）
+
+※ デモ機は1コア1GBのため同時起動は1〜数名に絞る（メモリ）。演習時のみ一時スペックアップ推奨。
 
 ## 2. Canvas との LTI 1.3 連携（再ログイン不要）
 
 JupyterHub を **Canvasの別のLTIツール**として登録する（カスタム層とは別の開発者キー）。
+JupyterHub は **Configuration URL 方式**に対応しているので登録が簡単:
 
-1. JupyterHub に `jupyterhub-ltiauthenticator`（LTI 1.3）を設定
-   - Canvasの認可エンドポイント・JWKS・issuer・client_id・deployment_id を設定
-2. Canvasで JupyterHub用のLTI開発者キーを作成（手順は docs/LTI連携手順.md と同様）
-   - OIDC開始・リダイレクト・JWKS は JupyterHub 側のURL
-   - 配置（Placement）: コースナビゲーション「Jupyter演習」
-3. これで受講生はCanvas → JupyterHub がSSO（再ログインなし）
+1. Canvasの開発者キー（LTI）作成で「URLを入力」を選び、
+   `https://jupyter.133-125-225-64.sslip.io/hub/lti13/config` を貼る
+2. リダイレクトURI: `https://jupyter.133-125-225-64.sslip.io/hub/lti13/oauth_callback`
+3. 発行された client_id を `infra/jupyter/.env` の `JUPYTER_LTI_CLIENT_ID` に設定
+4. コースに「By Client ID」で追加 → コースナビ「Jupyter演習」
+5. これで受講生はCanvas → JupyterHub がSSO（再ログインなし）
+
+issuer/authorize/jwks/token は**同じCanvas**を指すため、カスタム層 `.env` の
+`LTI_ISSUER/LTI_AUTH_URL/LTI_JWKS_URL/LTI_TOKEN_URL` と同じ値を流用する。
 
 補足: カスタム層の S4 画面（`/jupyter`）は「演習をはじめる」リンクを表示するだけの導線。
 リンク先をJupyterHubの起動URLにしてもよいし、Canvasのコースナビに JupyterHub を直接

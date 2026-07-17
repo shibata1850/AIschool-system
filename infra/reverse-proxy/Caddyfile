@@ -23,3 +23,10 @@ canvas.133-125-225-64.sslip.io {
 	}
 	reverse_proxy 127.0.0.1:8080
 }
+
+# ---- JupyterHub（S4 演習環境。infra/jupyter/） ----
+# WebSocket（ノートブックのカーネル通信）は reverse_proxy が自動対応する。
+jupyter.133-125-225-64.sslip.io {
+	encode gzip
+	reverse_proxy 127.0.0.1:8000
+}
