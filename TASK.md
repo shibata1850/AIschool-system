@@ -38,14 +38,15 @@
 - [~] 出席管理をカスタム層で実装（未決#11・Roll Call不採用）。講師が出席/欠席を記録→到達度の出席率へ反映（app/teacher/attendance）。Canvasへの書戻しは方針未確定で保留
 - [ ] ストアのCanvas/DB永続化（`src/lib/f3/store.ts` のインメモリ脱却）
 
-## D. Jupyter演習（S4・現状は骨格のみ）
+## D. Jupyter演習（S4・SSO疎通まで完了）
 
-- [~] さくらにJupyterHub構築（当面CPU相乗り、9月にGPUサーバーへ）: 構築ファイル一式を用意（infra/jupyter/。docker-compose・設定・Caddy）。サーバーでの実行はCowork→手動対応リスト B1
-- [~] LTI 1.3 SSO（jupyterhub-ltiauthenticator）: 設定・Canvas登録手順を用意（Configuration URL方式）。CanvasキーはCowork/柴田→手動対応リスト B2
-- [ ] 受講生ごとの個別ノートブック環境の起動・進捗表示
-- [ ] カーネル再起動（自分の環境のみ）UI
+- [x] さくらにJupyterHub構築（CPU相乗りでデモ稼働）: infra/jupyter/一式。16名同時・GPU本番は9月に同一構成で移設
+- [x] LTI 1.3 SSO（jupyterhub-ltiauthenticator）: Canvas→JupyterHub 再ログインなし起動を実機確認（2026-07-31）
+- [x] 受講生ごとの個別ノートブック環境の起動（DockerSpawnerで /user/<id> の個別コンテナ起動を確認）
+- [x] カーネル再起動UI（JupyterLab本体機能・Kernelメニューで提供）
 - [~] GPUサーバー停止時の静的教材モードへの導線（JUPYTER_FALLBACK_URL・画面実装済み）
 - [ ] 16名同時起動の負荷確認〔実機〕
+- [ ] （任意）カスタム層 /jupyter の「演習をはじめる」導線（JUPYTERHUB_URL設定。Canvasコースナビから直接入る運用なら不要）
 
 ## E. データ永続化・整合性
 
