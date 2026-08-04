@@ -35,18 +35,22 @@ try:
 except Exception: print('')")"
 [ -n "${ACCOUNT_ID}" ] || { echo "[NG] アカウント取得失敗（接続先/トークンを確認）"; exit 1; }
 
-# コースは一覧を取得して名前で照合する（URLに日本語を入れず確実に）
+# コースは一覧を取得して名前で照合する（URLに日本語を入れず確実に）。
+# 既定は『プロンプト演習デモ』。別コース（例: DEMO-PROMPT）に入れたいときは
+# COURSE_NAME 環境変数で照合する名前（部分一致）を指定する。
+COURSE_MATCH="${COURSE_NAME:-プロンプト演習デモ}"
 COURSES_JSON="$(api GET "/api/v1/accounts/${ACCOUNT_ID}/courses?per_page=100")"
-COURSE_ID="$(python3 -c "import json,sys
+COURSE_ID="$(COURSE_MATCH="${COURSE_MATCH}" python3 -c "import json,sys,os
+m=os.environ['COURSE_MATCH']
 try:
   cs=json.load(sys.stdin)
   if isinstance(cs,list):
     for c in cs:
-      if 'プロンプト演習デモ' in (c.get('name') or ''):
+      if m in (c.get('name') or ''):
         print(c['id']); break
 except Exception: pass" <<<"${COURSES_JSON}")"
 if [ -z "${COURSE_ID}" ]; then
-  echo "[NG] 『プロンプト演習デモ（架空）』が見つかりません。アカウント${ACCOUNT_ID}のコース一覧:"
+  echo "[NG] 『${COURSE_MATCH}』を含むコースが見つかりません。アカウント${ACCOUNT_ID}のコース一覧:"
   python3 -c "import json,sys
 try:
   cs=json.load(sys.stdin)
