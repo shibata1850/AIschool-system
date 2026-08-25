@@ -11,6 +11,10 @@ export interface LtiSession {
   role: Role;
   name?: string;
   courseId?: string;
+  /** AGS: この起動（resource link）のlineitem URL（成績・提出状態の送信先）。無ければ未提供 */
+  agsLineItem?: string;
+  /** AGSで許可されたスコープ */
+  agsScopes?: string[];
 }
 
 /** セッションCookie名 */
@@ -26,6 +30,8 @@ export async function signSession(session: LtiSession, secret: string): Promise<
     role: session.role,
     name: session.name,
     courseId: session.courseId,
+    agsLineItem: session.agsLineItem,
+    agsScopes: session.agsScopes,
   })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(session.sub)
@@ -50,6 +56,10 @@ export async function verifySession(
       role: payload.role as Role,
       name: typeof payload.name === "string" ? payload.name : undefined,
       courseId: typeof payload.courseId === "string" ? payload.courseId : undefined,
+      agsLineItem: typeof payload.agsLineItem === "string" ? payload.agsLineItem : undefined,
+      agsScopes: Array.isArray(payload.agsScopes)
+        ? payload.agsScopes.filter((s): s is string => typeof s === "string")
+        : undefined,
     };
   } catch {
     return null;

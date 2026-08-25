@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { generateKeyPair, jwtVerify, exportJWK } from "jose";
 import { requestServiceToken } from "../token";
-import { postScore, scoresUrl } from "../ags";
+import { postScore, postSubmissionProgress, scoresUrl } from "../ags";
 import { getMembership } from "../nrps";
 
 function jsonResponse(status: number, body: unknown) {
@@ -83,6 +83,32 @@ describe("AGS postScore", () => {
     await expect(
       postScore("https://c/lineitems/1", "t", { userId: "u", scoreGiven: 1, scoreMaximum: 1 }, fetchFn as unknown as typeof fetch),
     ).rejects.toThrow(/HTTP 422/);
+  });
+});
+
+describe("AGS postSubmissionProgress（B-2: 提出済み・未採点の通知）", () => {
+  it("点数なしでSubmitted/PendingManualを送る", async () => {
+    const fetchFn = vi.fn(async () => new Response("", { status: 200 }));
+    await postSubmissionProgress(
+      "https://canvas/lineitems/9",
+      "tok",
+      "u-5",
+      fetchFn as unknown as typeof fetch,
+    );
+    const [url, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("https://canvas/lineitems/9/scores");
+    const body = JSON.parse(init.body as string);
+    expect(body.userId).toBe("u-5");
+    expect(body.scoreGiven).toBeUndefined();
+    expect(body.activityProgress).toBe("Submitted");
+    expect(body.gradingProgress).toBe("PendingManual");
+  });
+
+  it("非2xxはエラー", async () => {
+    const fetchFn = vi.fn(async () => new Response("", { status: 500 }));
+    await expect(
+      postSubmissionProgress("https://c/lineitems/1", "t", "u", fetchFn as unknown as typeof fetch),
+    ).rejects.toThrow(/HTTP 500/);
   });
 });
 

@@ -177,6 +177,25 @@ describe("session（署名Cookie）", () => {
     const token = await signSession({ sub: "user-9", role: "admin" }, secret);
     expect(await verifySession(token, "another-secret-entirely-different-000000")).toBeNull();
   });
+  it("AGSのlineitem・スコープも往復する（B-2の前提）", async () => {
+    const token = await signSession(
+      {
+        sub: "user-9",
+        role: "student",
+        agsLineItem: "https://canvas/lineitems/9",
+        agsScopes: ["https://purl.imsglobal.org/spec/lti-ags/scope/score"],
+      },
+      secret,
+    );
+    const session = await verifySession(token, secret);
+    expect(session?.agsLineItem).toBe("https://canvas/lineitems/9");
+    expect(session?.agsScopes).toEqual(["https://purl.imsglobal.org/spec/lti-ags/scope/score"]);
+  });
+  it("lineitemが起動に無ければ未設定のまま（コースナビ起動）", async () => {
+    const token = await signSession({ sub: "user-9", role: "student" }, secret);
+    const session = await verifySession(token, secret);
+    expect(session?.agsLineItem).toBeUndefined();
+  });
   it("不正な文字列は null", async () => {
     expect(await verifySession("not-a-jwt", secret)).toBeNull();
     expect(await verifySession(undefined, secret)).toBeNull();

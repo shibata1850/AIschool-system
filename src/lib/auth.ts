@@ -13,6 +13,13 @@ export interface CurrentUser {
   name?: string;
   /** LTIセッション由来か（デモ・E2EのCookie判定と区別する） */
   viaLti: boolean;
+  /**
+   * LTI Advantage AGS（成績・提出状態の書き戻し）に必要な情報。
+   * 起動時にlineitemを取得できた場合のみ設定する。デモ表示モードでは、
+   * 複数の実利用者が共有デモIDへ書き込むため意図的に付与しない
+   * （実Canvasへ架空の同一利用者として書き込むのを防ぐ）。
+   */
+  ags?: { lineItem: string; scopes: string[]; sub: string };
 }
 
 /**
@@ -45,6 +52,10 @@ export async function getCurrentUser(): Promise<CurrentUser> {
       userId: demoMode ? "student-demo" : ltiSession.sub,
       name: ltiSession.name,
       viaLti: true,
+      ags:
+        !demoMode && ltiSession.agsLineItem
+          ? { lineItem: ltiSession.agsLineItem, scopes: ltiSession.agsScopes ?? [], sub: ltiSession.sub }
+          : undefined,
     };
   }
   // デモ・E2E: 学習データは架空のデモ受講生に紐づく

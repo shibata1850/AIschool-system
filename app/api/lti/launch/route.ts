@@ -49,7 +49,14 @@ export async function POST(request: NextRequest) {
   }
 
   const session = await signSession(
-    { sub: launch.sub, role: launch.role, name: launch.name, courseId: launch.courseId },
+    {
+      sub: launch.sub,
+      role: launch.role,
+      name: launch.name,
+      courseId: launch.courseId,
+      agsLineItem: launch.services.agsLineItem,
+      agsScopes: launch.services.agsScopes,
+    },
     sessionSecret,
   );
 

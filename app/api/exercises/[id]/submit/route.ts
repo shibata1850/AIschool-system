@@ -1,9 +1,36 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { resume, start, submit, TransitionError } from "@/lib/f3/stateMachine";
 import { runAiGrading } from "@/lib/f3/gradingTask";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, type CurrentUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit/log";
 import { findSubmission, getStore } from "@/lib/f3/store";
+import { getLtiConfig } from "@/lib/lti/config";
+import { getToolPrivateKey } from "@/lib/lti/keys";
+import { canSyncSubmission, syncSubmissionToCanvas } from "@/lib/lti/services/submissionSync";
+
+/**
+ * 提出済み・未採点をCanvasへ知らせる（B-2）。この起動でlineitemが無い、または
+ * ツールの署名鍵が未設定なら何もしない（コースナビ起動はlineitemを持たないため
+ * 通常時は静かにスキップする）。Canvas送信の失敗は提出そのものを失敗させない
+ * （応答返却後の非同期処理。AI採点と同じ考え方）。
+ */
+async function syncSubmissionProgress(actor: CurrentUser): Promise<void> {
+  if (!canSyncSubmission(actor.ags)) return;
+  const cfg = getLtiConfig();
+  if (!cfg) return;
+  const privateKey = await getToolPrivateKey();
+  if (!privateKey) return;
+  try {
+    await syncSubmissionToCanvas(
+      actor.ags,
+      cfg,
+      privateKey,
+      process.env.LTI_KEY_ID ?? "ngais-tool-key",
+    );
+  } catch (e) {
+    console.error("[LTI AGS] 提出状態の送信に失敗しました", e);
+  }
+}
 
 /**
  * 受講生の提出（F3）: 取組中→提出済。AI一次採点は応答返却後にバックグラウンドで
@@ -95,6 +122,7 @@ export async function POST(
     });
 
     void runAiGrading(next.id, next.version, assignment);
+    void syncSubmissionProgress(actor);
 
     return NextResponse.json({ status: next.status, isLate: next.isLate });
   } catch (error) {
