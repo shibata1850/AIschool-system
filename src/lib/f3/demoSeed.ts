@@ -1,5 +1,5 @@
 import type { LessonRecord } from "@/lib/f4/achievement";
-import { clearAuditLog, recordAudit } from "@/lib/audit/log";
+import type { AuditEntry } from "@/lib/audit/log";
 import type { DeviceAssignment } from "./store";
 import type { Assignment, ExerciseStatus, Submission } from "./types";
 
@@ -166,9 +166,9 @@ export function buildRichSeed(): RichSeed {
     deviceAssignments.set(seatNo, {
       seatNo,
       nucId: `NUC-${pad}`,
-      goovisId: `GOOVIS-${pad}`,
+      monitorId: `MON-${pad}`,
       studentId: seatNo === 1 ? "student-demo" : `s${pad}`,
-      // 5番・11番はGOOVIS不調で予備機（モバイルモニター）に切替中
+      // 5番・11番は主モニター不調で予備機に切替中（デモ表示用）
       usingBackup: seatNo === 5 || seatNo === 11,
     });
   }
@@ -176,11 +176,12 @@ export function buildRichSeed(): RichSeed {
   return { assignments, submissions, lessonRecords, deviceAssignments };
 }
 
-/** 監査ログのデモ記録（画面が空にならないように数件）。呼ぶたびに置き換える */
-export function seedRichAudit(): void {
-  clearAuditLog();
-  recordAudit({ actorRole: "student", action: "update", entity: "submission", entityId: "a1-s07", before: { status: "in_progress" }, after: { status: "submitted" } });
-  recordAudit({ actorRole: "system", action: "update", entity: "submission", entityId: "a1-s07", before: { status: "submitted" }, after: { status: "ai_graded" } });
-  recordAudit({ actorRole: "teacher", action: "update", entity: "submission", entityId: "a1-s07", before: { status: "ai_graded", teacherScore: undefined }, after: { status: "completed", teacherScore: 90 } });
-  recordAudit({ actorRole: "teacher", action: "update", entity: "device_assignment", entityId: "seat-5", before: { usingBackup: false }, after: { usingBackup: true } });
+/** 監査ログのデモ記録（画面が空にならないように数件）。DB挿入は呼び出し側が行う */
+export function buildRichAuditEntries(): Array<Omit<AuditEntry, "at">> {
+  return [
+    { actorRole: "student", action: "update", entity: "submission", entityId: "a1-s07", before: { status: "in_progress" }, after: { status: "submitted" } },
+    { actorRole: "system", action: "update", entity: "submission", entityId: "a1-s07", before: { status: "submitted" }, after: { status: "ai_graded" } },
+    { actorRole: "teacher", action: "update", entity: "submission", entityId: "a1-s07", before: { status: "ai_graded", teacherScore: undefined }, after: { status: "completed", teacherScore: 90 } },
+    { actorRole: "teacher", action: "update", entity: "device_assignment", entityId: "seat-5", before: { usingBackup: false }, after: { usingBackup: true } },
+  ];
 }

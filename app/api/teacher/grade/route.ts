@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       typeof body.comment === "string" && body.comment.length > 0 ? body.comment : undefined,
     );
     const actor = await getCurrentUser();
-    recordAudit({
+    await recordAudit({
       actorRole: actor.role,
       actorId: actor.viaLti ? actor.userId : undefined,
       action: "update",

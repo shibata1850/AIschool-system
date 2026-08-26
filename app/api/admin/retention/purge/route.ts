@@ -61,8 +61,8 @@ export async function POST(request: NextRequest) {
     hadLessonRecords: boolean;
   }> = [];
   for (const w of expired) {
-    const result = purgeStudentData(w.studentId);
-    recordAudit({
+    const result = await purgeStudentData(w.studentId);
+    await recordAudit({
       actorRole: actor.role,
       actorId: actor.viaLti ? actor.userId : undefined,
       action: "delete",

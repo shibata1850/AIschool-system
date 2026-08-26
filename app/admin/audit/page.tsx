@@ -7,8 +7,8 @@ export const dynamic = "force-dynamic";
  * 閲覧は管理者のみ（要件定義書5.2 — proxy.ts の /admin ガード）。
  * 変更前後の値を含めて新しい順に表示する。
  */
-export default function AuditLogPage() {
-  const entries = [...getAuditLog()].reverse();
+export default async function AuditLogPage() {
+  const entries = [...(await getAuditLog())].reverse();
 
   return (
     <main style={{ maxWidth: "64rem" }}>

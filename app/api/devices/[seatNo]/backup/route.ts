@@ -5,7 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 
 /**
  * S9: 座席の表示デバイスを予備機（モバイルモニター）へ切替/復帰する。
- * GOOVIS不調時の運用（未決事項#4の仮決定）。権限は proxy.ts（講師・管理者のみ）。
+ * 主モニター不調時の運用（未決事項#4は2026-08-24パンフレットv2で確定）。権限は proxy.ts（講師・管理者のみ）。
  */
 export async function POST(
   request: NextRequest,
@@ -29,7 +29,7 @@ export async function POST(
     });
   }
 
-  const current = getDeviceAssignment(seatNo);
+  const current = await getDeviceAssignment(seatNo);
   if (!current) {
     return new NextResponse("座席が見つかりません", { status: 404 });
   }
@@ -40,9 +40,9 @@ export async function POST(
     return NextResponse.json({ seatNo, usingBackup: beforeValue, changed: false });
   }
 
-  setDeviceBackup(seatNo, body.usingBackup);
+  await setDeviceBackup(seatNo, body.usingBackup);
   const actor = await getCurrentUser();
-  recordAudit({
+  await recordAudit({
     actorRole: actor.role,
     actorId: actor.viaLti ? actor.userId : undefined,
     action: "update",

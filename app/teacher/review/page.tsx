@@ -1,4 +1,4 @@
-import { getStore } from "@/lib/f3/store";
+import { listSubmissionsPendingReview } from "@/lib/f3/store";
 import { ReviewForm } from "./review-form";
 
 export const dynamic = "force-dynamic";
@@ -9,10 +9,7 @@ export const dynamic = "force-dynamic";
  * 講師の手動採点で完了・差戻しできるようにする（監査指摘#5）。
  */
 export default async function ReviewPage() {
-  const store = getStore();
-  const pending = [...store.submissions.values()].filter(
-    (s) => s.status === "ai_graded" || s.status === "submitted",
-  );
+  const pending = await listSubmissionsPendingReview();
 
   return (
     <main>
@@ -20,8 +17,7 @@ export default async function ReviewPage() {
       {pending.length === 0 ? (
         <p>採点待ちの提出はありません。</p>
       ) : (
-        pending.map((submission) => {
-          const assignment = store.assignments.get(submission.assignmentId);
+        pending.map(({ submission, assignment }) => {
           return (
             <section
               key={submission.id}

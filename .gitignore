@@ -12,6 +12,7 @@ out/
 .env*
 !.env.example
 !.env.staging.example
+!.env.test.example
 
 # テスト成果物
 test-results/

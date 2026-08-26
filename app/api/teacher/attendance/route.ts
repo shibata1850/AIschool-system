@@ -30,10 +30,10 @@ export async function POST(request: NextRequest) {
     return new NextResponse("その受講生は名簿にいません", { status: 400 });
   }
 
-  const result = setAttendance(body.studentId, weekStart, body.attended);
+  const result = await setAttendance(body.studentId, weekStart, body.attended);
   if (result.changed) {
     const actor = await getCurrentUser();
-    recordAudit({
+    await recordAudit({
       actorRole: actor.role,
       actorId: actor.viaLti ? actor.userId : undefined,
       action: "update",

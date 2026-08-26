@@ -8,11 +8,11 @@ import { getCurrentUser } from "@/lib/auth";
  * 出力操作自体も監査ログに記録する（要件定義書5.2・S10）。
  */
 export async function GET(_request: NextRequest) {
-  const entries = getAuditLog();
+  const entries = await getAuditLog();
   const csv = auditToCsv(entries);
 
   const actor = await getCurrentUser();
-  recordAudit({
+  await recordAudit({
     actorRole: actor.role,
     actorId: actor.viaLti ? actor.userId : undefined,
     action: "create",

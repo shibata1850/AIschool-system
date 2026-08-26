@@ -3,7 +3,7 @@ import { resume, start, submit, TransitionError } from "@/lib/f3/stateMachine";
 import { runAiGrading } from "@/lib/f3/gradingTask";
 import { getCurrentUser, type CurrentUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit/log";
-import { findSubmission, getStore } from "@/lib/f3/store";
+import { findSubmission, getAssignment, updateSubmissionIfVersion } from "@/lib/f3/store";
 import { getLtiConfig } from "@/lib/lti/config";
 import { getToolPrivateKey } from "@/lib/lti/keys";
 import { canSyncSubmission, syncSubmissionToCanvas } from "@/lib/lti/services/submissionSync";
@@ -42,8 +42,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const store = getStore();
-  const assignment = store.assignments.get(id);
+  const assignment = await getAssignment(id);
   if (!assignment) {
     return new NextResponse("課題が見つかりません", { status: 404 });
   }
@@ -83,9 +82,7 @@ export async function POST(
     });
   }
 
-  // ここから set まで await を挟まない（同一プロセス内での読取り→版数チェック→
-  // 書込みを不可分にし、二重提出のロストアップデートを防ぐ＝楽観ロック。既知残課題#1）。
-  const submission = findSubmission(id, actor.userId);
+  const submission = await findSubmission(id, actor.userId);
   if (!submission) {
     return new NextResponse("提出データが見つかりません", { status: 404 });
   }
@@ -110,21 +107,31 @@ export async function POST(
       aiOutputText: body.aiOutputText as string | undefined,
       reflectionText: body.reflectionText as string | undefined,
     });
-    store.submissions.set(next.id, next);
-    recordAudit({
+
+    // 版数一致を条件にしたDB更新（楽観ロック）。読取り時の版数から変わっていなければ
+    // 書込みが成立する。競合時（別端末が先に更新済み）は null（既知残課題#1の解消）。
+    const updated = await updateSubmissionIfVersion(next, submission.version);
+    if (!updated) {
+      return new NextResponse(
+        "この課題は別の端末で更新されています。画面を読み込み直して、最新の内容で操作してください。",
+        { status: 409 },
+      );
+    }
+
+    await recordAudit({
       actorRole: actor.role,
       actorId: actor.viaLti ? actor.userId : undefined,
       action: "update",
       entity: "submission",
-      entityId: next.id,
+      entityId: updated.id,
       before: { status: submission.status, version: submission.version },
-      after: { status: next.status, version: next.version, isLate: next.isLate },
+      after: { status: updated.status, version: updated.version, isLate: updated.isLate },
     });
 
-    void runAiGrading(next.id, next.version, assignment);
+    void runAiGrading(updated.id, updated.version, assignment);
     void syncSubmissionProgress(actor);
 
-    return NextResponse.json({ status: next.status, isLate: next.isLate });
+    return NextResponse.json({ status: updated.status, isLate: updated.isLate });
   } catch (error) {
     if (error instanceof TransitionError) {
       return new NextResponse(error.message, { status: 400 });

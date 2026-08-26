@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { complete, returnToStudent, TransitionError } from "@/lib/f3/stateMachine";
 import { recordAudit } from "@/lib/audit/log";
-import { getStore, recordCompletionScore } from "@/lib/f3/store";
+import { getSubmissionById, recordCompletionScore, updateSubmissionIfVersion } from "@/lib/f3/store";
 import { getCurrentUser } from "@/lib/auth";
 
 /**
@@ -13,8 +13,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const store = getStore();
-  const submission = store.submissions.get(id);
+  const submission = await getSubmissionById(id);
   if (!submission) {
     return new NextResponse("提出が見つかりません", { status: 404 });
   }
@@ -42,26 +41,33 @@ export async function POST(
       body.action === "return"
         ? returnToStudent(submission, typeof body.comment === "string" ? body.comment : "")
         : complete(submission, body.score as number | undefined);
-    store.submissions.set(next.id, next);
-    if (next.status === "completed" && next.teacherScore !== undefined) {
+
+    const updated = await updateSubmissionIfVersion(next, submission.version);
+    if (!updated) {
+      return new NextResponse(
+        "この提出は別の操作で更新されています。画面を読み込み直して、最新の内容で操作してください。",
+        { status: 409 },
+      );
+    }
+    if (updated.status === "completed" && updated.teacherScore !== undefined) {
       // 成績確定を到達度の学習記録へ反映する（F3→F4連携）
-      recordCompletionScore(next.studentId, next.teacherScore);
+      await recordCompletionScore(updated.studentId, updated.teacherScore);
     }
     const actor = await getCurrentUser();
-    recordAudit({
+    await recordAudit({
       actorRole: actor.role,
       actorId: actor.viaLti ? actor.userId : undefined,
       action: "update",
       entity: "submission",
-      entityId: next.id,
+      entityId: updated.id,
       before: { status: submission.status, teacherScore: submission.teacherScore },
       after: {
-        status: next.status,
-        teacherScore: next.teacherScore,
-        hasDeviation: next.hasDeviation,
+        status: updated.status,
+        teacherScore: updated.teacherScore,
+        hasDeviation: updated.hasDeviation,
       },
     });
-    return NextResponse.json({ status: next.status, hasDeviation: next.hasDeviation });
+    return NextResponse.json({ status: updated.status, hasDeviation: updated.hasDeviation });
   } catch (error) {
     if (error instanceof TransitionError) {
       return new NextResponse(error.message, { status: 400 });

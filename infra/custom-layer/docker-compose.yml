@@ -1,0 +1,46 @@
+# カスタム層（本リポジトリ）＋専用PostgreSQLのさくらのクラウド構成。
+# Canvas本体は別スタック（infra/canvas/）で構築する（CLAUDE.md 絶対ルール1・
+# docs/ホスティング方針.md — DBも含めてCanvasとは分離する）。
+#
+# 使い方は infra/custom-layer/README.md を参照。
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: aischool
+      POSTGRES_USER: aischool_admin
+      POSTGRES_PASSWORD: ${DB_ADMIN_PASSWORD:?DB_ADMIN_PASSWORD を設定してください}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:?DB_APP_PASSWORD を設定してください}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./init-roles.sh:/docker-entrypoint-initdb.d/init-roles.sh:ro
+    # 校内LAN/外部に公開しない。同一Docker networkの app からのみ接続する
+    expose:
+      - "5432"
+    networks:
+      - custom-layer
+
+  app:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ../../.env
+    environment:
+      DATABASE_URL: postgres://aischool_app:${DB_APP_PASSWORD}@db:5432/aischool
+      DATABASE_ADMIN_URL: postgres://aischool_admin:${DB_ADMIN_PASSWORD}@db:5432/aischool
+    depends_on:
+      - db
+    ports:
+      - "3000:3000"
+    networks:
+      - custom-layer
+
+networks:
+  custom-layer:
+
+volumes:
+  db-data:

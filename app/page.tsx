@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
-import { getStore } from "@/lib/f3/store";
+import { listActiveSubmissionsForStudent } from "@/lib/f3/store";
 import { STATUS_LABELS, type ExerciseStatus } from "@/lib/f3/types";
 
 export const dynamic = "force-dynamic";
@@ -31,13 +31,7 @@ export default async function Home() {
     );
   }
 
-  const store = getStore();
-  const items = [...store.submissions.values()]
-    .filter((s) => s.studentId === userId && s.status !== "completed")
-    .map((s) => ({
-      submission: s,
-      assignment: store.assignments.get(s.assignmentId),
-    }));
+  const items = await listActiveSubmissionsForStudent(userId);
 
   return (
     <main>

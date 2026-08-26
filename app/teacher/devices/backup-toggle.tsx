@@ -33,7 +33,7 @@ export function BackupToggle({
   return (
     <div>
       <button type="button" disabled={busy} onClick={toggle}>
-        {usingBackup ? "GOOVISに戻す" : "予備機に切替"}
+        {usingBackup ? "主モニターに戻す" : "予備機に切替"}
       </button>
       {error && (
         <p role="alert" style={{ color: "var(--error)" }}>

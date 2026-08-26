@@ -7,7 +7,7 @@ export async function POST() {
   if (process.env.NODE_ENV === "production" && process.env.ALLOW_DEV_RESET !== "1") {
     return new NextResponse("無効なエンドポイントです", { status: 404 });
   }
-  resetStore();
-  clearAuditLog();
+  await resetStore();
+  await clearAuditLog();
   return NextResponse.json({ ok: true });
 }

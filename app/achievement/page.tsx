@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function AchievementPage() {
   const { userId } = await getCurrentUser();
-  const records = getLessonRecords(userId);
+  const records = await getLessonRecords(userId);
   const weekly = computeWeeklyAchievements(records);
   const latest = latestAchievement(weekly);
 

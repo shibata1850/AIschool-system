@@ -20,6 +20,14 @@ const STATUS_COLORS: Record<ExerciseStatus, string> = {
 };
 
 export default async function MonitorPage() {
+  const tiles = await Promise.all(
+    STUDENTS.map(async (student) => {
+      const submission = await findSubmission(CURRENT_ASSIGNMENT_ID, student.id);
+      const status: ExerciseStatus = submission?.status ?? "not_started";
+      const attendedNoSubmit = isAttendedWithoutSubmission(await getLessonRecords(student.id));
+      return { student, status, attendedNoSubmit };
+    }),
+  );
 
   return (
     <main style={{ maxWidth: "64rem" }}>
@@ -31,10 +39,7 @@ export default async function MonitorPage() {
           gap: "0.75rem",
         }}
       >
-        {STUDENTS.map((student) => {
-          const submission = findSubmission(CURRENT_ASSIGNMENT_ID, student.id);
-          const status: ExerciseStatus = submission?.status ?? "not_started";
-          const attendedNoSubmit = isAttendedWithoutSubmission(getLessonRecords(student.id));
+        {tiles.map(({ student, status, attendedNoSubmit }) => {
           return (
             <section
               key={student.id}

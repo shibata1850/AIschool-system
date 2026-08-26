@@ -73,6 +73,7 @@
 
 - Canvas LMS: OSS版最新安定リリース、Docker Compose 構成
 - カスタム層: TypeScript / Next.js（LTI 1.3 ツール、ダッシュボード）
+- カスタム層のデータ永続化: PostgreSQL（Drizzle ORM）。Canvas本体のDBとは別コンテナで分離する（絶対ルール1参照）。実行時アプリ用ロールと、マイグレーション・E2Eリセット専用の管理ロールを分離し、監査ログはDBロールでUPDATE/DELETEを拒否する（追記専用の強制。9章）。詳細は `infra/custom-layer/README.md`
 - AI推論: 校内GPUサーバー上のローカルLLM か Claude API か未決（未決事項 #3）。**推論クライアントは必ず抽象化レイヤー（interface）を挟み、後から切替可能に実装する**。AI講師機能自体の位置づけは12章参照
 - 演習環境: JupyterHub（技術演習の参考実装。現行カリキュラムでは不使用 — 12章）
 - 実装環境（本リポジトリ外）: BASE44（受講生が業務システムを組む本体）

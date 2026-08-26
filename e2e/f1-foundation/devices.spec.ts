@@ -15,12 +15,11 @@ test("S9-N1 正常系: 予備機へ切替でき、監査ログに記録される
   await page.goto("/teacher/devices");
 
   const seat1 = page.getByLabel("座席1の割当");
-  await expect(seat1).toContainText("GOOVIS-01");
-  await expect(seat1).not.toContainText("予備機（モバイルモニター）");
+  await expect(seat1).toContainText("MON-01");
+  await expect(seat1).toContainText("主モニター");
 
   await seat1.getByRole("button", { name: "予備機に切替" }).click();
-  await expect(seat1).toContainText("予備機（モバイルモニター）");
-  await expect(seat1.getByRole("button", { name: "GOOVISに戻す" })).toBeVisible();
+  await expect(seat1.getByRole("button", { name: "主モニターに戻す" })).toBeVisible();
 
   // 切替が監査ログに記録される（管理者で確認）
   await setRole(page, "admin");

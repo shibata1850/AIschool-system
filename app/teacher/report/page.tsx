@@ -14,14 +14,17 @@ export const dynamic = "force-dynamic";
  * 参照実装では表示時に同じ集計ロジックで生成する。
  * 権限ガードは proxy.ts（講師・管理者のみ）。
  */
-export default function ReportPage() {
-  const rows = STUDENTS.map((student) => {
-    const records = getLessonRecords(student.id);
-    const weekly = computeWeeklyAchievements(records);
-    const latest = latestAchievement(weekly);
-    const declining = isDeclining(weekly);
-    return { student, weekly, latest, declining };
-  }).filter((row) => row.weekly.length > 0);
+export default async function ReportPage() {
+  const allRows = await Promise.all(
+    STUDENTS.map(async (student) => {
+      const records = await getLessonRecords(student.id);
+      const weekly = computeWeeklyAchievements(records);
+      const latest = latestAchievement(weekly);
+      const declining = isDeclining(weekly);
+      return { student, weekly, latest, declining };
+    }),
+  );
+  const rows = allRows.filter((row) => row.weekly.length > 0);
 
   return (
     <main style={{ maxWidth: "64rem" }}>
