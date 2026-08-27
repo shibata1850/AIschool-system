@@ -44,7 +44,12 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "3000:3000"
+      # **必ず127.0.0.1に限定する**。0.0.0.0で公開するとリバースプロキシ
+      # （Caddy=TLS終端／nginx=Basic認証）を迂回してアプリが直接インターネットへ
+      # 露出する（docs/実装状況.md「アクセス制御の現状」の方針違反）。
+      # 公開はリバースプロキシ経由のみ。既存のCaddy/nginxが別ポートを見ている場合は
+      # APP_HOST_PORT で合わせる（例: APP_HOST_PORT=3001）
+      - "127.0.0.1:${APP_HOST_PORT:-3000}:3000"
     networks:
       - custom-layer
 

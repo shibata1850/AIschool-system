@@ -62,10 +62,36 @@ docker compose run --rm --no-deps app npx tsx scripts/seed.ts --force
 なお開発・E2E用の `POST /api/dev/reset` は本番では使わない
 （`ALLOW_DEV_RESET` を設定しなければ404のまま。本番の初期投入は上記スクリプトで行う）。
 
+## 公開範囲（リバースプロキシ前提）
+
+アプリのポートは **`127.0.0.1` にのみ** 公開する（`docker-compose.yml`）。
+インターネットへの公開はリバースプロキシ（Caddy=TLS終端／nginx=Basic認証。
+`infra/reverse-proxy/`）経由のみとする — docs/実装状況.md「アクセス制御の現状」。
+
+既存のCaddy/nginxが別ポート（例: 3001）を向いている場合は、ホスト側ポートを合わせる:
+
+```
+APP_HOST_PORT=3001 bash bootstrap.sh
+```
+
+`docker compose ps` の PORTS 列が `127.0.0.1:xxxx->3000/tcp` になっていることを
+必ず確認する。`0.0.0.0:xxxx->3000/tcp` はプロキシを迂回した直接公開なので不可。
+
+## DBのlocaleについて
+
+`postgres:16-alpine` は既定で C ロケール（初期化時に警告が出る）。現在のクエリで
+文字列順の `ORDER BY` を使うのは `week_start`（ISO日付＝ASCII）だけで、
+他は整数列のため**実害はない**。将来、氏名・課題名など日本語文字列で並べ替える
+機能を追加する場合は、`ORDER BY ... COLLATE` の指定か、DB再作成時の
+`POSTGRES_INITDB_ARGS: "--locale=ja_JP.UTF-8"` 付与を検討する
+（ロケール変更は initdb のやり直し＝データ全削除を伴うため、投入前に決めること）。
+
 ## やってはいけないこと
 
+- アプリのポートを `0.0.0.0` で公開すること（リバースプロキシを迂回する。上記参照）
 - `aischool_app`（アプリ実行時接続）に`audit_log`のUPDATE/DELETE権限を与えること
   （追記専用性の強制が壊れる — SEC-2）
 - `DATABASE_ADMIN_URL`（管理ロール接続）をアプリの通常経路（API route・画面）から
-  使うこと。マイグレーションと `/api/dev/reset` のみに限定する
-- 実受講生の個人データが入った状態で `/api/dev/reset` を呼ぶこと（全削除される）
+  使うこと。マイグレーションと初期投入スクリプトのみに限定する
+- 実受講生の個人データが入った状態で `scripts/seed.ts --force` / `/api/dev/reset`
+  を実行すること（全削除される）
