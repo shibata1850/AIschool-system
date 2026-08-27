@@ -10,6 +10,7 @@
 
 | ファイル | 用途 |
 |---|---|
+| `bootstrap.sh` | **一括構築スクリプト**。パスワード生成→DB起動→スキーマ適用→（任意）初期投入→アプリ起動。冪等 |
 | `docker-compose.yml` | `app`（本リポジトリのDockerfileをビルド）＋ `db`（PostgreSQL）の2サービス構成 |
 | `init-roles.sh` | DB初回起動時に、実行時アプリ用の権限を絞ったロール（`aischool_app`）を作成する |
 
@@ -24,30 +25,42 @@
 
 ## 使い方（さくらのクラウドのサーバー確保後）
 
-1. サーバー（Canvas用とは別、またはCanvasと同一サーバーでも可。同一サーバーでも
-   DBコンテナ・ネットワークはCanvas側と分離する）にリポジトリをクローン
-2. `.env`（本番用の値。CANVAS_BASE_URL・ANTHROPIC_API_KEY等）と、
-   `DB_ADMIN_PASSWORD` / `DB_APP_PASSWORD`（十分に長いランダム値。パスワード管理台帳へ）
-   をサーバー上に用意する
-3. 起動:
-   ```
-   cd infra/custom-layer
-   DB_ADMIN_PASSWORD=*** DB_APP_PASSWORD=*** docker compose up -d db
-   ```
-   （`db` を先に起動し、`init-roles.sh` によるロール作成を待つ）
-4. マイグレーション適用（初回・スキーマ変更のたび）:
-   ```
-   DATABASE_ADMIN_URL="postgres://aischool_admin:***@localhost:5432/aischool" \
-     npx tsx scripts/migrate.ts
-   ```
-   （`db` サービスをホストへ一時的にポート公開するか、コンテナ内から実行する）
-5. 初回データ投入（架空デモ値。DEMO_RICH_SEED=1 でリッチデモ、未設定で最小シード）:
-   `POST /api/dev/reset` を叩く（本番では `ALLOW_DEV_RESET=1` を明示しない限り404 —
-   実受講生データ投入後はこのエンドポイントを使わない。CLAUDE.md 2章）
-6. アプリ起動:
-   ```
-   DB_ADMIN_PASSWORD=*** DB_APP_PASSWORD=*** docker compose up -d app
-   ```
+サーバー（Canvas用とは別、またはCanvasと同一サーバーでも可。同一サーバーでも
+DBコンテナ・ネットワークはCanvas側と分離する）にリポジトリをクローンしたうえで、
+**次の2行だけ**で構築できる:
+
+```
+cd ~/AIschool-system/infra/custom-layer
+bash bootstrap.sh --seed
+```
+
+`bootstrap.sh` が行うこと（何度実行しても安全）:
+
+1. Docker / docker compose v2 の存在確認
+2. `infra/custom-layer/.env` にDBパスワード2種を自動生成（既にあれば再利用）。
+   **生成後にパスワード管理台帳へ転記すること**（gitignore済み・チャット貼付禁止）
+3. `docker compose up -d db` → `pg_isready` で接続可能になるまで待機
+4. `docker compose run --rm --no-deps app npm run db:migrate` でスキーマ適用
+   （アプリ用ロールへの権限付与＝`0001_grant_app_role.sql` もここで適用される）
+5. `--seed` 指定時のみ、架空デモデータを投入（**破壊的**。下記参照）
+6. `docker compose up -d --build app` でアプリ起動
+
+初回以外（スキーマ変更時など）は `--seed` を付けずに実行する。
+
+### 初期データ投入について
+
+`scripts/seed.ts` は対象DBを**全削除してから**架空データを入れ直す破壊的操作で、
+`--force` を明示しない限り実行されない。`DEMO_RICH_SEED=1` でリッチデモ
+（授業中の教室16席）、未設定で最小シードになる。
+
+```
+docker compose run --rm --no-deps app npx tsx scripts/seed.ts --force
+```
+
+**実受講生データの投入後は実行しないこと**（CLAUDE.md 絶対ルール6）。
+
+なお開発・E2E用の `POST /api/dev/reset` は本番では使わない
+（`ALLOW_DEV_RESET` を設定しなければ404のまま。本番の初期投入は上記スクリプトで行う）。
 
 ## やってはいけないこと
 

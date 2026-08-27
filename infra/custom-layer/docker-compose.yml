@@ -19,6 +19,12 @@ services:
     # 校内LAN/外部に公開しない。同一Docker networkの app からのみ接続する
     expose:
       - "5432"
+    # 起動直後はまだ接続を受け付けないため、appは健全になるまで待つ
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aischool_admin -d aischool"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
     networks:
       - custom-layer
 
@@ -28,12 +34,15 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     env_file:
-      - ../../.env
+      # アプリ本体の設定（Canvas接続・LTI鍵等）。DBだけ先に構築する段階では未作成でよい
+      - path: ../../.env
+        required: false
     environment:
       DATABASE_URL: postgres://aischool_app:${DB_APP_PASSWORD}@db:5432/aischool
       DATABASE_ADMIN_URL: postgres://aischool_admin:${DB_ADMIN_PASSWORD}@db:5432/aischool
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     ports:
       - "3000:3000"
     networks:
