@@ -40,6 +40,7 @@ export async function getCurrentUser(): Promise<CurrentUser> {
     ltiConfigured: getLtiConfig() != null,
     cookieRole: store.get("role")?.value,
     devCookieAllowed: process.env.DEV_COOKIE_ROLES === "1",
+    isProduction: process.env.NODE_ENV === "production",
   });
 
   // デモ表示モード（DEMO_RICH_SEED=1）では、生徒向け画面を「デモ生徒」の
