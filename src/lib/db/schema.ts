@@ -71,6 +71,23 @@ export const deviceAssignments = pgTable("device_assignments", {
   usingBackup: boolean("using_backup").notNull(),
 });
 
+/**
+ * 週次到達度レポートの生成済みスナップショット（要件定義書F4・9.2 F4①）。
+ * 毎週月曜7:00のバッチが1週につき1行を作る（再生成は同じ週の行を置き換える）。
+ * 画面のリアルタイム集計とは別に、「いつ生成し・いつ通知したか」を残すための記録。
+ */
+export const weeklyReports = pgTable("weekly_reports", {
+  /** 対象週の月曜（ISO日付）。1週1行 */
+  weekStart: text("week_start").primaryKey(),
+  generatedAt: timestamp("generated_at", { withTimezone: true }).notNull(),
+  /** WeeklyReport（src/lib/f4/weeklyReport.ts）のJSON */
+  payload: jsonb("payload").notNull(),
+  /** Canvasメッセージでの通知に成功した時刻。未通知はnull */
+  notifiedAt: timestamp("notified_at", { withTimezone: true }),
+  /** 未通知の理由（Canvas未接続・送信失敗など）。通知済みならnull */
+  notifySkippedReason: text("notify_skipped_reason"),
+});
+
 /** 追記専用（DBロールでUPDATE/DELETEを拒否 — CLAUDE.md 9章・SEC-2） */
 export const auditLog = pgTable("audit_log", {
   id: serial("id").primaryKey(),

@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import {
   assignments as assignmentsTable,
@@ -218,6 +218,51 @@ export async function getLessonRecords(studentId: string): Promise<LessonRecord[
     .where(eq(lessonRecordsTable.studentId, studentId))
     .orderBy(lessonRecordsTable.weekStart);
   return rows.map(toLessonRecord);
+}
+
+/**
+ * 全受講生の学習記録を一括取得する（F4: 週次レポートのバッチ生成）。
+ * 受講生ごとに1クエリ投げないための一括版。週順に整列して返す。
+ */
+export async function getAllLessonRecords(): Promise<Map<string, LessonRecord[]>> {
+  const db = getDb();
+  const rows = await db
+    .select()
+    .from(lessonRecordsTable)
+    .orderBy(lessonRecordsTable.studentId, lessonRecordsTable.weekStart);
+
+  const byStudent = new Map<string, LessonRecord[]>();
+  for (const row of rows) {
+    const list = byStudent.get(row.studentId) ?? [];
+    list.push(toLessonRecord(row));
+    byStudent.set(row.studentId, list);
+  }
+  return byStudent;
+}
+
+/**
+ * 受講生ごとの未提出（完了していない）課題名を一括取得する
+ * （F4: 週次レポートの「未提出課題一覧」）。
+ */
+export async function getPendingAssignmentsByStudent(): Promise<Map<string, string[]>> {
+  const db = getDb();
+  const rows = await db
+    .select({
+      studentId: submissionsTable.studentId,
+      title: assignmentsTable.title,
+    })
+    .from(submissionsTable)
+    .innerJoin(assignmentsTable, eq(submissionsTable.assignmentId, assignmentsTable.id))
+    .where(ne(submissionsTable.status, "completed"))
+    .orderBy(submissionsTable.studentId, assignmentsTable.title);
+
+  const byStudent = new Map<string, string[]>();
+  for (const row of rows) {
+    const list = byStudent.get(row.studentId) ?? [];
+    list.push(row.title);
+    byStudent.set(row.studentId, list);
+  }
+  return byStudent;
 }
 
 /** 1席のデバイス割当（存在しない座席は undefined） */

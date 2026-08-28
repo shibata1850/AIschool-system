@@ -5,32 +5,117 @@ import {
 } from "@/lib/f4/achievement";
 import { getLessonRecords } from "@/lib/f3/store";
 import { STUDENTS } from "@/lib/f4/fixtures";
+import { getLatestWeeklyReport } from "@/lib/f4/generateWeeklyReport";
 
 export const dynamic = "force-dynamic";
 
+/** 生成時刻を日本語の読みやすい形にする */
+function formatJst(iso: string): string {
+  return new Date(iso).toLocaleString("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 /**
  * S8 週次到達度レポート（docs/画面仕様書.md S8）。
- * 本番は毎週月曜7:00にバッチ生成して通知する（KPI#2: 手集計0時間）。
- * 参照実装では表示時に同じ集計ロジックで生成する。
+ * 毎週月曜7:00のバッチが生成・通知したスナップショット（要件定義書9.2 F4①）と、
+ * 週の途中でも使える現在値の集計を並べて表示する。
  * 権限ガードは proxy.ts（講師・管理者のみ）。
  */
 export default async function ReportPage() {
-  const allRows = await Promise.all(
-    STUDENTS.map(async (student) => {
-      const records = await getLessonRecords(student.id);
-      const weekly = computeWeeklyAchievements(records);
-      const latest = latestAchievement(weekly);
-      const declining = isDeclining(weekly);
-      return { student, weekly, latest, declining };
-    }),
-  );
+  const [snapshot, allRows] = await Promise.all([
+    getLatestWeeklyReport(),
+    Promise.all(
+      STUDENTS.map(async (student) => {
+        const records = await getLessonRecords(student.id);
+        const weekly = computeWeeklyAchievements(records);
+        const latest = latestAchievement(weekly);
+        const declining = isDeclining(weekly);
+        return { student, weekly, latest, declining };
+      }),
+    ),
+  ]);
   const rows = allRows.filter((row) => row.weekly.length > 0);
 
   return (
     <main style={{ maxWidth: "64rem" }}>
       <h1>週次到達度レポート</h1>
+
+      <section
+        aria-label="自動生成レポート"
+        style={{
+          border: "2px solid var(--fg-sub)",
+          borderRadius: 8,
+          padding: "1rem",
+          margin: "1rem 0 1.5rem",
+        }}
+      >
+        <h2 style={{ fontSize: "1.1rem", marginBottom: "0.5rem" }}>
+          自動生成レポート（毎週月曜7:00）
+        </h2>
+
+        {snapshot === null ? (
+          <p aria-label="未生成" style={{ color: "var(--warn)" }}>
+            まだ生成されていません。月曜7:00のバッチが動くと、ここに結果が表示されます。
+          </p>
+        ) : (
+          <>
+            <p aria-label="生成状況">
+              対象週 <strong>{snapshot.report.weekStart}</strong> ／ 生成{" "}
+              {formatJst(snapshot.generatedAt)}
+            </p>
+            <p aria-label="通知状況" style={{ color: "var(--fg-sub)" }}>
+              {snapshot.notifiedAt
+                ? `講師へ通知済み（${formatJst(snapshot.notifiedAt)}）`
+                : `未通知: ${snapshot.notifySkippedReason ?? "理由不明"}`}
+            </p>
+            <p style={{ marginTop: "0.5rem" }}>
+              対象 {snapshot.report.summary.studentCount}名 ／ 停滞アラート{" "}
+              {snapshot.report.alerts.length}名 ／ 未提出課題あり{" "}
+              {snapshot.report.summary.withPendingCount}名
+            </p>
+
+            {snapshot.report.alerts.length > 0 && (
+              <div aria-label="停滞アラート" style={{ marginTop: "0.75rem" }}>
+                <h3 style={{ fontSize: "1rem", color: "var(--warn)" }}>
+                  停滞アラート（2週連続で到達度が下降）
+                </h3>
+                <ul style={{ paddingLeft: "1.2rem" }}>
+                  {snapshot.report.alerts.map((a) => (
+                    <li key={a.studentId}>
+                      座席{a.seatNo} {a.displayName}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {snapshot.report.summary.withPendingCount > 0 && (
+              <div aria-label="未提出課題一覧" style={{ marginTop: "0.75rem" }}>
+                <h3 style={{ fontSize: "1rem" }}>未提出の課題</h3>
+                <ul style={{ paddingLeft: "1.2rem" }}>
+                  {snapshot.report.rows
+                    .filter((r) => r.pendingAssignments.length > 0)
+                    .map((r) => (
+                      <li key={r.studentId}>
+                        座席{r.seatNo} {r.displayName}: {r.pendingAssignments.join("、")}
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            )}
+          </>
+        )}
+      </section>
+
+      <h2 style={{ fontSize: "1.1rem" }}>現在の集計（リアルタイム）</h2>
       <p style={{ color: "var(--fg-sub)", marginBottom: "1rem" }}>
-        毎週月曜7:00に自動生成されます（手作業での集計は不要です）。
+        週の途中の状況です。手作業での集計は不要です。
       </p>
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>

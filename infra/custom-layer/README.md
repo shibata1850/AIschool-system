@@ -77,6 +77,33 @@ APP_HOST_PORT=3001 bash bootstrap.sh
 `docker compose ps` の PORTS 列が `127.0.0.1:xxxx->3000/tcp` になっていることを
 必ず確認する。`0.0.0.0:xxxx->3000/tcp` はプロキシを迂回した直接公開なので不可。
 
+## 定期実行（cron）
+
+サーバー側で登録する定期処理。いずれもコンテナ内で実行する。
+
+| 時刻 | 処理 | コマンド |
+|---|---|---|
+| 毎日 3:00 | DBバックアップ | `docker compose exec -T db pg_dump -U aischool_admin aischool \| gzip > ~/backups/aischool-$(date +\%F).sql.gz` |
+| 毎日 3:30 | 7日超のバックアップ削除 | `find ~/backups -name 'aischool-*.sql.gz' -mtime +7 -delete` |
+| **毎週月曜 7:00** | **週次到達度レポートの生成・通知**（要件定義書 9.2 F4①） | `docker compose exec -T app npx tsx scripts/generate-weekly-report.ts` |
+
+crontab の記述例（`%` のエスケープに注意）:
+
+```
+0 3 * * *  cd ~/AIschool-system/infra/custom-layer && docker compose exec -T db pg_dump -U aischool_admin aischool | gzip > ~/backups/aischool-$(date +\%F).sql.gz 2>>~/backups/backup.log
+30 3 * * * find ~/backups -name 'aischool-*.sql.gz' -mtime +7 -delete
+0 7 * * 1  cd ~/AIschool-system/infra/custom-layer && docker compose exec -T app npx tsx scripts/generate-weekly-report.ts >>~/backups/weekly-report.log 2>&1
+```
+
+週次レポートについて:
+
+- 対象週は実行日が属する週（月曜起点）。過去週を作り直すときは第1引数に週の月曜
+  （`YYYY-MM-DD`）を渡す。同じ週の再実行は上書きされる（冪等）
+- Canvasが未接続・講師が未登録などで通知できなかった場合も、**レポート自体は生成される**。
+  未通知の理由は保存され、`/teacher/report` に表示される
+- 生成に失敗したときの手動再実行は、管理者ロールで `POST /api/admin/reports/weekly`
+  （body: `{"weekStart":"YYYY-MM-DD"}`。省略可）でも行える
+
 ## DBのlocaleについて
 
 `postgres:16-alpine` は既定で C ロケール（初期化時に警告が出る）。現在のクエリで

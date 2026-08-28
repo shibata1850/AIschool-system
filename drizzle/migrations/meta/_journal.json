@@ -15,6 +15,20 @@
       "when": 1787718266546,
       "tag": "0001_grant_app_role",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787902900154,
+      "tag": "0002_weekly_reports",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1787902904745,
+      "tag": "0003_grant_weekly_reports",
+      "breakpoints": true
     }
   ]
 }

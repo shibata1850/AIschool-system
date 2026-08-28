@@ -5,6 +5,7 @@ import {
   deviceAssignments as deviceAssignmentsTable,
   lessonRecords as lessonRecordsTable,
   submissions as submissionsTable,
+  weeklyReports as weeklyReportsTable,
 } from "./schema";
 import type { Assignment } from "@/lib/f3/types";
 import { buildRichAuditEntries, buildRichSeed } from "@/lib/f3/demoSeed";
@@ -23,6 +24,7 @@ export async function resetDatabase(): Promise<void> {
     await tx.delete(deviceAssignmentsTable);
     await tx.delete(assignmentsTable);
     await tx.delete(auditLogTable);
+    await tx.delete(weeklyReportsTable);
 
     async function insertMinimalSeed() {
       await tx.insert(assignmentsTable).values(MINIMAL_ASSIGNMENT);

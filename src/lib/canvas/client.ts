@@ -173,6 +173,43 @@ export class CanvasClient {
     );
   }
 
+  /**
+   * コースの講師・TA名簿（F4: 週次レポートの通知先）。
+   * enrollment_type[]=teacher と ta を指定し、受講生を除外する。
+   */
+  async listTeachers(courseId: number): Promise<CanvasUser[]> {
+    return this.requestAllPages<CanvasUser>(
+      `/api/v1/courses/${courseId}/users?enrollment_type[]=teacher&enrollment_type[]=ta&per_page=100`,
+    );
+  }
+
+  /**
+   * Canvasメッセージ（会話）を送る（F4: 週次レポートの自動通知）。
+   * 本文に受講生個人の点数を含めないこと（メッセージは平文で残る — 要件定義書5.3）。
+   */
+  async createConversation(
+    recipientIds: number[],
+    subject: string,
+    body: string,
+  ): Promise<void> {
+    if (recipientIds.length === 0) {
+      throw new Error("通知先が空です");
+    }
+    const params = new URLSearchParams();
+    for (const id of recipientIds) params.append("recipients[]", String(id));
+    params.set("subject", subject);
+    params.set("body", body);
+    // 宛先ごとに個別の会話にする（受信者同士が互いに見えないようにする）
+    params.set("group_conversation", "false");
+    params.set("mode", "async");
+
+    await this.request<unknown>("/api/v1/conversations", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: params.toString(),
+    });
+  }
+
   /** コースの課題一覧（F3: プロンプト演習の出題元・全ページ取得） */
   async listAssignments(courseId: number): Promise<CanvasAssignment[]> {
     return this.requestAllPages<CanvasAssignment>(
