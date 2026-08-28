@@ -29,6 +29,13 @@
       "when": 1787902904745,
       "tag": "0003_grant_weekly_reports",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1787907493585,
+      "tag": "0004_submission_canvas_sync",
+      "breakpoints": true
     }
   ]
 }

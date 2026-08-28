@@ -1,7 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { complete, returnToStudent, TransitionError } from "@/lib/f3/stateMachine";
 import { recordAudit } from "@/lib/audit/log";
-import { getSubmissionById, recordCompletionScore, updateSubmissionIfVersion } from "@/lib/f3/store";
+import {
+  getSubmissionById,
+  recordCanvasSync,
+  recordCompletionScore,
+  updateSubmissionIfVersion,
+} from "@/lib/f3/store";
+import { syncGradeToCanvas, type GradeSyncResult } from "@/lib/canvas/syncGrade";
 import { getCurrentUser } from "@/lib/auth";
 
 /**
@@ -49,9 +55,24 @@ export async function POST(
         { status: 409 },
       );
     }
+    // Canvasへの反映は「ローカル確定のあと」に行う。Canvasが落ちていても
+    // 採点そのものは成立させ、反映状況だけを記録する（F3①）
+    let canvasSync: GradeSyncResult | undefined;
     if (updated.status === "completed" && updated.teacherScore !== undefined) {
       // 成績確定を到達度の学習記録へ反映する（F3→F4連携）
       await recordCompletionScore(updated.studentId, updated.teacherScore);
+
+      canvasSync = await syncGradeToCanvas({
+        canvasUserId: updated.canvasUserId,
+        score: updated.teacherScore,
+        comment: updated.aiGrade?.feedback,
+      });
+      await recordCanvasSync(
+        updated.id,
+        canvasSync.state === "synced"
+          ? { syncedAt: new Date() }
+          : { error: canvasSync.reason },
+      );
     }
     const actor = await getCurrentUser();
     await recordAudit({
@@ -65,9 +86,14 @@ export async function POST(
         status: updated.status,
         teacherScore: updated.teacherScore,
         hasDeviation: updated.hasDeviation,
+        canvasSync: canvasSync?.state,
       },
     });
-    return NextResponse.json({ status: updated.status, hasDeviation: updated.hasDeviation });
+    return NextResponse.json({
+      status: updated.status,
+      hasDeviation: updated.hasDeviation,
+      canvasSync,
+    });
   } catch (error) {
     if (error instanceof TransitionError) {
       return new NextResponse(error.message, { status: 400 });

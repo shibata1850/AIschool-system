@@ -45,6 +45,16 @@ export const submissions = pgTable("submissions", {
   submittedAt: text("submitted_at"),
   /** Array<{version, promptText, submittedAt}> */
   versions: jsonb("versions").notNull(),
+  /**
+   * 提出者のCanvas数値ユーザーID（LTI起動時のカスタムフィールド由来）。
+   * 講師の成績確定をCanvas成績表へ書き戻すのに使う（F3①・B-3方式）。
+   * デモ・Cookie運用では null（書き戻しは行われない）。
+   */
+  canvasUserId: integer("canvas_user_id"),
+  /** Canvas成績表への反映に成功した時刻。未反映は null */
+  canvasSyncedAt: timestamp("canvas_synced_at", { withTimezone: true }),
+  /** 未反映の理由（Canvas未接続・名簿に不在・APIエラー等）。反映済みなら null */
+  canvasSyncError: text("canvas_sync_error"),
 });
 
 /** 授業コマ1回分の学習記録（到達度・出席が同居。既存 LessonRecord に対応） */

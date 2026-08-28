@@ -20,6 +20,12 @@ export interface CurrentUser {
    * （実Canvasへ架空の同一利用者として書き込むのを防ぐ）。
    */
   ags?: { lineItem: string; scopes: string[]; sub: string };
+  /**
+   * CanvasのREST API用の数値ユーザーID（B-3の成績書き戻しに使う）。
+   * LTI起動時に開発者キーのカスタムフィールド（canvas_user_id）から得る。
+   * デモ表示モードでは複数の実利用者が共有デモIDを使うため付与しない。
+   */
+  canvasUserId?: number;
 }
 
 /**
@@ -53,6 +59,7 @@ export async function getCurrentUser(): Promise<CurrentUser> {
       userId: demoMode ? "student-demo" : ltiSession.sub,
       name: ltiSession.name,
       viaLti: true,
+      canvasUserId: demoMode ? undefined : ltiSession.canvasUserId,
       ags:
         !demoMode && ltiSession.agsLineItem
           ? { lineItem: ltiSession.agsLineItem, scopes: ltiSession.agsScopes ?? [], sub: ltiSession.sub }

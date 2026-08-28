@@ -76,7 +76,27 @@ export async function resetDatabase(): Promise<void> {
       const rich = buildRichSeed();
 
       await tx.insert(assignmentsTable).values([...rich.assignments.values()]);
-      await tx.insert(submissionsTable).values([...rich.submissions.values()]);
+      // ドメイン型の canvasSyncedAt は ISO文字列、DBは timestamp のため明示的に詰め替える
+      // （シードは常にCanvas未反映の状態で作る）
+      await tx.insert(submissionsTable).values(
+        [...rich.submissions.values()].map((s) => ({
+          id: s.id,
+          assignmentId: s.assignmentId,
+          studentId: s.studentId,
+          status: s.status,
+          version: s.version,
+          promptText: s.promptText,
+          aiOutputText: s.aiOutputText,
+          reflectionText: s.reflectionText,
+          isLate: s.isLate,
+          aiGrade: s.aiGrade ?? null,
+          teacherScore: s.teacherScore ?? null,
+          hasDeviation: s.hasDeviation,
+          teacherComment: s.teacherComment ?? null,
+          submittedAt: s.submittedAt ?? null,
+          versions: s.versions,
+        })),
+      );
 
       const lessonRows = [...rich.lessonRecords.entries()].flatMap(([studentId, records]) =>
         records.map((r) => ({

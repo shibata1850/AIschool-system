@@ -25,6 +25,9 @@
    - Redirect URIs: `<APP>/api/lti/launch`
    - 公開JWK URL（JWK Method = Public JWK URL）: `<APP>/api/lti/jwks`
    - プライバシーレベル: `public`（氏名・ロールを渡す。個人情報最小化と整合させる）
+   - **カスタムフィールド（必須）**: `canvas_user_id=$Canvas.user.id`
+     — LTIの `sub` はCanvas REST APIの数値IDと別値のため、成績書き戻し（F3①）に必要。
+     未設定だと採点は成立するがCanvas成績表へ反映されず、S7に「Canvas未反映」として残る
 3. 配置（Placements）: 「コースナビゲーション」等、ツールを出す場所を指定
    （Target Link URI を画面別に上書き可。例: 演習は `<APP>/exercises/...`）
 4. キーを **ON** にし、発行された **Client ID** を控える

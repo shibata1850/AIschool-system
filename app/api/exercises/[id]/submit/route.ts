@@ -107,6 +107,9 @@ export async function POST(
       aiOutputText: body.aiOutputText as string | undefined,
       reflectionText: body.reflectionText as string | undefined,
     });
+    // 講師の確定スコアをCanvasへ書き戻すため、提出者のCanvas利用者IDを控える（F3①）。
+    // 採点は別セッション（講師）で行うため、提出時点で保存しておく必要がある
+    next = { ...next, canvasUserId: actor.canvasUserId ?? next.canvasUserId };
 
     // 版数一致を条件にしたDB更新（楽観ロック）。読取り時の版数から変わっていなければ
     // 書込みが成立する。競合時（別端末が先に更新済み）は null（既知残課題#1の解消）。

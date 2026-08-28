@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, ne } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import {
   assignments as assignmentsTable,
@@ -70,6 +70,9 @@ function toSubmission(row: SubmissionRow): Submission {
     teacherComment: row.teacherComment ?? undefined,
     submittedAt: row.submittedAt ?? undefined,
     versions: (row.versions as Submission["versions"] | null) ?? [],
+    canvasUserId: row.canvasUserId ?? undefined,
+    canvasSyncedAt: row.canvasSyncedAt?.toISOString() ?? undefined,
+    canvasSyncError: row.canvasSyncError ?? undefined,
   };
 }
 
@@ -152,12 +155,33 @@ export async function updateSubmissionIfVersion(
       teacherComment: next.teacherComment ?? null,
       submittedAt: next.submittedAt ?? null,
       versions: next.versions,
+      canvasUserId: next.canvasUserId ?? null,
     })
     .where(
       and(eq(submissionsTable.id, next.id), eq(submissionsTable.version, expectedVersion)),
     )
     .returning();
   return row ? toSubmission(row) : null;
+}
+
+/**
+ * Canvas成績表への反映結果を記録する（F3①）。
+ * 版数は進めない（採点の状態遷移とは別軸の付帯情報のため、楽観ロックの対象外）。
+ * 成功なら syncedAt を入れて error を消し、失敗なら逆にする。
+ */
+export async function recordCanvasSync(
+  submissionId: string,
+  result: { syncedAt: Date } | { error: string },
+): Promise<void> {
+  const db = getDb();
+  await db
+    .update(submissionsTable)
+    .set(
+      "syncedAt" in result
+        ? { canvasSyncedAt: result.syncedAt, canvasSyncError: null }
+        : { canvasSyncedAt: null, canvasSyncError: result.error },
+    )
+    .where(eq(submissionsTable.id, submissionId));
 }
 
 /** S1受講生ホーム用: 未完了の提出と、その課題をまとめて取得する */
@@ -194,6 +218,33 @@ export async function listSubmissionsPendingReview(): Promise<
     .select()
     .from(submissionsTable)
     .where(inArray(submissionsTable.status, ["submitted", "ai_graded"]));
+  if (rows.length === 0) return [];
+
+  const assignmentIds = [...new Set(rows.map((r) => r.assignmentId))];
+  const assignmentRows = await db
+    .select()
+    .from(assignmentsTable)
+    .where(inArray(assignmentsTable.id, assignmentIds));
+  const byId = new Map(assignmentRows.map((a) => [a.id, a]));
+
+  return rows.map((row) => ({
+    submission: toSubmission(row),
+    assignment: byId.get(row.assignmentId),
+  }));
+}
+
+/**
+ * Canvas成績表への反映に失敗したまま残っている提出（F3①）。
+ * 講師が見落とさないようS7に一覧表示する。
+ */
+export async function listCanvasSyncFailures(): Promise<
+  Array<{ submission: Submission; assignment: Assignment | undefined }>
+> {
+  const db = getDb();
+  const rows = await db
+    .select()
+    .from(submissionsTable)
+    .where(isNotNull(submissionsTable.canvasSyncError));
   if (rows.length === 0) return [];
 
   const assignmentIds = [...new Set(rows.map((r) => r.assignmentId))];

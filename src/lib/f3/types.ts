@@ -67,4 +67,10 @@ export interface Submission {
     promptText: string;
     submittedAt: string;
   }>;
+  /** 提出者のCanvas数値ユーザーID（LTI起動時に判明した場合のみ。成績書き戻しに使う） */
+  canvasUserId?: number;
+  /** Canvas成績表へ反映できた時刻（ISO 8601）。未反映は undefined */
+  canvasSyncedAt?: string;
+  /** 未反映の理由。反映済みなら undefined */
+  canvasSyncError?: string;
 }

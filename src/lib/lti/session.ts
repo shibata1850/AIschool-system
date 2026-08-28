@@ -8,6 +8,8 @@ import type { Role } from "@/lib/auth";
 export interface LtiSession {
   /** Canvasの利用者ID */
   sub: string;
+  /** CanvasのREST API用の数値ユーザーID（成績書き戻しに使う。未設定なら省略） */
+  canvasUserId?: number;
   role: Role;
   name?: string;
   courseId?: string;
@@ -30,6 +32,7 @@ export async function signSession(session: LtiSession, secret: string): Promise<
     role: session.role,
     name: session.name,
     courseId: session.courseId,
+    canvasUserId: session.canvasUserId,
     agsLineItem: session.agsLineItem,
     agsScopes: session.agsScopes,
   })
@@ -53,6 +56,10 @@ export async function verifySession(
     if (!payload.sub || !payload.role) return null;
     return {
       sub: String(payload.sub),
+      canvasUserId:
+        typeof payload.canvasUserId === "number" && Number.isInteger(payload.canvasUserId)
+          ? payload.canvasUserId
+          : undefined,
       role: payload.role as Role,
       name: typeof payload.name === "string" ? payload.name : undefined,
       courseId: typeof payload.courseId === "string" ? payload.courseId : undefined,

@@ -13,7 +13,22 @@ const CLAIM = {
   // LTI Advantage サービスのエンドポイント
   agsEndpoint: "https://purl.imsglobal.org/spec/lti-ags/claim/endpoint",
   nrps: "https://purl.imsglobal.org/spec/lti-nrps/claim/namesroleservice",
+  /** 開発者キーで設定するカスタムフィールド（canvas_user_id=$Canvas.user.id） */
+  custom: "https://purl.imsglobal.org/spec/lti/claim/custom",
 } as const;
+
+/**
+ * カスタムクレームからCanvasの数値ユーザーIDを取り出す（B-3の成績書き戻しに使う）。
+ * LTIの sub はCanvasのREST APIが使う数値IDとは別値のため、開発者キー側で
+ * `canvas_user_id=$Canvas.user.id` を設定してもらう必要がある（docs/LTI連携手順.md）。
+ * 未設定・数値化できない場合は undefined（成績書き戻しは行われない）。
+ */
+export function readCanvasUserId(custom: unknown): number | undefined {
+  if (typeof custom !== "object" || custom === null) return undefined;
+  const raw = (custom as Record<string, unknown>).canvas_user_id;
+  const n = typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw) : NaN;
+  return Number.isInteger(n) && n > 0 ? n : undefined;
+}
 
 /** 起動時に得られるLTI Advantageサービスのエンドポイント（成績・名簿） */
 export interface LtiServices {
@@ -28,8 +43,10 @@ export interface LtiServices {
 }
 
 export interface LtiLaunch {
-  /** Canvasの利用者ID（本人確認の源泉。以後この値で提出・成績を紐づける） */
+  /** LTIの利用者ID（本人確認の源泉。以後この値で提出を紐づける） */
   sub: string;
+  /** CanvasのREST API用の数値ユーザーID（開発者キーのカスタムフィールド由来） */
+  canvasUserId?: number;
   role: Role;
   name?: string;
   /** Canvasのコースコンテキストid */
@@ -90,6 +107,7 @@ export async function verifyLaunch(
   const nrps = payload[CLAIM.nrps] as { context_memberships_url?: string } | undefined;
   return {
     sub: String(payload.sub),
+    canvasUserId: readCanvasUserId(payload[CLAIM.custom]),
     role: mapLtiRoles(roles),
     name: typeof payload.name === "string" ? payload.name : undefined,
     courseId: context?.id,

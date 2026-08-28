@@ -53,6 +53,10 @@ export function ReviewForm({
       setError(result.message);
       return;
     }
+    // Canvas成績表へ反映できなかった場合は、更新後の画面上部に
+    // 「Canvas未反映の提出」として残る（app/teacher/review/page.tsx）。
+    // ここで一覧の更新を止めると、完了済みの提出が採点待ちに残って紛らわしいため、
+    // 通知はその常設セクションに任せる
     router.refresh();
   }
 

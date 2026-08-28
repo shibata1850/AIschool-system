@@ -1,4 +1,4 @@
-import { listSubmissionsPendingReview } from "@/lib/f3/store";
+import { listCanvasSyncFailures, listSubmissionsPendingReview } from "@/lib/f3/store";
 import { ReviewForm } from "./review-form";
 
 export const dynamic = "force-dynamic";
@@ -9,11 +9,44 @@ export const dynamic = "force-dynamic";
  * 講師の手動採点で完了・差戻しできるようにする（監査指摘#5）。
  */
 export default async function ReviewPage() {
-  const pending = await listSubmissionsPendingReview();
+  const [pending, syncFailures] = await Promise.all([
+    listSubmissionsPendingReview(),
+    listCanvasSyncFailures(),
+  ]);
 
   return (
     <main>
       <h1>採点・差戻し</h1>
+
+      {syncFailures.length > 0 && (
+        <section
+          aria-label="Canvas未反映の提出"
+          style={{
+            border: "2px solid var(--warn)",
+            borderRadius: 8,
+            padding: "1rem",
+            margin: "1rem 0",
+          }}
+        >
+          <h2 style={{ fontSize: "1.1rem", color: "var(--warn)" }}>
+            Canvas成績表に反映できていない提出（{syncFailures.length}件）
+          </h2>
+          <p style={{ color: "var(--fg-sub)" }}>
+            採点は確定していますが、Canvasの成績表には載っていません。
+            原因を解消したうえで、成績入力画面から手動で反映してください。
+          </p>
+          <ul style={{ paddingLeft: "1.2rem", marginTop: "0.5rem" }}>
+            {syncFailures.map(({ submission, assignment }) => (
+              <li key={submission.id}>
+                {assignment?.title ?? submission.assignmentId} ／ 提出者{" "}
+                {submission.studentId}
+                {submission.teacherScore !== undefined && `（${submission.teacherScore}点）`}
+                : {submission.canvasSyncError}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {pending.length === 0 ? (
         <p>採点待ちの提出はありません。</p>
       ) : (
