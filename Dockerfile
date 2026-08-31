@@ -31,6 +31,19 @@ RUN npm prune --omit=dev
 FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production
+
+# ベースイメージのOSパッケージを最新へ（libssl3/libcrypto3 等。`--pull` だけでは
+# イメージ内のapkパッケージまでは新しくならないため、ここで更新する）
+RUN apk upgrade --no-cache
+
+# **同梱の npm CLI を削除する。**
+# npm 自身が抱える依存（tar・pacote・sigstore・picomatch・ip-address・
+# brace-expansion）が Critical 1 / High 10 の発生源で、上流の node:22-alpine が
+# 更新するまで `--pull` では消えない。本イメージで npm が要るのは起動コマンドだけ
+# なので、Next を直接起動する形にして npm ごと外す。
+# 運用スクリプトは `node dist-scripts/*.mjs` で動くため npm/npx に依存しない。
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
+
 # 実行に必要なものだけを個別にコピーする。src/・e2e/・テスト設定は本番に不要なので入れない
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/.next ./.next
@@ -38,4 +51,5 @@ COPY --from=builder /app/dist-scripts ./dist-scripts
 COPY --from=builder /app/drizzle ./drizzle
 COPY --from=builder /app/package.json ./package.json
 EXPOSE 3000
-CMD ["npm", "start"]
+# `npm start` は使えない（npmを削除したため）。Nextを直接起動する
+CMD ["node", "node_modules/next/dist/bin/next", "start"]

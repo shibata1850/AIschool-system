@@ -79,10 +79,14 @@ docker compose run --rm --no-deps app node dist-scripts/seed.mjs --force
 - `npm prune --omit=dev` で開発用パッケージを落とす
 - 最終イメージへは `node_modules` / `.next` / `dist-scripts` / `drizzle` /
   `package.json` のみをコピーする（`src/`・`e2e/` は入れない）
+- `apk upgrade` でOSパッケージを更新し、**同梱の npm CLI を削除する**。
+  npm自身の依存（tar・pacote・sigstore 等）が脆弱性の発生源で、上流が更新するまで
+  `--pull` では消えないため。起動は `node node_modules/next/dist/bin/next start`
 
-**コンテナ内でスクリプトを実行するときは `npx tsx scripts/xxx.ts` ではなく
-`node dist-scripts/xxx.mjs` を使う**（イメージに `tsx` が無いため）。
-開発機では従来どおり `npm run db:migrate` 等（`tsx` 経由）が使える。
+> **コンテナ内で `npm` / `npx` / `tsx` は使えない**（いずれも削除済み）。
+> スクリプトの実行は `npx tsx scripts/xxx.ts` ではなく
+> **`node dist-scripts/xxx.mjs`**、起動は `node node_modules/next/dist/bin/next start`。
+> 開発機では従来どおり `npm run db:migrate` 等（`tsx` 経由）が使える。
 
 > **`git pull` の後は必ず先にビルドする。** `docker compose run` / `exec` は
 > 既存イメージをそのまま使うため、ビルドせずにマイグレーションを流すと

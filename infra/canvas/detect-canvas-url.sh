@@ -54,8 +54,7 @@ cat <<'EOS'
 1) Canvasにリッチデータ投入:
      bash infra/canvas/seed-canvas-rich.sh
 2) カスタム層を再起動（DEMO_RICH_SEED付き）:
-     docker rm -f aischool-custom 2>/dev/null
-     docker run -d --name aischool-custom --restart unless-stopped --network host --env-file .env \
-       -e DEMO_RICH_SEED=1 \
-       aischool-custom:latest npm start -- -H 127.0.0.1 -p 3001
+     # 現行はdocker compose構成（infra/custom-layer/）。.env に DEMO_RICH_SEED=1 を
+     # 追記してから再起動する。旧 `docker run aischool-custom` 経路は使わない
+     cd infra/custom-layer && APP_HOST_PORT=3001 docker compose up -d app
 EOS
