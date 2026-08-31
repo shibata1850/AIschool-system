@@ -4,6 +4,7 @@ import {
   type CanvasCourse,
   type CanvasUser,
 } from "./client";
+import { toErrorMessage } from "./errorMessage";
 
 /**
  * 受講生ごとのCanvas成績サマリ（B-4）。
@@ -33,14 +34,6 @@ export type ClassSummary =
       totalAssignments: number;
       rows: StudentSummary[];
     };
-
-function toErrorMessage(e: unknown): string {
-  return e instanceof CanvasApiError
-    ? e.status === 401
-      ? "認証に失敗しました。アクセストークンを確認してください。"
-      : `Canvasとの通信に失敗しました（HTTP ${e.status}）。`
-    : "Canvasとの通信中に想定外のエラーが発生しました。";
-}
 
 /**
  * 連携対象コースの公開課題すべてについて提出を集め、受講生ごとに集計する。

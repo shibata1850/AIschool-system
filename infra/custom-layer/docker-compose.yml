@@ -43,6 +43,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # ホスト側で動くCanvas（infra/canvas/）へコンテナから到達するための名前。
+    # CANVAS_BASE_URL に localhost/127.0.0.1 を書くとコンテナ自身を指して必ず失敗する
+    # （README「Canvasへの到達性」参照）。公開URLを使う場合はこの設定は不要。
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       # **必ず127.0.0.1に限定する**。0.0.0.0で公開するとリバースプロキシ
       # （Caddy=TLS終端／nginx=Basic認証）を迂回してアプリが直接インターネットへ

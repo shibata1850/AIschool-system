@@ -77,6 +77,31 @@ APP_HOST_PORT=3001 bash bootstrap.sh
 `docker compose ps` の PORTS 列が `127.0.0.1:xxxx->3000/tcp` になっていることを
 必ず確認する。`0.0.0.0:xxxx->3000/tcp` はプロキシを迂回した直接公開なので不可。
 
+## Canvasへの到達性（`CANVAS_BASE_URL`）
+
+**アプリはコンテナの中で動く。`localhost` / `127.0.0.1` はホストではなく
+コンテナ自身を指す。** Canvasはホスト側の別スタック（`infra/canvas/`）で動いて
+いるため、Docker化以前の `.env` をそのまま持ち込むとCanvasへ一切届かなくなる。
+
+症状: 週次レポートの通知が「未送信」、S7に「Canvas未反映の提出」が溜まる、
+名簿・成績・クラスサマリが空になる。エラー文言に接続先ホストと
+`ECONNREFUSED` 等の原因コードが出る（`src/lib/canvas/client.ts`）。
+
+設定は次のいずれかにする:
+
+| 値 | 前提 | 追加設定 |
+|---|---|---|
+| `https://canvas.<公開ホスト名>` （推奨） | Canvasが公開URLでTLS提供済み | 不要 |
+| `http://host.docker.internal:<Canvasのホスト側ポート>` | 公開前・内部だけで繋ぎたい | compose の `extra_hosts`（設定済み） |
+
+`http://localhost:...` / `http://127.0.0.1:...` は**必ず失敗する**ので設定しない。
+
+疎通確認（トークンは表示しない）:
+
+```
+docker compose exec app node -e "fetch(process.env.CANVAS_BASE_URL+'/login').then(r=>console.log('OK',r.status)).catch(e=>console.log('NG',e.cause?.code||e.message))"
+```
+
 ## 定期実行（cron）
 
 サーバー側で登録する定期処理。いずれもコンテナ内で実行する。

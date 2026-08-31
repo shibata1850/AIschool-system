@@ -4,6 +4,7 @@ import {
   type CanvasCourse,
   type CanvasUser,
 } from "./client";
+import { toErrorMessage } from "./errorMessage";
 
 /** 成績表の1行（受講生＋現在のCanvas成績） */
 export interface GradebookRow {
@@ -29,14 +30,6 @@ export type Gradebook =
       assignment: { id: number; title: string };
       rows: GradebookRow[];
     };
-
-function toErrorMessage(e: unknown): string {
-  return e instanceof CanvasApiError
-    ? e.status === 401
-      ? "認証に失敗しました。アクセストークンを確認してください。"
-      : `Canvasとの通信に失敗しました（HTTP ${e.status}）。`
-    : "Canvasとの通信中に想定外のエラーが発生しました。";
-}
 
 /**
  * 連携対象コースの先頭公開課題について、受講生ごとの現在の成績を集める。

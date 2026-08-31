@@ -224,3 +224,87 @@ describe("CanvasClient", () => {
     ).toBeInstanceOf(CanvasClient);
   });
 });
+
+/**
+ * ネットワーク層の失敗（Canvasへ到達できていない）の診断可能性。
+ * 2026-08-31: 本番の週次レポートが「通知: 未送信（fetch failed）」としか出せず、
+ * 原因を切り分けられなかったため追加。Nodeのfetchは真因を cause に隠すので掘り出す。
+ */
+describe("接続失敗時のエラーメッセージ", () => {
+  /** Node の fetch がネットワーク層で失敗したときの形（TypeError + cause.code） */
+  function networkFailure(code: string) {
+    return Object.assign(new TypeError("fetch failed"), {
+      cause: Object.assign(new Error("connect"), { code }),
+    });
+  }
+
+  function clientThatFails(cause: unknown, baseUrl = "http://localhost:8900") {
+    return new CanvasClient({
+      baseUrl,
+      apiToken: "秘密トークン",
+      fetchFn: vi.fn(async () => {
+        throw cause;
+      }),
+    });
+  }
+
+  it("接続拒否は接続先ホストと原因コードを示し、Dockerのlocalhost誤設定を指摘する", async () => {
+    const error = await clientThatFails(networkFailure("ECONNREFUSED"))
+      .getSelf()
+      .catch((e) => e);
+    expect(error).toBeInstanceOf(CanvasApiError);
+    expect(error.status).toBe(0); // HTTP応答なし。HTTPエラー（4xx/5xx）と区別する
+    expect(error.message).toContain("localhost:8900");
+    expect(error.message).toContain("ECONNREFUSED");
+    expect(error.message).toContain("コンテナ自身");
+  });
+
+  it("名前解決の失敗はDNS確認を促す", async () => {
+    const error = await clientThatFails(
+      networkFailure("ENOTFOUND"),
+      "https://canvas.example.jp",
+    )
+      .getSelf()
+      .catch((e) => e);
+    expect(error.message).toContain("canvas.example.jp");
+    expect(error.message).toContain("ホスト名を解決できません");
+  });
+
+  it("原因コードが取れなくても接続先ホストは示す", async () => {
+    const error = await clientThatFails(new TypeError("fetch failed"))
+      .getSelf()
+      .catch((e) => e);
+    expect(error.message).toContain("localhost:8900");
+    expect(error.message).toContain("CANVAS_BASE_URL");
+  });
+
+  it("APIトークンをエラーメッセージへ漏らさない", async () => {
+    const error = await clientThatFails(networkFailure("ECONNREFUSED"))
+      .getSelf()
+      .catch((e) => e);
+    expect(error.message).not.toContain("秘密トークン");
+  });
+
+  it("cause が入れ子でも原因コードを掘り出す（undiciの多重ラップ）", async () => {
+    const nested = Object.assign(new TypeError("fetch failed"), {
+      cause: Object.assign(new Error("外側"), {
+        cause: Object.assign(new Error("内側"), { code: "ETIMEDOUT" }),
+      }),
+    });
+    const error = await clientThatFails(nested).getSelf().catch((e) => e);
+    expect(error.message).toContain("ETIMEDOUT");
+    expect(error.message).toContain("タイムアウト");
+  });
+
+  it("成績書き戻し（F3①）でも接続不能の理由が講師に伝わる", async () => {
+    const { syncGradeToCanvas } = await import("../syncGrade");
+    const result = await syncGradeToCanvas(
+      { canvasUserId: 5, score: 90 },
+      clientThatFails(networkFailure("ECONNREFUSED")),
+    );
+    expect(result.state).toBe("error");
+    if (result.state === "error") {
+      expect(result.reason).toContain("ECONNREFUSED");
+    }
+  });
+});

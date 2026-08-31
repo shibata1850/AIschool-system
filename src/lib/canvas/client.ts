@@ -89,6 +89,54 @@ function isThrottled(res: Response): boolean {
   return remaining !== null && parseFloat(remaining) <= 0;
 }
 
+/**
+ * ネットワーク層の失敗（Canvasに到達できていない）を、運用者が切り分けられる文言にする。
+ *
+ * 載せてよいもの: 接続先の **ホスト名のみ**（.envに書くがURLは秘密情報ではない）と
+ * Node の下位エラーコード。載せてはいけないもの: APIトークン・パス・応答本文。
+ * `CanvasApiError.status = 0` は「HTTP応答が返っていない」ことを表す（HTTPエラーと区別する）。
+ */
+export function describeNetworkFailure(baseUrl: string, cause: unknown): string {
+  let host: string;
+  try {
+    host = new URL(baseUrl).host;
+  } catch {
+    host = "(CANVAS_BASE_URLが不正なURL)";
+  }
+  const code = extractErrorCode(cause);
+  const hint = code ? NETWORK_HINTS[code] : undefined;
+  return [
+    `Canvasへ接続できませんでした（接続先: ${host}${code ? ` / ${code}` : ""}）。`,
+    hint ?? "CANVAS_BASE_URL の値と、アプリからCanvasへの疎通を確認してください。",
+  ].join("");
+}
+
+/** Node の fetch は真因を error.cause（さらにその cause）に入れるため、code を掘り出す */
+function extractErrorCode(cause: unknown): string | undefined {
+  for (let e = cause, depth = 0; e && depth < 5; depth++) {
+    const code = (e as { code?: unknown }).code;
+    if (typeof code === "string") return code;
+    e = (e as { cause?: unknown }).cause;
+  }
+  return undefined;
+}
+
+const NETWORK_HINTS: Record<string, string> = {
+  ECONNREFUSED:
+    "接続は届いたが拒否されました。Dockerで動かしている場合、CANVAS_BASE_URL の localhost/127.0.0.1 は" +
+    "**コンテナ自身**を指すため届きません（infra/custom-layer/README.md「Canvasへの到達性」参照）。",
+  ENOTFOUND: "ホスト名を解決できませんでした。CANVAS_BASE_URL のホスト名とDNSを確認してください。",
+  EAI_AGAIN: "DNSの一時的な失敗です。名前解決の設定を確認し、時間をおいて再実行してください。",
+  ETIMEDOUT: "接続がタイムアウトしました。経路上のファイアウォール・セキュリティグループを確認してください。",
+  UND_ERR_CONNECT_TIMEOUT:
+    "接続がタイムアウトしました。経路上のファイアウォール・セキュリティグループを確認してください。",
+  CERT_HAS_EXPIRED: "サーバー証明書の期限が切れています。",
+  DEPTH_ZERO_SELF_SIGNED_CERT:
+    "自己署名証明書のため検証に失敗しました。正規の証明書を設定してください（検証の無効化は禁止）。",
+  UNABLE_TO_VERIFY_LEAF_SIGNATURE:
+    "証明書チェーンを検証できませんでした。中間証明書の設定を確認してください。",
+};
+
 export class CanvasClient {
   private baseUrl: string;
   private apiToken: string;
@@ -105,14 +153,21 @@ export class CanvasClient {
   private async requestRaw(url: string, init?: RequestInit): Promise<Response> {
     let res: Response;
     for (let attempt = 0; ; attempt++) {
-      res = await this.fetchFn(url, {
-        ...init,
-        headers: {
-          Authorization: `Bearer ${this.apiToken}`,
-          "content-type": "application/json",
-          ...init?.headers,
-        },
-      });
+      try {
+        res = await this.fetchFn(url, {
+          ...init,
+          headers: {
+            Authorization: `Bearer ${this.apiToken}`,
+            "content-type": "application/json",
+            ...init?.headers,
+          },
+        });
+      } catch (cause) {
+        // 名前解決不可・接続拒否・TLS失敗などは fetch が素の TypeError（"fetch failed"）を
+        // 投げ、真因は cause に隠れる。そのままだと運用者が原因を切り分けられないため、
+        // **接続先ホストと下位の原因コード**を載せた CanvasApiError に変換する。
+        throw new CanvasApiError(0, describeNetworkFailure(this.baseUrl, cause));
+      }
       if (res.ok || !isThrottled(res) || attempt >= MAX_THROTTLE_RETRIES) break;
       // レート制限は指数バックオフで再試行（1秒 → 2秒）
       await new Promise((r) => setTimeout(r, this.retryBaseDelayMs * 2 ** attempt));

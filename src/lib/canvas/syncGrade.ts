@@ -41,13 +41,15 @@ export async function syncGradeToCanvas(
 
   try {
     const gb = await resolveGradebook(client);
+    if (gb.state === "error") {
+      // 接続不能・APIエラーは「載せに行って失敗した」＝再実行で解消し得る。
+      // 設定不足（コース・課題が無い）とは区別する（前者はerror、後者はskipped）
+      return { state: "error", reason: gb.message };
+    }
     if (gb.state !== "ok") {
       return {
         state: "skipped",
-        reason:
-          gb.state === "error"
-            ? gb.message
-            : "Canvasに採点対象のコース・課題が見つかりません",
+        reason: "Canvasに採点対象のコース・課題が見つかりません",
       };
     }
     if (!gb.rows.some((r) => r.student.id === params.canvasUserId)) {
