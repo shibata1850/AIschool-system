@@ -40,7 +40,7 @@ bash bootstrap.sh --seed
 2. `infra/custom-layer/.env` にDBパスワード2種を自動生成（既にあれば再利用）。
    **生成後にパスワード管理台帳へ転記すること**（gitignore済み・チャット貼付禁止）
 3. `docker compose up -d db` → `pg_isready` で接続可能になるまで待機
-4. `docker compose run --rm --no-deps app npm run db:migrate` でスキーマ適用
+4. `docker compose run --rm --no-deps app node dist-scripts/migrate.mjs` でスキーマ適用
    （アプリ用ロールへの権限付与＝`0001_grant_app_role.sql` もここで適用される）
 5. `--seed` 指定時のみ、架空デモデータを投入（**破壊的**。下記参照）
 6. `docker compose up -d --build app` でアプリ起動
@@ -54,13 +54,41 @@ bash bootstrap.sh --seed
 （授業中の教室16席）、未設定で最小シードになる。
 
 ```
-docker compose run --rm --no-deps app npx tsx scripts/seed.ts --force
+docker compose run --rm --no-deps app node dist-scripts/seed.mjs --force
 ```
 
 **実受講生データの投入後は実行しないこと**（CLAUDE.md 絶対ルール6）。
 
 なお開発・E2E用の `POST /api/dev/reset` は本番では使わない
 （`ALLOW_DEV_RESET` を設定しなければ404のまま。本番の初期投入は上記スクリプトで行う）。
+
+## イメージに入れるもの／入れないもの（2026-08-31）
+
+本番イメージには**実行に必要なものだけ**を入れる（`Dockerfile`）。
+
+以前は builder の `/app` をまるごとコピーしていたため、`@playwright/test`・`vitest`・
+`typescript`・`drizzle-kit`・`tsx` とその依存ツリーが本番イメージに同梱されていた。
+本番で1行も実行されないのに、脆弱性スキャンの検出件数の大半を占めていた
+（`drizzle-kit` が引きずる esbuild 0.18.20 など、Goバイナリの `stdlib` だけで49件）。
+
+そのため:
+
+- 運用スクリプト（マイグレーション・シード・週次レポート）は**ビルド時に素のJSへ
+  コンパイル**して `dist-scripts/` に置く。実行時の外部依存は `pg` と `drizzle-orm`
+  だけになり、`tsx` も `drizzle-kit` も要らない
+- `npm prune --omit=dev` で開発用パッケージを落とす
+- 最終イメージへは `node_modules` / `.next` / `dist-scripts` / `drizzle` /
+  `package.json` のみをコピーする（`src/`・`e2e/` は入れない）
+
+**コンテナ内でスクリプトを実行するときは `npx tsx scripts/xxx.ts` ではなく
+`node dist-scripts/xxx.mjs` を使う**（イメージに `tsx` が無いため）。
+開発機では従来どおり `npm run db:migrate` 等（`tsx` 経由）が使える。
+
+> **`git pull` の後は必ず先にビルドする。** `docker compose run` / `exec` は
+> 既存イメージをそのまま使うため、ビルドせずにマイグレーションを流すと
+> **古いコードのまま実行される**（2026-08-30に実際に発生した）。
+> 正しい順序: `git pull` → `docker compose build app` → `docker compose run --rm
+> --no-deps app node dist-scripts/migrate.mjs` → `docker compose up -d app`
 
 ## 公開範囲（リバースプロキシ前提）
 
@@ -110,14 +138,14 @@ docker compose exec app node -e "fetch(process.env.CANVAS_BASE_URL+'/login').the
 |---|---|---|
 | 毎日 3:00 | DBバックアップ | `docker compose exec -T db pg_dump -U aischool_admin aischool \| gzip > ~/backups/aischool-$(date +\%F).sql.gz` |
 | 毎日 3:30 | 7日超のバックアップ削除 | `find ~/backups -name 'aischool-*.sql.gz' -mtime +7 -delete` |
-| **毎週月曜 7:00** | **週次到達度レポートの生成・通知**（要件定義書 9.2 F4①） | `docker compose exec -T app npx tsx scripts/generate-weekly-report.ts` |
+| **毎週月曜 7:00** | **週次到達度レポートの生成・通知**（要件定義書 9.2 F4①） | `docker compose exec -T app node dist-scripts/generate-weekly-report.mjs` |
 
 crontab の記述例（`%` のエスケープに注意）:
 
 ```
 0 3 * * *  cd ~/AIschool-system/infra/custom-layer && docker compose exec -T db pg_dump -U aischool_admin aischool | gzip > ~/backups/aischool-$(date +\%F).sql.gz 2>>~/backups/backup.log
 30 3 * * * find ~/backups -name 'aischool-*.sql.gz' -mtime +7 -delete
-0 7 * * 1  cd ~/AIschool-system/infra/custom-layer && docker compose exec -T app npx tsx scripts/generate-weekly-report.ts >>~/backups/weekly-report.log 2>&1
+0 7 * * 1  cd ~/AIschool-system/infra/custom-layer && docker compose exec -T app node dist-scripts/generate-weekly-report.mjs >>~/backups/weekly-report.log 2>&1
 ```
 
 週次レポートについて:

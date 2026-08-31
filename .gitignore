@@ -22,3 +22,4 @@ coverage/
 # OS / エディタ
 .DS_Store
 *.log
+/dist-scripts

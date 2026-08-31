@@ -80,12 +80,12 @@ fi
 echo ""
 echo "=== [4/5] スキーマ適用（マイグレーション） ==="
 # アプリ用ロールへの権限付与もマイグレーションに含まれる（0001_grant_app_role.sql）
-docker compose run --rm --no-deps app npm run db:migrate
+docker compose run --rm --no-deps app node dist-scripts/migrate.mjs
 
 if [ "${DO_SEED}" = "1" ]; then
   echo ""
   echo "=== [4.5/5] 初期データ投入（架空デモデータ・破壊的） ==="
-  docker compose run --rm --no-deps app npx tsx scripts/seed.ts --force
+  docker compose run --rm --no-deps app node dist-scripts/seed.mjs --force
 fi
 
 echo ""
