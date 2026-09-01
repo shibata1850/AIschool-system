@@ -35,13 +35,13 @@ export default async function Home() {
 
   return (
     <main>
-      <h1>きょうやること</h1>
-      <p className="lead">未提出の課題を、しめきりが近い順にならべています。</p>
+      <h1>今日やること</h1>
+      <p className="lead">未提出の課題を、締切が近い順に並べています。</p>
 
       {items.length === 0 ? (
         <div className="banner banner--ok">
-          <p className="banner__title">ぜんぶ終わっています。おつかれさま！</p>
-          <p className="muted">あたらしい課題が出ると、ここに表示されます。</p>
+          <p className="banner__title">すべて完了しています。</p>
+          <p className="muted">新しい課題が出ると、ここに表示されます。</p>
         </div>
       ) : (
         <ul className="card-list">
@@ -72,16 +72,16 @@ export default async function Home() {
 
       <nav aria-label="そのほかのページ" className="actions">
         <Link href="/chat" className="button">
-          AI講師にきく
+          AI講師に質問する
         </Link>
         <Link href="/achievement" className="button">
-          じぶんの到達度
+          自分の到達度
         </Link>
       </nav>
 
       {(role === "teacher" || role === "admin") && (
-        <section aria-label="せんせい用メニュー" style={{ marginTop: "2.5rem" }}>
-          <h2>せんせい用メニュー</h2>
+        <section aria-label="講師用メニュー" style={{ marginTop: "2.5rem" }}>
+          <h2>講師用メニュー</h2>
           <ul className="card-list">
             {[
               { href: "/teacher/monitor", title: "授業中モニタリング", desc: "16席の状態を色で把握" },

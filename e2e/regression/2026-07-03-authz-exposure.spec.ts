@@ -14,7 +14,7 @@ test("指摘#6: ゲストのホームに受講生の課題・進捗が表示さ�
   expect(response?.status()).toBe(200);
   await expect(page.getByRole("heading", { name: "Next Gen AI School へようこそ" })).toBeVisible();
   await expect(page.locator("body")).not.toContainText("お店の紹介文をAIに書かせよう");
-  await expect(page.locator("body")).not.toContainText("きょうやること");
+  await expect(page.locator("body")).not.toContainText("今日やること");
 });
 
 test("指摘#10: 開発用リセットAPIは受講生・ゲストには403", async ({ request }) => {

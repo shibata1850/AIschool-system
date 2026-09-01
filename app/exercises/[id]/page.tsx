@@ -37,7 +37,7 @@ export default async function ExercisePage({
 
       {submission.status === "submitted" && (
         <p aria-label="採点中" style={{ color: "var(--accent)" }}>
-          AIが採点中（さいてんちゅう）です。そのまま待っていてね…
+          AIが採点しています。そのままお待ちください…
         </p>
       )}
 

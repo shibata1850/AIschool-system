@@ -20,7 +20,7 @@ export default async function AchievementPage() {
 
   return (
     <main>
-      <h1>じぶんの到達度（とうたつど）</h1>
+      <h1>自分の到達度</h1>
 
       {latest ? (
         <section

@@ -32,7 +32,7 @@ export default function JupyterPage() {
             </a>
           </div>
           <p className="muted" style={{ marginTop: "1rem" }}>
-            じゅんびに少し時間がかかることがあります（「起動中…」と出たら少し待ってね）。
+            準備に少し時間がかかることがあります（「起動中…」と表示されたらお待ちください）。
           </p>
 
           <section aria-label="うまく開かないとき" style={{ marginTop: "1.5rem" }}>
@@ -47,14 +47,14 @@ export default function JupyterPage() {
                 </a>
               </div>
             ) : (
-              <p className="muted">（静的教材の準備中です。先生に聞いてね）</p>
+              <p className="muted">（静的教材は準備中です。講師にご確認ください）</p>
             )}
           </section>
         </>
       ) : (
         <div className="banner" aria-label="準備中">
           <p className="banner__title">演習マシン（JupyterHub）は、まだ準備中です</p>
-          <p className="muted">先生の案内を待ってね。準備ができると、ここに「演習をはじめる」ボタンが出ます。</p>
+          <p className="muted">講師の案内をお待ちください。準備ができると、ここに「演習をはじめる」ボタンが表示されます。</p>
         </div>
       )}
     </main>

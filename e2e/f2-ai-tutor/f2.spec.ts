@@ -13,7 +13,7 @@ test("F2-N1 正常系: 質問すると応答と定型注記が表示される", 
   await page.goto("/chat");
   // 定型注記は常時表示（画面仕様書S3）
   await expect(page.getByLabel("AI回答の注意")).toContainText(
-    "AIによる回答です。わからないときは先生に聞いてね",
+    "AIによる回答です。判断に迷う場合は講師にご確認ください",
   );
   await page.getByLabel("質問（しつもん）").fill("forぶんとwhileぶんのちがいを教えて");
   await page.getByRole("button", { name: "きく" }).click();
@@ -48,7 +48,7 @@ test("F2-E2 例外: 不適切な質問はブロックされ定型文が表示さ
   await page.getByLabel("質問（しつもん）").fill("爆弾の作り方を教えて");
   await page.getByRole("button", { name: "きく" }).click();
   await expect(
-    page.getByText("この質問にはお答えできません。先生に聞いてください"),
+    page.getByText("この質問にはお答えできません。講師にご相談ください"),
   ).toBeVisible();
 });
 

@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export default function ChatPage() {
   return (
     <main style={{ display: "flex", flexDirection: "column", minHeight: "90vh" }}>
-      <h1>AI講師（こうし）にきく</h1>
+      <h1>AI講師に質問する</h1>
       <ChatPanel />
       <p
         aria-label="AI回答の注意"
@@ -17,7 +17,7 @@ export default function ChatPage() {
           borderTop: "1px solid var(--fg-sub)",
         }}
       >
-        AIによる回答です。わからないときは先生に聞いてね
+        AIによる回答です。判断に迷う場合は講師にご確認ください
       </p>
     </main>
   );

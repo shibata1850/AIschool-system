@@ -84,12 +84,12 @@ export function ChatPanel() {
             <p style={{ color: "var(--fg-sub)" }}>あなた: {entry.question}</p>
             {entry.piiDetected && (
               <p style={{ color: "var(--warn)" }}>
-                個人情報（名前・電話番号など）は入力しないでね。かくして送りました
+                個人情報（氏名・電話番号など）は入力しないでください。該当箇所を伏せて送信しました
               </p>
             )}
             {entry.blocked ? (
               <p style={{ color: "var(--error)" }}>
-                この質問にはお答えできません。先生に聞いてください
+                この質問にはお答えできません。講師にご相談ください
               </p>
             ) : (
               <p>AI講師: {entry.reply}</p>

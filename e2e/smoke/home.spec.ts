@@ -5,10 +5,10 @@ import { expect, test } from "@playwright/test";
  * 機能実装（F1〜F4）のE2Eは各機能のコミットで追加する。
  */
 test.describe("S1 受講生ホーム（骨格）", () => {
-  test("トップページに「きょうやること」が表示される", async ({ page }) => {
+  test("トップページに「今日やること」が表示される", async ({ page }) => {
     await page.goto("/");
     await expect(
-      page.getByRole("heading", { name: "きょうやること" }),
+      page.getByRole("heading", { name: "今日やること" }),
     ).toBeVisible();
   });
 
