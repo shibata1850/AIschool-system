@@ -6,13 +6,19 @@
 - Language: English body with a Japanese summary at the top of each section.
   日本語要旨を各章の冒頭に置いています。
 
-> **本書の位置づけ（日本語）**
-> 本書は**姉妹システム「eラーニングシステム」向けの引き継ぎ資料**であり、
-> 本リポジトリ（クラウドキャンパス）に eラーニングの機能を実装するものではない
-> （`CLAUDE.md` 13.1・13.4）。別リポジトリが立ち上がれば移設してよい。
-> 背景・目的の詳細は `docs/eラーニング要件定義_補強.md`、
-> 両システムの境界は `docs/eラーニング連携.md`、
-> 先方要件定義書 第1版の英訳は `docs/eラーニング要件定義_第1版_英訳.md` を参照。
+### What you have been given / お渡しする資料
+
+**日本語要旨**: 資料は2点。本書（進め方）と要件定義書の英訳（何を作るか）。
+本書は自己完結しており、他のファイルを参照しなくても読めます。
+
+| Document | What it is |
+|---|---|
+| **This document** | How we work: stages, rules, and the one design decision that matters |
+| **Requirements Specification (Edition 1), English translation** | What to build: features, exceptions, acceptance criteria |
+
+That is the whole set. **This document does not refer to anything you have not
+been given.** If you find a reference you cannot follow, that is a mistake on our
+side — tell us.
 
 ---
 
@@ -187,18 +193,27 @@ BASE44's cloud, reached through `@base44/sdk`. Moving the files to our server mo
 the screens — **not the data**. So this stage is not a deployment step; it is
 building the back end.
 
-You do not start from zero. Cloud Campus already has a hardened stack you can copy:
+**You do not start from zero.** We have already built and hardened this exact
+stack for Cloud Campus, in production. **We will hand you the files at the start
+of Stage 3** — you do not need to design the infrastructure. What you will receive:
 
-- PostgreSQL 16 + Drizzle ORM, with **two roles** — an app role with minimum
-  privileges and a separate admin role for migrations
-- **Append-only audit log**, enforced at the database level (the app role has no
-  UPDATE/DELETE grant on that table)
-- docker compose, migrations, and a seed script with a `--force` safety guard
-- Container image with zero Critical/High vulnerabilities
+| Piece | What it gives you |
+|---|---|
+| `docker-compose.yml` | App container + PostgreSQL 16, with a health check so the app waits for the database. The app port binds to `127.0.0.1` only — public access goes through a reverse proxy |
+| Migration setup | Drizzle ORM migrations, run from a compiled script (no dev dependencies needed at runtime) |
+| **Two database roles** | An **app role** with only the CRUD grants it needs, and a separate **admin role** that owns the tables and runs migrations. The app never connects as the owner |
+| **Append-only audit log** | The audit table grants the app role SELECT and INSERT **but not UPDATE or DELETE**. Tamper resistance is enforced by the database, not by application code — which is what the contract's chapter 6.2 asks for |
+| Seed script | Loads fictional demo data. Refuses to run without an explicit `--force` flag, because it deletes everything first |
+| Hardened container image | Dev dependencies pruned, OS packages upgraded, npm CLI removed. Currently scans clean: **zero Critical, zero High** |
 
-Ask us for `infra/custom-layer/` from the Cloud Campus repository and use it as a
-template. **Copying an infrastructure pattern is fine; copying a feature is not**
-(section 1.1).
+Two notes on using it:
+
+- **Copying an infrastructure pattern is fine. Copying a feature is not** (section 1.1).
+  Take the compose file, the role design and the audit-log approach. Do not take
+  application code.
+- The audit-log role design is the part most worth keeping exactly as-is. It is
+  easy to weaken by accident — for example by giving the app role UPDATE so a
+  "fix a typo in the log" feature can work. **Do not.**
 
 Definition of done:
 
