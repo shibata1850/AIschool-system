@@ -11,7 +11,8 @@
 > 本リポジトリ（クラウドキャンパス）に eラーニングの機能を実装するものではない
 > （`CLAUDE.md` 13.1・13.4）。別リポジトリが立ち上がれば移設してよい。
 > 背景・目的の詳細は `docs/eラーニング要件定義_補強.md`、
-> 両システムの境界は `docs/eラーニング連携.md` を参照。
+> 両システムの境界は `docs/eラーニング連携.md`、
+> 先方要件定義書 第1版の英訳は `docs/eラーニング要件定義_第1版_英訳.md` を参照。
 
 ---
 
@@ -82,6 +83,23 @@ most important constraint on this project.**
 - Anything VR / MR
 
 If a request looks like one of these, **stop and ask** rather than implementing it.
+
+---
+
+### 1.2 The functional specification
+
+**日本語要旨**: 「何を作るか」は先方の要件定義書 第1版にある。英訳を別紙で渡す。
+
+This document tells you **how we work**. **What to build** is in the requirements
+specification (Edition 1, 21 August 2026). An English translation is provided
+separately as `eラーニング要件定義_第1版_英訳.md`.
+
+Two things to keep in mind about it:
+
+- **It is deliberately only ~20% complete** and will be revised twice more.
+  Eleven items are still open — including the mastery-scoring algorithm, which is
+  the core of E4. **Do not code a guessed formula.**
+- **The Japanese original is authoritative.** Where the translation is unclear, ask.
 
 ---
 
