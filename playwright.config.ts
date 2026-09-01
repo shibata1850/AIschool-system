@@ -47,6 +47,8 @@ export default defineConfig({
       CANVAS_API_TOKEN: "",
       // E2Eはロール総当たりのためCookieロールを許可（本番デプロイでは付けない）
       DEV_COOKIE_ROLES: "1",
+      // 外部システム連携API（E7）のテスト用トークン。**架空値**（CLAUDE.md 2章）
+      INTEGRATION_API_TOKEN: "e2e-integration-token-0123456789abcdef",
     },
   },
 });

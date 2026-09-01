@@ -5,6 +5,7 @@ import {
   deviceAssignments as deviceAssignmentsTable,
   lessonRecords as lessonRecordsTable,
   submissions as submissionsTable,
+  externalMastery as externalMasteryTable,
 } from "@/lib/db/schema";
 import { resetDatabase } from "@/lib/db/seed";
 import type { LessonRecord } from "@/lib/f4/achievement";
@@ -419,6 +420,7 @@ export async function getAttendance(
 export async function purgeStudentData(studentId: string): Promise<{
   deletedSubmissions: number;
   hadLessonRecords: boolean;
+  deletedExternalMastery: number;
 }> {
   const db = getDb();
   const deletedSubmissions = await db
@@ -429,9 +431,16 @@ export async function purgeStudentData(studentId: string): Promise<{
     .delete(lessonRecordsTable)
     .where(eq(lessonRecordsTable.studentId, studentId))
     .returning({ weekStart: lessonRecordsTable.weekStart });
+  // eラーニングから受け取った自宅学習の到達度も消す（E7-c）。
+  // ここに足し忘れると、退会者のデータが1テーブルだけ残る
+  const deletedExternalMastery = await db
+    .delete(externalMasteryTable)
+    .where(eq(externalMasteryTable.studentId, studentId))
+    .returning({ unitId: externalMasteryTable.unitId });
   return {
     deletedSubmissions: deletedSubmissions.length,
     hadLessonRecords: deletedLessonRecords.length > 0,
+    deletedExternalMastery: deletedExternalMastery.length,
   };
 }
 

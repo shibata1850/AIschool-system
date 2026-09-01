@@ -62,7 +62,7 @@ test("F2-E3 例外: 電話番号はマスキングされ、生の番号が画面
     .fill("わたしの電話番号は090-1234-5678です。おぼえてね");
   await page.getByRole("button", { name: "きく" }).click();
   await expect(
-    page.getByText("個人情報（名前・電話番号など）は入力しないでね", {
+    page.getByText("個人情報（氏名・電話番号など）は入力しないでください", {
       exact: false,
     }),
   ).toBeVisible();

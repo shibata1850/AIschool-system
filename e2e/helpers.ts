@@ -18,3 +18,14 @@ export async function resetStore(request: APIRequestContext): Promise<void> {
     throw new Error(`ストア初期化に失敗しました: ${res.status()}`);
   }
 }
+
+/**
+ * 外部システム連携API（E7）のテスト用トークン。
+ * playwright.config.ts の webServer.env と同じ架空値を使う（実トークンではない）。
+ */
+export const INTEGRATION_TOKEN = "e2e-integration-token-0123456789abcdef";
+
+/** 連携APIの Authorization ヘッダー */
+export function integrationHeaders(token: string = INTEGRATION_TOKEN) {
+  return { authorization: `Bearer ${token}` };
+}

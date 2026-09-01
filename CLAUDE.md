@@ -220,14 +220,21 @@ eラーニング側の禁止事項（先方2.2）として列挙された ＝ **
 ### 13.3 本リポジトリに**増える**作業（E7連携の受け側）
 
 先方 E7「クラウドキャンパス連携」は、本リポジトリ側の対応がないと成立しない。
-未着手 — 詳細と論点は `docs/eラーニング連携.md`、期限は `docs/未決事項.md` #13。
+2・3は実装済み（2026-09-01）。API仕様は `docs/eラーニング連携.md` 4.2 が「正」。
+残りの論点は同ドキュメント、期限は `docs/未決事項.md` #13。
 
 1. **SSO提供**: eラーニングを LTI 1.3 ツール（または OAuth 2.0 クライアント）として
    Canvasの開発者キーに追加する。**本リポジトリのコード変更は原則不要**（Canvas設定作業）
-2. **単元マスタの参照API**: 「正」は本リポジトリ側。参照手段の提供が要る
-3. **到達度スコアの受信API（新規実装）**: 自宅学習の到達度を受け取り、
-   F4ダッシュボードに表示する。先方の受け入れ基準 B-7 に直結する
+   → 手動対応リスト B17（eラーニング側の実装待ち）
+2. ~~**単元マスタの参照API**~~ → **実装済み** `GET /api/integration/units`
+3. ~~**到達度スコアの受信API**~~ → **実装済み** `POST /api/integration/mastery`。
+   S5に「自宅学習の到達度」として**教室の到達度と並置**（合成しない）
 4. **削除の伝播**: 受講生を本リポジトリ側で削除したら、eラーニング側も無効化される必要がある
+   → 未着手。`purgeStudentData` は外部到達度も含めて削除する所まで実装済みで、残るのは通知手段
+
+`/api/integration/*` は**連携専用トークン1本**で認証する（人のログインとは別系統）。
+**Canvasの管理者トークンは渡さない** — 成績・名簿・個人情報まで触れてしまうため。
+トークン未設定時は401ではなく**503**を返す（設定漏れと認証失敗を混同させない fail-closed）。
 
 **注意**: 3 は「eラーニングの機能」ではなく「クラウドキャンパスの到達度ダッシュボードの
 入力を1つ増やす」実装。13.1 の禁止範囲には当たらない（境界の説明を残すこと）。
@@ -242,3 +249,13 @@ eラーニング側の禁止事項（先方2.2）として列挙された ＝ **
 **文書を書くことと機能を実装することは別である。** 13.1 が禁じるのは実装であって、
 発注者として要件を定義することではない。ただし、この文書を根拠に本リポジトリへ
 eラーニングの機能を実装してはならない（13.1 は変わらず有効）。
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

@@ -98,6 +98,41 @@ export const weeklyReports = pgTable("weekly_reports", {
   notifySkippedReason: text("notify_skipped_reason"),
 });
 
+/**
+ * eラーニングシステム（姉妹システム）から受け取った自宅学習の到達度（E7-c）。
+ *
+ * **教室の到達度（lesson_records 由来）とは別物として保持し、合成しない。**
+ * 尺度も期間も母集団も違うため加重平均に意味がなく、合成すると相手側が
+ * 自分の算出根拠を説明できなくなる（docs/eラーニング連携.md 3.2.2）。
+ *
+ * 1受講生×1単元につき最新の1行だけを持つ（上書き）。履歴は監査ログ側に残る。
+ * unit_id に外部キーを張らないのは、課題が削除されても受信済みの記録を
+ * 消さないため（受信の事実は監査上の記録でもある）。
+ */
+export const externalMastery = pgTable(
+  "external_mastery",
+  {
+    /** 受講生ID（本リポジトリのマスタが「正」。LTI起動時のCanvas利用者ID） */
+    studentId: text("student_id").notNull(),
+    /** 単元ID。本リポジトリの assignments.id を参照する想定（FKは張らない — 上記） */
+    unitId: text("unit_id").notNull(),
+    /** 送信元システムの識別子。現在は "elearning" のみ */
+    source: text("source").notNull(),
+    /**
+     * 到達度 0〜100。**null は「測定中」**を表し、0点ではない
+     * （先方要件定義書 E4 例外1。0として扱うと受講生に誤解を与える）
+     */
+    score: integer("score"),
+    /** 算出根拠。受講生本人が確認できること（先方 受け入れ基準 B-3） */
+    reasons: jsonb("reasons"),
+    /** 送信元が算出した時刻（送信元の時計） */
+    measuredAt: timestamp("measured_at", { withTimezone: true }).notNull(),
+    /** 本リポジトリが受け取った時刻（こちらの時計） */
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.studentId, table.unitId, table.source] })],
+);
+
 /** 追記専用（DBロールでUPDATE/DELETEを拒否 — CLAUDE.md 9章・SEC-2） */
 export const auditLog = pgTable("audit_log", {
   id: serial("id").primaryKey(),

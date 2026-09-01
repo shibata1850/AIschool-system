@@ -3,6 +3,7 @@ import {
   assignments as assignmentsTable,
   auditLog as auditLogTable,
   deviceAssignments as deviceAssignmentsTable,
+  externalMastery as externalMasteryTable,
   lessonRecords as lessonRecordsTable,
   submissions as submissionsTable,
   weeklyReports as weeklyReportsTable,
@@ -21,6 +22,9 @@ export async function resetDatabase(): Promise<void> {
     // 子→親の順に削除（submissionsがassignmentsを参照するFK制約のため）
     await tx.delete(submissionsTable);
     await tx.delete(lessonRecordsTable);
+    // 外部システムから受信した到達度（E7-c）。消し忘れるとリセット後も前のテストの
+    // 値がS5に残り続ける（実運用でも初期化が不完全になる）
+    await tx.delete(externalMasteryTable);
     await tx.delete(deviceAssignmentsTable);
     await tx.delete(assignmentsTable);
     await tx.delete(auditLogTable);
