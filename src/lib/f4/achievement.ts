@@ -135,6 +135,72 @@ export function computeWeeklyAchievements(
     });
 }
 
+/**
+ * 全体に占める自宅学習（eラーニング）の割合（2026-09-02 柴田さま「到達度は一つに絞る」）。
+ *
+ * 本校は通学制で、ゴールは教室でBASE44により業務システムを1本完成させることなので、
+ * 自宅学習は補助的な位置づけとして2割に置く。教室側の内訳（スコア6:提出2:出席2）は
+ * 変えずに全体を0.8倍するため、実効の重みは スコア0.48 / 提出0.16 / 出席0.16 / 自宅0.20。
+ */
+export const HOME_STUDY_WEIGHT = 0.2;
+
+export interface CombinedAchievement {
+  /** 合成後の到達度（0-100・小数第1位）。画面に出す「到達度」はこの1つだけ */
+  total: number;
+  /** 内訳: 教室の到達度 */
+  classroomTotal: number;
+  /** 内訳: 自宅学習の到達度（記録が無い、または全単元が測定中なら null） */
+  homeStudyTotal: number | null;
+  /** 実際に適用した自宅学習の重み（0 = 記録が無いため教室側へ再配分した） */
+  appliedHomeStudyWeight: number;
+  /** 平均の母数になった単元数（測定中を除く） */
+  measuredUnitCount: number;
+}
+
+/**
+ * 教室の到達度と自宅学習の到達度を合成して1つのスコアにする。
+ *
+ * **記録が無い受講生は減点しない。** 自宅学習のスコアが1件も無い（または全単元が
+ * 「測定中」）場合、自宅学習の重みは教室側へ再配分する（＝教室の到達度がそのまま
+ * 全体の到達度になる）。これをやらないと、eラーニングを受けていない受講生が
+ * 0点扱いで不当に下がる。「計測不能を0点にしない」（F4例外3）と同じ考え方である。
+ *
+ * @param homeStudyScores 単元別スコア。null は「測定中」で、平均の母数から除く
+ */
+export function combineAchievement(
+  classroomTotal: number,
+  homeStudyScores: Array<number | null>,
+  homeStudyWeight: number = HOME_STUDY_WEIGHT,
+): CombinedAchievement {
+  if (homeStudyWeight < 0 || homeStudyWeight > 1) {
+    throw new Error(`自宅学習の重みは0〜1にしてください（現在: ${homeStudyWeight}）`);
+  }
+
+  const measured = homeStudyScores.filter((s): s is number => s !== null);
+  if (measured.length === 0) {
+    return {
+      total: round1(classroomTotal),
+      classroomTotal: round1(classroomTotal),
+      homeStudyTotal: null,
+      appliedHomeStudyWeight: 0,
+      measuredUnitCount: 0,
+    };
+  }
+
+  const homeStudyTotal = round1(
+    measured.reduce((a, b) => a + b, 0) / measured.length,
+  );
+  return {
+    total: round1(
+      classroomTotal * (1 - homeStudyWeight) + homeStudyTotal * homeStudyWeight,
+    ),
+    classroomTotal: round1(classroomTotal),
+    homeStudyTotal,
+    appliedHomeStudyWeight: homeStudyWeight,
+    measuredUnitCount: measured.length,
+  };
+}
+
 /** 最新の計測可能な週の到達度（1件もなければ null） */
 export function latestAchievement(
   weekly: WeeklyAchievement[],

@@ -1,8 +1,10 @@
 import {
+  combineAchievement,
   computeWeeklyAchievements,
   isDeclining,
   latestAchievement,
 } from "@/lib/f4/achievement";
+import { getExternalMasteryForStudent } from "@/lib/integration/mastery";
 import { getLessonRecords } from "@/lib/f3/store";
 import { STUDENTS } from "@/lib/f4/fixtures";
 import { getLatestWeeklyReport } from "@/lib/f4/generateWeeklyReport";
@@ -32,11 +34,22 @@ export default async function ReportPage() {
     getLatestWeeklyReport(),
     Promise.all(
       STUDENTS.map(async (student) => {
-        const records = await getLessonRecords(student.id);
+        const [records, homeStudy] = await Promise.all([
+          getLessonRecords(student.id),
+          getExternalMasteryForStudent(student.id),
+        ]);
         const weekly = computeWeeklyAchievements(records);
         const latest = latestAchievement(weekly);
         const declining = isDeclining(weekly);
-        return { student, weekly, latest, declining };
+        // 到達度はS5と同じ合成値を出す（画面ごとに違う数字が出ると講師が混乱する）。
+        // 出席率・提出率は教室の実績なので合成しない
+        const combined = latest
+          ? combineAchievement(
+              latest.total,
+              homeStudy.map((m) => m.score),
+            )
+          : null;
+        return { student, weekly, latest, declining, combined };
       }),
     ),
   ]);
@@ -116,6 +129,8 @@ export default async function ReportPage() {
       <h2 style={{ fontSize: "1.1rem" }}>現在の集計（リアルタイム）</h2>
       <p style={{ color: "var(--fg-sub)", marginBottom: "1rem" }}>
         週の途中の状況です。手作業での集計は不要です。
+        到達度は<strong>教室での学習8割＋自宅学習2割</strong>を合成した値で、
+        受講生本人の画面（S5）と同じ数字です。出席率・提出率は教室の実績のみを示します。
       </p>
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
@@ -137,12 +152,12 @@ export default async function ReportPage() {
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ student, latest, declining }) => (
+          {rows.map(({ student, latest, declining, combined }) => (
             <tr key={student.id}>
               <td style={{ padding: "0.6rem" }}>{student.seatNo}</td>
               <td style={{ padding: "0.6rem" }}>{student.displayName}</td>
               <td style={{ padding: "0.6rem" }}>
-                {latest ? <strong>{latest.total}</strong> : "計測不能"}
+                {combined ? <strong>{combined.total}</strong> : "計測不能"}
               </td>
               <td style={{ padding: "0.6rem" }}>
                 {latest ? `${latest.attendanceRate}%` : "—"}

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  combineAchievement,
   computeWeeklyAchievements,
+  HOME_STUDY_WEIGHT,
   DEFAULT_WEIGHTS,
   isDeclining,
   latestAchievement,
@@ -142,5 +144,81 @@ describe("停滞アラート（isDeclining）", () => {
         week("w4", 70),
       ]),
     ).toBe(true); // 90→80→70 の連続下降
+  });
+});
+
+describe("combineAchievement（教室＋自宅学習の合成・2026-09-02）", () => {
+  it("正常系: 教室8割・自宅学習2割で合成する", () => {
+    // 70 * 0.8 + 90 * 0.2 = 56 + 18 = 74
+    const r = combineAchievement(70, [90]);
+    expect(r.total).toBe(74);
+    expect(r.classroomTotal).toBe(70);
+    expect(r.homeStudyTotal).toBe(90);
+    expect(r.appliedHomeStudyWeight).toBe(0.2);
+    expect(r.measuredUnitCount).toBe(1);
+  });
+
+  it("複数単元は単純平均してから合成する", () => {
+    // 自宅学習 = (60+80+100)/3 = 80 → 50*0.8 + 80*0.2 = 40 + 16 = 56
+    const r = combineAchievement(50, [60, 80, 100]);
+    expect(r.homeStudyTotal).toBe(80);
+    expect(r.total).toBe(56);
+  });
+
+  it("**自宅学習の記録が無ければ減点しない**（重みを教室へ再配分する）", () => {
+    const r = combineAchievement(70, []);
+    expect(r.total).toBe(70); // 70*0.8=56 にはしない
+    expect(r.homeStudyTotal).toBeNull();
+    expect(r.appliedHomeStudyWeight).toBe(0);
+  });
+
+  it("**全単元が「測定中」でも減点しない**（null は母数から除く）", () => {
+    const r = combineAchievement(70, [null, null]);
+    expect(r.total).toBe(70);
+    expect(r.homeStudyTotal).toBeNull();
+    expect(r.measuredUnitCount).toBe(0);
+  });
+
+  it("測定中が混ざる場合は、測定済みだけで平均する", () => {
+    // 測定済みは 80 のみ → 60*0.8 + 80*0.2 = 48 + 16 = 64
+    const r = combineAchievement(60, [null, 80, null]);
+    expect(r.homeStudyTotal).toBe(80);
+    expect(r.measuredUnitCount).toBe(1);
+    expect(r.total).toBe(64);
+  });
+
+  it("境界値: 自宅学習0点は「測定中」と区別して合成に効く", () => {
+    // 100*0.8 + 0*0.2 = 80。記録なし(=100)と同じにしてはいけない
+    const r = combineAchievement(100, [0]);
+    expect(r.homeStudyTotal).toBe(0);
+    expect(r.total).toBe(80);
+    expect(combineAchievement(100, []).total).toBe(100);
+  });
+
+  it("境界値: 両方100なら100、両方0なら0", () => {
+    expect(combineAchievement(100, [100]).total).toBe(100);
+    expect(combineAchievement(0, [0]).total).toBe(0);
+  });
+
+  it("境界値: 重み0は教室のみ、重み1は自宅学習のみ", () => {
+    expect(combineAchievement(70, [90], 0).total).toBe(70);
+    expect(combineAchievement(70, [90], 1).total).toBe(90);
+  });
+
+  it("入力エラー: 重みが0〜1の外なら例外", () => {
+    expect(() => combineAchievement(70, [90], -0.1)).toThrow();
+    expect(() => combineAchievement(70, [90], 1.1)).toThrow();
+  });
+
+  it("端数は小数第1位まで（表示と一致させる）", () => {
+    // 73.3 * 0.8 + 55.5 * 0.2 = 58.64 + 11.1 = 69.74 → 69.7
+    const r = combineAchievement(73.3, [55.5]);
+    expect(r.total).toBe(69.7);
+  });
+
+  it("既定の重みは0.2（教室の内訳を変えずに全体の2割を割り当てる）", () => {
+    expect(HOME_STUDY_WEIGHT).toBe(0.2);
+    // 実効の重み: スコア0.48 / 提出0.16 / 出席0.16 / 自宅0.20
+    expect(DEFAULT_WEIGHTS.score * (1 - HOME_STUDY_WEIGHT)).toBeCloseTo(0.48);
   });
 });
