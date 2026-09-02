@@ -48,7 +48,11 @@ export async function POST(
         ? returnToStudent(submission, typeof body.comment === "string" ? body.comment : "")
         : complete(submission, body.score as number | undefined);
 
-    const updated = await updateSubmissionIfVersion(next, submission.version);
+    const updated = await updateSubmissionIfVersion(
+      next,
+      submission.version,
+      submission.status,
+    );
     if (!updated) {
       return new NextResponse(
         "この提出は別の操作で更新されています。画面を読み込み直して、最新の内容で操作してください。",

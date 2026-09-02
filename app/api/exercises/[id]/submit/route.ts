@@ -87,15 +87,27 @@ export async function POST(
     return new NextResponse("提出データが見つかりません", { status: 404 });
   }
 
+  const STALE_MESSAGE =
+    "この課題は別の端末で更新されています。画面を読み込み直して、最新の内容で操作してください。";
+
   // 版数チェック: 画面が読んだ版と現在の版が食い違えば、別の端末/タブで更新済み。
   if (
     body.expectedVersion !== undefined &&
     body.expectedVersion !== submission.version
   ) {
-    return new NextResponse(
-      "この課題は別の端末で更新されています。画面を読み込み直して、最新の内容で操作してください。",
-      { status: 409 },
-    );
+    return new NextResponse(STALE_MESSAGE, { status: 409 });
+  }
+
+  // 提出できる状態を過ぎている＝別の端末（またはタブ・二度押し）が先に提出済み。
+  // **版数チェックだけでは捕まらない**（初回提出では版数が進まないため）。
+  // ここで弾かないと状態遷移の例外が 400「取組中の課題だけが提出できます」になり、
+  // 受講生には理由の分からないエラーとして見える（2026-09-02の回帰）。
+  if (
+    submission.status !== "not_started" &&
+    submission.status !== "in_progress" &&
+    submission.status !== "returned"
+  ) {
+    return new NextResponse(STALE_MESSAGE, { status: 409 });
   }
 
   try {
@@ -111,14 +123,17 @@ export async function POST(
     // 採点は別セッション（講師）で行うため、提出時点で保存しておく必要がある
     next = { ...next, canvasUserId: actor.canvasUserId ?? next.canvasUserId };
 
-    // 版数一致を条件にしたDB更新（楽観ロック）。読取り時の版数から変わっていなければ
-    // 書込みが成立する。競合時（別端末が先に更新済み）は null（既知残課題#1の解消）。
-    const updated = await updateSubmissionIfVersion(next, submission.version);
+    // 読取り時の版数**と状態**を条件にしたDB更新（楽観ロック）。両方が変わって
+    // いなければ書込みが成立する。競合時（別端末が先に更新済み）は null。
+    // 状態を条件に含めないと、初回提出は版数が据え置きのため同時実行を止められない
+    // （e2e/regression/2026-09-02-concurrent-first-submit.spec.ts）。
+    const updated = await updateSubmissionIfVersion(
+      next,
+      submission.version,
+      submission.status,
+    );
     if (!updated) {
-      return new NextResponse(
-        "この課題は別の端末で更新されています。画面を読み込み直して、最新の内容で操作してください。",
-        { status: 409 },
-      );
+      return new NextResponse(STALE_MESSAGE, { status: 409 });
     }
 
     await recordAudit({

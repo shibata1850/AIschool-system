@@ -130,15 +130,22 @@ export async function getSubmissionById(id: string): Promise<Submission | undefi
 }
 
 /**
- * 版数一致を条件にした更新（楽観ロック）。
- * 読取り時の版数と現在の版数が一致する場合のみ書き込み、不一致（＝別リクエストが
- * 先に更新済み）なら null を返す。DB側のWHERE条件で不可分に判定するため、
- * 旧実装が依存していた「同一プロセス内でawaitを挟まない」という前提が不要になった
- * （既知残課題#1の解消）。
+ * 読取り時の状態を条件にした更新（楽観ロック）。
+ *
+ * 読んだときの **版数と状態の両方**が現在の行と一致する場合のみ書き込み、
+ * 不一致（＝別リクエストが先に更新済み）なら null を返す。
+ * DB側のWHERE条件で不可分に判定するため、旧実装が依存していた
+ * 「同一プロセス内でawaitを挟まない」という前提は不要（既知残課題#1）。
+ *
+ * **状態も条件に含める理由**は下の `.where` のコメントを参照。版数だけでは
+ * 初回提出の同時実行を止められなかった（2026-09-02の回帰）。
+ *
+ * @param expectedStatus 呼び出し側が **読んだ時点の** status（`next.status` ではない）
  */
 export async function updateSubmissionIfVersion(
   next: Submission,
   expectedVersion: number,
+  expectedStatus: Submission["status"],
 ): Promise<Submission | null> {
   const db = getDb();
   const [row] = await db
@@ -159,7 +166,16 @@ export async function updateSubmissionIfVersion(
       canvasUserId: next.canvasUserId ?? null,
     })
     .where(
-      and(eq(submissionsTable.id, next.id), eq(submissionsTable.version, expectedVersion)),
+      and(
+        eq(submissionsTable.id, next.id),
+        eq(submissionsTable.version, expectedVersion),
+        // **版数だけでは足りない**（2026-09-02 の回帰）。`submit()` は再提出のときしか
+        // versionを増やさないため、初回提出では version が据え置きのまま書き戻され、
+        // 行の値が変わらず後続の同時リクエストが全部マッチしてしまう。
+        // 読んだ時点の status も条件に含めることで、状態遷移を伴う更新は必ず
+        // 「読んだ行」に対してだけ成立する（e2e/regression/2026-09-02-...）。
+        eq(submissionsTable.status, expectedStatus),
+      ),
     )
     .returning();
   return row ? toSubmission(row) : null;

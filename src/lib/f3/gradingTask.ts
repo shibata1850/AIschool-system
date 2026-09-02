@@ -35,8 +35,9 @@ export async function runAiGrading(
     if (getResetEpoch() !== startEpoch) return; // 採点中にリセットが走った
 
     const next = applyAiGrade(submitted, grade);
-    const updated = await updateSubmissionIfVersion(next, expectedVersion);
-    if (!updated) return; // 版数が変わっていた（差戻し・再提出等）→ 結果を破棄
+    // 読んだ時点の状態は "submitted"（上の early return で確認済み）
+    const updated = await updateSubmissionIfVersion(next, expectedVersion, "submitted");
+    if (!updated) return; // 版数か状態が変わっていた（差戻し・再提出等）→ 結果を破棄
 
     await recordAudit({
       actorRole: "system",

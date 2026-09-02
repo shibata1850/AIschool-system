@@ -27,7 +27,7 @@ async function seedSubmitted(version: number): Promise<void> {
     promptText: `第${version}版の提出`,
     submittedAt: "2026-10-20T10:00:00+09:00",
   };
-  const updated = await updateSubmissionIfVersion(submitted, base.version);
+  const updated = await updateSubmissionIfVersion(submitted, base.version, base.status);
   if (!updated) throw new Error("seedSubmitted: 版数不一致で失敗しました");
 }
 
