@@ -81,6 +81,11 @@ export function ChatPanel() {
       <ul style={{ listStyle: "none" }} aria-label="会話のきろく">
         {entries.map((entry, i) => (
           <li key={i} style={{ margin: "0.75rem 0" }}>
+            {/*
+              AIの回答は段落・箇条書きを含むため改行をそのまま描画する（pre-wrap）。
+              Markdownは描画しない — AI出力のHTML化はXSSの経路になるため。
+              記号を使わせない指示は TUTOR_SYSTEM_PROMPT 側で行う。
+            */}
             <p style={{ color: "var(--fg-sub)" }}>あなた: {entry.question}</p>
             {entry.piiDetected && (
               <p style={{ color: "var(--warn)" }}>
@@ -92,7 +97,7 @@ export function ChatPanel() {
                 この質問にはお答えできません。講師にご相談ください
               </p>
             ) : (
-              <p>AI講師: {entry.reply}</p>
+              <p style={{ whiteSpace: "pre-wrap" }}>AI講師: {entry.reply}</p>
             )}
           </li>
         ))}

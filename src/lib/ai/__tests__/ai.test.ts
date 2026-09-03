@@ -47,3 +47,29 @@ describe("MockAiClient", () => {
     ).rejects.toMatchObject({ name: "AbortError" });
   });
 });
+
+describe("既定モデル（本番設定との一致）", () => {
+  /**
+   * 本番（さくら）は ANTHROPIC_MODEL=claude-haiku-4-5-20251001 を明示している。
+   * コード側の既定値がこれと違うと、`.env` から ANTHROPIC_MODEL が落ちた際に
+   * 応答時間とコストが黙って変わり、受け入れ基準F2①（応答5秒以内）を
+   * 満たさなくなる可能性がある（2026-09-02に確認して揃えた）。
+   */
+  it("ANTHROPIC_MODEL 未設定でも本番と同じモデルを使う", () => {
+    const client = createAiClient({
+      AI_PROVIDER: "claude",
+      ANTHROPIC_API_KEY: "test-key",
+      ANTHROPIC_MODEL: undefined,
+    }) as unknown as { model: string };
+    expect(client.model).toBe("claude-haiku-4-5-20251001");
+  });
+
+  it("ANTHROPIC_MODEL を指定すればそちらが優先される", () => {
+    const client = createAiClient({
+      AI_PROVIDER: "claude",
+      ANTHROPIC_API_KEY: "test-key",
+      ANTHROPIC_MODEL: "claude-sonnet-5",
+    }) as unknown as { model: string };
+    expect(client.model).toBe("claude-sonnet-5");
+  });
+});

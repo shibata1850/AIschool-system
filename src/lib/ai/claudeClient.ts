@@ -1,7 +1,13 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { AiClient, AiCompletionRequest, AiCompletionResult } from "./types";
 
-const DEFAULT_MODEL = "claude-opus-4-8";
+/**
+ * 既定モデル。**本番（さくら）の `ANTHROPIC_MODEL` と同じ値に揃えてある**。
+ * 揃えていないと、`.env` から `ANTHROPIC_MODEL` が落ちた際に応答時間とコストが
+ * 黙って変わり、受け入れ基準F2①（応答5秒以内）を満たさなくなる可能性がある
+ * （2026-09-02 に本番設定を確認して合わせた）。
+ */
+const DEFAULT_MODEL = "claude-haiku-4-5-20251001";
 const DEFAULT_MAX_TOKENS = 2048;
 
 /**

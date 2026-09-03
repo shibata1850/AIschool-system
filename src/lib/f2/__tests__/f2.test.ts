@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { MockAiClient } from "@/lib/ai/mockClient";
 import { filterContent } from "../contentFilter";
 import { maskPersonalInfo } from "../masking";
-import { answerQuestion } from "../tutor";
+import { answerQuestion, TUTOR_SYSTEM_PROMPT } from "../tutor";
 
 describe("個人情報マスキング（F2例外4）", () => {
   it("電話番号をマスクする（ハイフンあり・なし）", () => {
@@ -95,5 +95,31 @@ describe("AI講師パイプライン（マスキング→フィルタ→推論�
     await expect(
       answerQuestion("メロンパンの紹介文の書き方は？", client, controller.signal),
     ).rejects.toMatchObject({ name: "AbortError" });
+  });
+});
+
+describe("AI講師への指示（TUTOR_SYSTEM_PROMPT）", () => {
+  /**
+   * 2026-09-02 に本番画面で「Vercel＝弁当／AWS＝食材」という児童向けの比喩と
+   * 絵文字が返っていた。原因は指示文の対象読者が古いまま（「小学生からシニアまで」）
+   * だったこと。CLAUDE.md 5章は2026-08-24に企業・行政の社員へ確定している。
+   */
+  it("**対象読者が企業・行政の社員であること**（旧「小学生」の記述が残っていない）", () => {
+    expect(TUTOR_SYSTEM_PROMPT).toContain("企業・行政の社員");
+    expect(TUTOR_SYSTEM_PROMPT).not.toContain("小学生");
+    expect(TUTOR_SYSTEM_PROMPT).not.toContain("シニア");
+  });
+
+  it("子ども向けの比喩・絵文字を使わないよう指示している", () => {
+    expect(TUTOR_SYSTEM_PROMPT).toContain("絵文字");
+  });
+
+  it("**Markdownの記号を使わないよう指示している**（画面はプレーンテキスト描画のため）", () => {
+    expect(TUTOR_SYSTEM_PROMPT).toContain("Markdown");
+  });
+
+  it("平易な言い換えと、危険な話題の扱いは維持している（CLAUDE.md 5章・9章）", () => {
+    expect(TUTOR_SYSTEM_PROMPT).toContain("言い換え");
+    expect(TUTOR_SYSTEM_PROMPT).toContain("講師に相談");
   });
 });

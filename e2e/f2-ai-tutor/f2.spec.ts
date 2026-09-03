@@ -101,3 +101,20 @@ test("F2-P2 権限系: ゲストが演習提出APIを直接叩くと403", async 
   });
   expect(res.status()).toBe(403);
 });
+
+test("F2-D1 表示: AI講師の回答は改行をそのまま表示する（段落・箇条書きが潰れない）", async ({
+  page,
+}) => {
+  await setRole(page, "student");
+  await page.goto("/chat");
+  await page.getByLabel("質問（しつもん）").fill("見積書の承認フローを作りたい");
+  await page.getByRole("button", { name: "きく" }).click();
+
+  // 2026-09-02: 本番でMarkdownが生のまま1段落に潰れて表示されていた。
+  // Markdownは描画しない（AI出力のHTML化はXSSの経路になる）方針のため、
+  // 改行がそのまま出ることを固定する
+  const reply = page.getByText("AI講師:").first();
+  await expect(reply).toBeVisible();
+  const whiteSpace = await reply.evaluate((el) => getComputedStyle(el).whiteSpace);
+  expect(whiteSpace).toBe("pre-wrap");
+});
