@@ -1,4 +1,4 @@
-import { listChatLogs } from "@/lib/f2/chatLog";
+import { listChatLogs, listStudentsWithChatLogs } from "@/lib/f2/chatLog";
 import { STUDENTS } from "@/lib/f4/fixtures";
 
 export const dynamic = "force-dynamic";
@@ -24,14 +24,25 @@ function formatJst(iso: string): string {
   });
 }
 
+/**
+ * 表示名を解決する。架空名簿に無いID（＝LTIの実利用者）は、IDをそのまま出す。
+ * 実名簿との接続は別課題（docs/実装状況.md「生徒側画面を実データに接続する」）。
+ */
+function displayNameOf(studentId: string): string {
+  return STUDENTS.find((s) => s.id === studentId)?.displayName ?? studentId;
+}
+
 export default async function ChatLogsPage() {
-  const rows = await Promise.all(
-    STUDENTS.map(async (student) => ({
-      student,
-      logs: await listChatLogs(student.id, 50),
+  // **記録があるIDを起点にする**（架空名簿を順に引くと、本番のLTI利用者の
+  // ログが保存されていても0件に見える — 2026-09-02の不具合）
+  const studentIds = await listStudentsWithChatLogs();
+  const withLogs = await Promise.all(
+    studentIds.map(async (studentId) => ({
+      studentId,
+      displayName: displayNameOf(studentId),
+      logs: await listChatLogs(studentId, 50),
     })),
   );
-  const withLogs = rows.filter((r) => r.logs.length > 0);
   const total = withLogs.reduce((sum, r) => sum + r.logs.length, 0);
 
   return (
@@ -53,14 +64,14 @@ export default async function ChatLogsPage() {
         </p>
       )}
 
-      {withLogs.map(({ student, logs }) => (
+      {withLogs.map(({ studentId, displayName, logs }) => (
         <section
-          key={student.id}
-          aria-label={`${student.displayName}の会話ログ`}
+          key={studentId}
+          aria-label={`${displayName}の会話ログ`}
           style={{ marginTop: "1.5rem" }}
         >
           <h2 style={{ fontSize: "1.2rem" }}>
-            {student.seatNo}. {student.displayName}（{logs.length}件）
+            {displayName}（{logs.length}件）
           </h2>
           <ul style={{ listStyle: "none" }}>
             {logs.map((log) => (

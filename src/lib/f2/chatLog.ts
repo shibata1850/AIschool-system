@@ -70,6 +70,22 @@ export async function listChatLogs(
   }));
 }
 
+/**
+ * 記録がある受講生ID を新しい順に返す。
+ *
+ * **架空の名簿（fixtures）を順に引いてはいけない**。本番はLTI運用で、
+ * `getCurrentUser()` が返すのはCanvasの実利用者IDであり架空名簿に無い。
+ * 名簿を起点にすると、保存されているのに0件に見える
+ * （2026-09-02 に本番で実際に踏んだ）。**テーブルにある物を起点にする。**
+ */
+export async function listStudentsWithChatLogs(): Promise<string[]> {
+  const db = getDb();
+  const rows = await db
+    .selectDistinct({ studentId: chatLogs.studentId })
+    .from(chatLogs);
+  return rows.map((r) => r.studentId).sort();
+}
+
 /** 退会者データ削除（F5②）で使う */
 export async function purgeChatLogs(studentId: string): Promise<number> {
   const db = getDb();
