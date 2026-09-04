@@ -77,7 +77,8 @@ export const deviceAssignments = pgTable("device_assignments", {
   nucId: text("nuc_id").notNull(),
   /** 2026-08-24 パンフレットv2でGOOVIS廃止・モバイルモニターが主画面に（旧 goovisId） */
   monitorId: text("monitor_id").notNull(),
-  studentId: text("student_id").notNull(),
+  /** 割当前・退会後は NULL（空席）。1人が2席に居ないよう一意制約あり（0008） */
+  studentId: text("student_id"),
   usingBackup: boolean("using_backup").notNull(),
 });
 

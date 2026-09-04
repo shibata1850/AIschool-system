@@ -37,7 +37,11 @@ export async function getRoster(): Promise<StudentProfile[]> {
   if (rows.length === 0) return STUDENTS;
 
   const seats = await db.select().from(deviceAssignments);
-  const seatOf = new Map(seats.map((d) => [d.studentId, d.seatNo]));
+  const seatOf = new Map(
+    seats
+      .filter((d): d is typeof d & { studentId: string } => d.studentId !== null)
+      .map((d) => [d.studentId, d.seatNo]),
+  );
 
   return rows
     .map((r) => ({

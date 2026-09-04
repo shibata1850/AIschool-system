@@ -49,7 +49,8 @@ export interface DeviceAssignment {
   nucId: string;
   /** 2026-08-24 パンフレットv2でGOOVIS廃止。生徒の主画面（モバイルモニター）の識別子（旧 goovisId） */
   monitorId: string;
-  studentId: string;
+  /** 割当前・退会後は null（空席） */
+  studentId: string | null;
   /** 主モニター不調時に予備機へ切替中か */
   usingBackup: boolean;
 }
@@ -353,6 +354,44 @@ export async function getDeviceAssignments(): Promise<DeviceAssignment[]> {
   return db.select().from(deviceAssignmentsTable).orderBy(deviceAssignmentsTable.seatNo);
 }
 
+/**
+ * 座席に座る受講生を変更する（`null` で空席にする）。存在しない座席は undefined。
+ *
+ * **同じ受講生を2席に置かない** — 割り当てる前に、その受講生が座っていた席を
+ * 空席に戻す。DB側にも一意制約があるが（0008）、制約違反で失敗させるのではなく
+ * 「席を移した」という講師の意図どおりに動かすため、ここで先に外す。
+ *
+ * 変更前の値を返すので、呼び出し側が監査ログに残せる。
+ */
+export async function setDeviceStudent(
+  seatNo: number,
+  studentId: string | null,
+): Promise<{ before: string | null; row: DeviceAssignment } | undefined> {
+  const db = getDb();
+  return db.transaction(async (tx) => {
+    const [current] = await tx
+      .select()
+      .from(deviceAssignmentsTable)
+      .where(eq(deviceAssignmentsTable.seatNo, seatNo))
+      .limit(1);
+    if (!current) return undefined;
+
+    if (studentId !== null) {
+      await tx
+        .update(deviceAssignmentsTable)
+        .set({ studentId: null })
+        .where(eq(deviceAssignmentsTable.studentId, studentId));
+    }
+
+    const [row] = await tx
+      .update(deviceAssignmentsTable)
+      .set({ studentId })
+      .where(eq(deviceAssignmentsTable.seatNo, seatNo))
+      .returning();
+    return { before: current.studentId, row };
+  });
+}
+
 /** 予備機への切替状態を変更する。存在しない座席は undefined */
 export async function setDeviceBackup(
   seatNo: number,
@@ -443,6 +482,7 @@ export async function purgeStudentData(studentId: string): Promise<{
   deletedChatLogs: number;
   deletedTeacherMessages: number;
   removedFromRoster: boolean;
+  releasedSeats: number;
 }> {
   const db = getDb();
   const deletedSubmissions = await db
@@ -469,6 +509,13 @@ export async function purgeStudentData(studentId: string): Promise<{
     .delete(teacherMessagesTable)
     .where(eq(teacherMessagesTable.studentId, studentId))
     .returning({ id: teacherMessagesTable.id });
+  // 座席の割当も外す（行は消さない — 座席とNUCは備品であって個人データではない）。
+  // 残すと退会者のIDが割当表に残り続け、その席を他の人に割り当てられない
+  const releasedSeats = await db
+    .update(deviceAssignmentsTable)
+    .set({ studentId: null })
+    .where(eq(deviceAssignmentsTable.studentId, studentId))
+    .returning({ seatNo: deviceAssignmentsTable.seatNo });
   // 名簿からも消す（残すと退会者がS6のタイルに並び続ける）
   const removedFromRoster = await db
     .delete(studentsTable)
@@ -481,6 +528,7 @@ export async function purgeStudentData(studentId: string): Promise<{
     deletedChatLogs: deletedChatLogs.length,
     deletedTeacherMessages: deletedTeacherMessages.length,
     removedFromRoster: removedFromRoster.length > 0,
+    releasedSeats: releasedSeats.length,
   };
 }
 

@@ -66,6 +66,8 @@ export async function POST(request: NextRequest) {
     deletedTeacherMessages: number;
     // 名簿からも消す（残すとS6のタイルに退会者が並び続ける）
     removedFromRoster: boolean;
+    // 座席の割当も外す（席の行自体は備品として残る）
+    releasedSeats: number;
   }> = [];
   for (const w of expired) {
     const result = await purgeStudentData(w.studentId);

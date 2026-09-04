@@ -171,6 +171,18 @@ a {
   margin-bottom: 1.5rem;
 }
 
+/* 見出しが表の列に出ているため画面には出さないが、読み上げ・操作には要るラベル */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* ---- ボタン -------------------------------------------------------------- */
 button,
 a.button {

@@ -69,6 +69,13 @@ const ENDPOINTS: Endpoint[] = [
     allowed: ["teacher", "admin"],
   },
   {
+    name: "座席への受講生割当",
+    method: "POST",
+    path: "/api/devices/1/student",
+    body: { studentId: null },
+    allowed: ["teacher", "admin"],
+  },
+  {
     name: "提出物の採点・差戻し",
     method: "POST",
     path: "/api/submissions/s1/review",

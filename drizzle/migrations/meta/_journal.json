@@ -57,6 +57,13 @@
       "when": 1788343200000,
       "tag": "0007_students",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788516000000,
+      "tag": "0008_device_assignment_student_nullable",
+      "breakpoints": true
     }
   ]
 }
