@@ -1,4 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
+import { recordChatLog } from "@/lib/f2/chatLog";
 import { answerQuestion, ValidationError } from "@/lib/f2/tutor";
 
 /**
@@ -45,7 +47,26 @@ export async function POST(request: NextRequest) {
       undefined,
       request.signal,
     );
+    const elapsedMs = Date.now() - startedAt;
     logResponseTime(startedAt, answer.blocked ? "blocked" : "ok", answer.model);
+
+    // 会話ログを残す（保存するのは**マスキング済みの本文だけ**）。
+    // 記録に失敗しても回答は返す — ログのために授業を止めない
+    try {
+      const actor = await getCurrentUser();
+      await recordChatLog({
+        studentId: actor.userId,
+        maskedQuestion: answer.maskedQuestion,
+        reply: answer.reply,
+        blocked: answer.blocked,
+        piiDetected: answer.piiDetected,
+        elapsedMs,
+        model: answer.model,
+      });
+    } catch (e) {
+      console.error("会話ログの記録に失敗しました:", e instanceof Error ? e.message : e);
+    }
+
     return NextResponse.json(answer);
   } catch (error) {
     if (error instanceof ValidationError) {

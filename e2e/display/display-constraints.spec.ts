@@ -32,6 +32,7 @@ const SCREENS: Array<{ name: string; path: string; role: Role }> = [
   { name: "成績入力", path: "/teacher/grade", role: "teacher" },
   { name: "クラス成績サマリ", path: "/teacher/summary", role: "teacher" },
   { name: "出席の記録", path: "/teacher/attendance", role: "teacher" },
+  { name: "AI講師の会話ログ", path: "/teacher/chat-logs", role: "teacher" },
 ];
 
 /** 本文の最小フォントサイズ（CLAUDE.md 4章「本文フォント16px以上」） */

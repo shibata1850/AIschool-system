@@ -61,6 +61,9 @@ export async function POST(request: NextRequest) {
     hadLessonRecords: boolean;
     // eラーニングから受信した自宅学習の到達度（E7-c）も同時に消える
     deletedExternalMastery: number;
+    // AI講師の会話ログと、講師からの一言も消える（2026-09-02）
+    deletedChatLogs: number;
+    deletedTeacherMessages: number;
   }> = [];
   for (const w of expired) {
     const result = await purgeStudentData(w.studentId);

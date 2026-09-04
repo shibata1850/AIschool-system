@@ -133,6 +133,55 @@ export const externalMastery = pgTable(
   (table) => [primaryKey({ columns: [table.studentId, table.unitId, table.source] })],
 );
 
+/**
+ * AI講師との会話ログ（F2）。
+ *
+ * **保存するのはマスキング済みの本文だけ**（`maskPersonalInfo` 通過後）。
+ * 原文は保存しない — 持たなければ漏れない。
+ *
+ * 目的は2つ:
+ * 1. 柴田さまの要望（2026-08-24「会話については見れるほうがいい」）
+ * 2. **第1期に何を聞かれたかを記録し、教材・講師手順書・FAQへ還元する**。
+ *    これが講師の属人性を下げる唯一の原資になる（2026-09-02 隘路さまと合意）
+ *
+ * 保持期間は在籍＋退会後3年（未決#10で確定）。退会時は `purgeStudentData` で消える。
+ */
+export const chatLogs = pgTable("chat_logs", {
+  id: serial("id").primaryKey(),
+  studentId: text("student_id").notNull(),
+  askedAt: timestamp("asked_at", { withTimezone: true }).notNull(),
+  /** マスキング済みの質問。原文は保存しない */
+  maskedQuestion: text("masked_question").notNull(),
+  /** 回答。フィルタでブロックした場合は null */
+  reply: text("reply"),
+  /** コンテンツフィルタでブロックしたか（入力側・出力側のどちらでも true） */
+  blocked: boolean("blocked").notNull(),
+  /** 個人情報を検出してマスクしたか */
+  piiDetected: boolean("pii_detected").notNull(),
+  /** 応答にかかった時間（F2①の実測。ログと同じ値をDBにも残す） */
+  elapsedMs: integer("elapsed_ms"),
+  model: text("model"),
+});
+
+/**
+ * 講師から受講生へ送る一言（S6モニタリングの介入導線）。
+ *
+ * **なぜ必要か**: プロンプト演習では「この内容をプロンプトに入れてみてください」と
+ * **テキストそのものを手渡す**場面が頻繁にある。口頭では渡せず、Canvas標準のInboxは
+ * 別画面・非同期で授業中には重い（2026-09-02 隘路さまと検討）。
+ *
+ * **一方向にしている理由**: 講師と受講生は同じ教室にいるため、返信は口頭で足りる。
+ * 双方向チャットは要望リストへ（工数と検収時期の兼ね合い）。
+ */
+export const teacherMessages = pgTable("teacher_messages", {
+  id: serial("id").primaryKey(),
+  studentId: text("student_id").notNull(),
+  sentAt: timestamp("sent_at", { withTimezone: true }).notNull(),
+  /** 送信した講師・管理者のID（LTI起動時のみ。デモ運用では null） */
+  sentBy: text("sent_by"),
+  body: text("body").notNull(),
+});
+
 /** 追記専用（DBロールでUPDATE/DELETEを拒否 — CLAUDE.md 9章・SEC-2） */
 export const auditLog = pgTable("audit_log", {
   id: serial("id").primaryKey(),

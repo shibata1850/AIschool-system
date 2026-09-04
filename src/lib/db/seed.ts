@@ -2,8 +2,10 @@ import { getAdminDb } from "./adminClient";
 import {
   assignments as assignmentsTable,
   auditLog as auditLogTable,
+  chatLogs as chatLogsTable,
   deviceAssignments as deviceAssignmentsTable,
   externalMastery as externalMasteryTable,
+  teacherMessages as teacherMessagesTable,
   lessonRecords as lessonRecordsTable,
   submissions as submissionsTable,
   weeklyReports as weeklyReportsTable,
@@ -25,6 +27,9 @@ export async function resetDatabase(): Promise<void> {
     // 外部システムから受信した到達度（E7-c）。消し忘れるとリセット後も前のテストの
     // 値がS5に残り続ける（実運用でも初期化が不完全になる）
     await tx.delete(externalMasteryTable);
+    // AI講師の会話ログと講師からの一言（2026-09-02追加）
+    await tx.delete(chatLogsTable);
+    await tx.delete(teacherMessagesTable);
     await tx.delete(deviceAssignmentsTable);
     await tx.delete(assignmentsTable);
     await tx.delete(auditLogTable);

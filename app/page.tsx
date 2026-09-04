@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
+import { listTeacherMessages } from "@/lib/f2/chatLog";
 import { listActiveSubmissionsForStudent } from "@/lib/f3/store";
 import { STATUS_LABELS, type ExerciseStatus } from "@/lib/f3/types";
 
@@ -31,12 +32,42 @@ export default async function Home() {
     );
   }
 
-  const items = await listActiveSubmissionsForStudent(userId);
+  const [items, messages] = await Promise.all([
+    listActiveSubmissionsForStudent(userId),
+    listTeacherMessages(userId),
+  ]);
 
   return (
     <main>
       <h1>今日やること</h1>
       <p className="lead">未提出の課題を、締切が近い順に並べています。</p>
+
+      {messages.length > 0 && (
+        <section aria-label="講師からのメッセージ" style={{ margin: "1rem 0" }}>
+          <h2 style={{ fontSize: "1.2rem", marginBottom: "0.5rem" }}>
+            講師からのメッセージ
+          </h2>
+          <ul style={{ listStyle: "none" }}>
+            {messages.map((m) => (
+              <li
+                key={m.id}
+                style={{
+                  border: "2px solid var(--accent)",
+                  borderRadius: 8,
+                  padding: "0.75rem",
+                  margin: "0.5rem 0",
+                }}
+              >
+                {/*
+                  プロンプト本文を受け取る用途があるため、改行をそのまま表示して
+                  そのままコピーできるようにする（2026-09-02）
+                */}
+                <p style={{ whiteSpace: "pre-wrap" }}>{m.body}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {items.length === 0 ? (
         <div className="banner banner--ok">
@@ -88,6 +119,7 @@ export default async function Home() {
               { href: "/teacher/attendance", title: "出席の記録", desc: "この授業の出席をつける" },
               { href: "/teacher/review", title: "採点・差戻し", desc: "AI一次採点の確認と確定" },
               { href: "/teacher/report", title: "週次到達度レポート", desc: "クラス全体の伸び・停滞" },
+              { href: "/teacher/chat-logs", title: "AI講師の会話ログ", desc: "何を聞かれたかの記録" },
               { href: "/teacher/class", title: "クラス名簿（Canvas）", desc: "受講生と課題の一覧" },
               { href: "/teacher/grade", title: "成績入力（Canvas）", desc: "点数をCanvasへ反映" },
               { href: "/teacher/summary", title: "成績サマリ（Canvas）", desc: "提出率・平均点の集計" },

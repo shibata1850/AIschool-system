@@ -5,7 +5,9 @@ import {
   deviceAssignments as deviceAssignmentsTable,
   lessonRecords as lessonRecordsTable,
   submissions as submissionsTable,
+  chatLogs as chatLogsTable,
   externalMastery as externalMasteryTable,
+  teacherMessages as teacherMessagesTable,
 } from "@/lib/db/schema";
 import { resetDatabase } from "@/lib/db/seed";
 import type { LessonRecord } from "@/lib/f4/achievement";
@@ -437,6 +439,8 @@ export async function purgeStudentData(studentId: string): Promise<{
   deletedSubmissions: number;
   hadLessonRecords: boolean;
   deletedExternalMastery: number;
+  deletedChatLogs: number;
+  deletedTeacherMessages: number;
 }> {
   const db = getDb();
   const deletedSubmissions = await db
@@ -453,10 +457,22 @@ export async function purgeStudentData(studentId: string): Promise<{
     .delete(externalMasteryTable)
     .where(eq(externalMasteryTable.studentId, studentId))
     .returning({ unitId: externalMasteryTable.unitId });
+  // AI講師の会話ログと、講師からの一言も消す（2026-09-02追加）。
+  // **テーブルを増やしたらこの関数に足す** — 足し忘れると退会者のデータが残る
+  const deletedChatLogs = await db
+    .delete(chatLogsTable)
+    .where(eq(chatLogsTable.studentId, studentId))
+    .returning({ id: chatLogsTable.id });
+  const deletedTeacherMessages = await db
+    .delete(teacherMessagesTable)
+    .where(eq(teacherMessagesTable.studentId, studentId))
+    .returning({ id: teacherMessagesTable.id });
   return {
     deletedSubmissions: deletedSubmissions.length,
     hadLessonRecords: deletedLessonRecords.length > 0,
     deletedExternalMastery: deletedExternalMastery.length,
+    deletedChatLogs: deletedChatLogs.length,
+    deletedTeacherMessages: deletedTeacherMessages.length,
   };
 }
 

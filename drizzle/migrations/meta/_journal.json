@@ -43,6 +43,13 @@
       "when": 1788253200000,
       "tag": "0005_external_mastery",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788339600000,
+      "tag": "0006_chat_logs_and_teacher_messages",
+      "breakpoints": true
     }
   ]
 }

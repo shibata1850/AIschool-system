@@ -1,6 +1,7 @@
 import { CURRENT_ASSIGNMENT_ID, findSubmission, getLessonRecords } from "@/lib/f3/store";
 import { STATUS_LABELS, type ExerciseStatus } from "@/lib/f3/types";
 import { isAttendedWithoutSubmission, STUDENTS } from "@/lib/f4/fixtures";
+import { MessageBox } from "./message-box";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,11 @@ export default async function MonitorPage() {
               {attendedNoSubmit && (
                 <p style={{ color: "var(--warn)" }}>出席・未提出</p>
               )}
+              {/*
+                成績値は投影されるため出さない方針は維持する（画面仕様書S6）。
+                ここに置くのは「送る」導線だけで、送った本文もタイルには出さない。
+              */}
+              <MessageBox studentId={student.id} displayName={student.displayName} />
             </section>
           );
         })}
