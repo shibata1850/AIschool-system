@@ -1,6 +1,7 @@
 import { CURRENT_ASSIGNMENT_ID, findSubmission, getLessonRecords } from "@/lib/f3/store";
 import { STATUS_LABELS, type ExerciseStatus } from "@/lib/f3/types";
-import { isAttendedWithoutSubmission, STUDENTS } from "@/lib/f4/fixtures";
+import { isAttendedWithoutSubmission } from "@/lib/f4/fixtures";
+import { getRoster } from "@/lib/roster";
 import { MessageBox } from "./message-box";
 
 export const dynamic = "force-dynamic";
@@ -21,8 +22,10 @@ const STATUS_COLORS: Record<ExerciseStatus, string> = {
 };
 
 export default async function MonitorPage() {
+  // 名簿はLTI起動の記録から引く（架空名簿は起動が1件も無いときのみ — src/lib/roster.ts）
+  const roster = await getRoster();
   const tiles = await Promise.all(
-    STUDENTS.map(async (student) => {
+    roster.map(async (student) => {
       const submission = await findSubmission(CURRENT_ASSIGNMENT_ID, student.id);
       const status: ExerciseStatus = submission?.status ?? "not_started";
       const attendedNoSubmit = isAttendedWithoutSubmission(await getLessonRecords(student.id));

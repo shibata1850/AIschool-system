@@ -134,6 +134,28 @@ export const externalMastery = pgTable(
 );
 
 /**
+ * 受講生名簿。**LTI起動のたびに記録・更新する**（2026-09-02追加）。
+ *
+ * **なぜCanvas REST APIの名簿を使わないか**: Canvasの名簿が返すのはRESTの数値IDで、
+ * 受講生の画面が使うLTIの `sub` とは**別値**である（`canvas_user_id` を別に保持している
+ * のはそのため）。RESTの名簿を起点にすると講師画面と受講生画面が別人を指す。
+ * LTI起動時に記録すれば、全画面が `sub` で一貫する。
+ *
+ * **表示名について**: 氏名フルネームを表示してよいのはS9のみ（要件定義書5.3）。
+ * ここにはCanvasの `name` クレームが入るため、S6などの投影される画面では
+ * そのまま出さず、名簿側の表示ルールに従うこと。
+ */
+export const students = pgTable("students", {
+  /** LTIの sub（Canvasの利用者を一意に指す）。全テーブルの studentId はこれ */
+  id: text("id").primaryKey(),
+  displayName: text("display_name").notNull(),
+  /** Canvas REST APIの数値ID（成績書き戻し用。カスタムフィールド未設定なら null） */
+  canvasUserId: integer("canvas_user_id"),
+  firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull(),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull(),
+});
+
+/**
  * AI講師との会話ログ（F2）。
  *
  * **保存するのはマスキング済みの本文だけ**（`maskPersonalInfo` 通過後）。

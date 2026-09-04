@@ -1,5 +1,5 @@
 import { listChatLogs, listStudentsWithChatLogs } from "@/lib/f2/chatLog";
-import { STUDENTS } from "@/lib/f4/fixtures";
+import { getRoster } from "@/lib/roster";
 
 export const dynamic = "force-dynamic";
 
@@ -24,22 +24,18 @@ function formatJst(iso: string): string {
   });
 }
 
-/**
- * 表示名を解決する。架空名簿に無いID（＝LTIの実利用者）は、IDをそのまま出す。
- * 実名簿との接続は別課題（docs/実装状況.md「生徒側画面を実データに接続する」）。
- */
-function displayNameOf(studentId: string): string {
-  return STUDENTS.find((s) => s.id === studentId)?.displayName ?? studentId;
-}
-
 export default async function ChatLogsPage() {
   // **記録があるIDを起点にする**（架空名簿を順に引くと、本番のLTI利用者の
   // ログが保存されていても0件に見える — 2026-09-02の不具合）
-  const studentIds = await listStudentsWithChatLogs();
+  const [studentIds, roster] = await Promise.all([
+    listStudentsWithChatLogs(),
+    getRoster(),
+  ]);
   const withLogs = await Promise.all(
     studentIds.map(async (studentId) => ({
       studentId,
-      displayName: displayNameOf(studentId),
+      // 名簿から消えた受講生（退会・別コース）のログも読めるよう、IDで代替する
+      displayName: roster.find((s) => s.id === studentId)?.displayName ?? studentId,
       logs: await listChatLogs(studentId, 50),
     })),
   );

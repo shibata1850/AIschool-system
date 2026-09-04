@@ -6,7 +6,7 @@ import {
 } from "@/lib/f4/achievement";
 import { getExternalMasteryForStudent } from "@/lib/integration/mastery";
 import { getLessonRecords } from "@/lib/f3/store";
-import { STUDENTS } from "@/lib/f4/fixtures";
+import { getRoster } from "@/lib/roster";
 import { getLatestWeeklyReport } from "@/lib/f4/generateWeeklyReport";
 
 export const dynamic = "force-dynamic";
@@ -33,7 +33,7 @@ export default async function ReportPage() {
   const [snapshot, allRows] = await Promise.all([
     getLatestWeeklyReport(),
     Promise.all(
-      STUDENTS.map(async (student) => {
+      (await getRoster()).map(async (student) => {
         const [records, homeStudy] = await Promise.all([
           getLessonRecords(student.id),
           getExternalMasteryForStudent(student.id),

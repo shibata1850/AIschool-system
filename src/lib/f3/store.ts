@@ -6,6 +6,7 @@ import {
   lessonRecords as lessonRecordsTable,
   submissions as submissionsTable,
   chatLogs as chatLogsTable,
+  students as studentsTable,
   externalMastery as externalMasteryTable,
   teacherMessages as teacherMessagesTable,
 } from "@/lib/db/schema";
@@ -441,6 +442,7 @@ export async function purgeStudentData(studentId: string): Promise<{
   deletedExternalMastery: number;
   deletedChatLogs: number;
   deletedTeacherMessages: number;
+  removedFromRoster: boolean;
 }> {
   const db = getDb();
   const deletedSubmissions = await db
@@ -467,12 +469,18 @@ export async function purgeStudentData(studentId: string): Promise<{
     .delete(teacherMessagesTable)
     .where(eq(teacherMessagesTable.studentId, studentId))
     .returning({ id: teacherMessagesTable.id });
+  // 名簿からも消す（残すと退会者がS6のタイルに並び続ける）
+  const removedFromRoster = await db
+    .delete(studentsTable)
+    .where(eq(studentsTable.id, studentId))
+    .returning({ id: studentsTable.id });
   return {
     deletedSubmissions: deletedSubmissions.length,
     hadLessonRecords: deletedLessonRecords.length > 0,
     deletedExternalMastery: deletedExternalMastery.length,
     deletedChatLogs: deletedChatLogs.length,
     deletedTeacherMessages: deletedTeacherMessages.length,
+    removedFromRoster: removedFromRoster.length > 0,
   };
 }
 

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { CURRENT_LESSON_WEEK, setAttendance } from "@/lib/f3/store";
-import { STUDENTS } from "@/lib/f4/fixtures";
+import { getRoster } from "@/lib/roster";
 import { recordAudit } from "@/lib/audit/log";
 import { getCurrentUser } from "@/lib/auth";
 
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     typeof body.weekStart === "string" ? body.weekStart : CURRENT_LESSON_WEEK;
 
   // 名簿にいる受講生のみ（架空のデモ名簿で検証）
-  if (!STUDENTS.some((s) => s.id === body.studentId)) {
+  if (!(await getRoster()).some((s) => s.id === body.studentId)) {
     return new NextResponse("その受講生は名簿にいません", { status: 400 });
   }
 

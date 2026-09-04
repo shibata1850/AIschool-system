@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit/log";
 import { sendTeacherMessage, TeacherMessageError } from "@/lib/f2/chatLog";
-import { STUDENTS } from "@/lib/f4/fixtures";
+import { getRoster } from "@/lib/roster";
 
 /**
  * 講師から受講生への一言（S6モニタリングの介入導線）。
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     return new NextResponse("body は文字列で指定してください", { status: 400 });
   }
   // 名簿にない宛先へは送らせない（出席記録APIと同じ方針）
-  if (!STUDENTS.some((s) => s.id === body.studentId)) {
+  if (!(await getRoster()).some((s) => s.id === body.studentId)) {
     return new NextResponse("その受講生は名簿にありません", { status: 400 });
   }
 

@@ -1,5 +1,5 @@
 import { CURRENT_LESSON_WEEK, getAttendance } from "@/lib/f3/store";
-import { STUDENTS } from "@/lib/f4/fixtures";
+import { getRoster } from "@/lib/roster";
 import { AttendanceRow } from "./attendance-row";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function AttendancePage() {
   const rows = await Promise.all(
-    STUDENTS.map(async (s) => ({
+    (await getRoster()).map(async (s) => ({
       student: s,
       initial: await getAttendance(s.id, CURRENT_LESSON_WEEK),
     })),

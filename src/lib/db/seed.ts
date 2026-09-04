@@ -3,6 +3,7 @@ import {
   assignments as assignmentsTable,
   auditLog as auditLogTable,
   chatLogs as chatLogsTable,
+  students as studentsTable,
   deviceAssignments as deviceAssignmentsTable,
   externalMastery as externalMasteryTable,
   teacherMessages as teacherMessagesTable,
@@ -30,6 +31,8 @@ export async function resetDatabase(): Promise<void> {
     // AI講師の会話ログと講師からの一言（2026-09-02追加）
     await tx.delete(chatLogsTable);
     await tx.delete(teacherMessagesTable);
+    // 名簿（LTI起動の記録）。E2E・デモは架空名簿へフォールバックする
+    await tx.delete(studentsTable);
     await tx.delete(deviceAssignmentsTable);
     await tx.delete(assignmentsTable);
     await tx.delete(auditLogTable);

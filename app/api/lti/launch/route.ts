@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getLtiConfig } from "@/lib/lti/config";
 import { canvasJwks, LtiLaunchError, verifyLaunch } from "@/lib/lti/launch";
 import { LTI_SESSION_COOKIE, signSession } from "@/lib/lti/session";
+import { recordStudentLaunch } from "@/lib/roster";
 
 /**
  * LTI 1.3 起動（launch）。Canvasが id_token を form_post で送ってくる。
@@ -46,6 +47,21 @@ export async function POST(request: NextRequest) {
   } catch (e) {
     if (e instanceof LtiLaunchError) return new NextResponse(e.message, { status: 401 });
     throw e;
+  }
+
+  // 受講生名簿へ記録する（2026-09-02追加）。
+  // **講師・管理者は記録しない** — S6の16タイルに講師が並んでしまう。
+  // 記録に失敗しても起動は止めない（授業の入口を落とさない）
+  if (launch.role === "student") {
+    try {
+      await recordStudentLaunch({
+        id: launch.sub,
+        displayName: launch.name,
+        canvasUserId: launch.canvasUserId,
+      });
+    } catch (e) {
+      console.error("受講生名簿の記録に失敗しました:", e instanceof Error ? e.message : e);
+    }
   }
 
   const session = await signSession(

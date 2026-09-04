@@ -64,6 +64,8 @@ export async function POST(request: NextRequest) {
     // AI講師の会話ログと、講師からの一言も消える（2026-09-02）
     deletedChatLogs: number;
     deletedTeacherMessages: number;
+    // 名簿からも消す（残すとS6のタイルに退会者が並び続ける）
+    removedFromRoster: boolean;
   }> = [];
   for (const w of expired) {
     const result = await purgeStudentData(w.studentId);
