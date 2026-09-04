@@ -117,6 +117,9 @@ export default async function Home() {
             {[
               { href: "/teacher/monitor", title: "授業中モニタリング", desc: "16席の状態を色で把握" },
               { href: "/teacher/attendance", title: "出席の記録", desc: "この授業の出席をつける" },
+              // 2026-09-04追加: 実装済みなのに導線が無く、URL直打ちでしか開けなかった。
+              // 開講日は①-6で最初に使う画面のため、Canvas系より前に置く
+              { href: "/teacher/devices", title: "デバイス割当", desc: "座席と受講生の割当・予備機切替" },
               { href: "/teacher/review", title: "採点・差戻し", desc: "AI一次採点の確認と確定" },
               { href: "/teacher/report", title: "週次到達度レポート", desc: "クラス全体の伸び・停滞" },
               { href: "/teacher/chat-logs", title: "AI講師の会話ログ", desc: "何を聞かれたかの記録" },
