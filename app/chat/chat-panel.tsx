@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { postJson } from "@/lib/client/postJson";
 import { QUESTION_LIMIT } from "@/lib/f2/constants";
+import { OutageNoticeBox, type OutageNotice } from "./outage-notice";
 
 interface ChatEntry {
   question: string; // マスキング済みの質問のみ保持する
@@ -18,12 +19,30 @@ interface ChatResponse {
   reply?: string;
 }
 
-/** S3 チャット本体: 「考え中」表示・10秒タイムアウト（F2例外1） */
-export function ChatPanel() {
+/** 503 の本文（静的教材モード）かどうか */
+function asOutage(json: unknown): OutageNotice | null {
+  if (!json || typeof json !== "object") return null;
+  const o = json as { mode?: unknown; since?: unknown; material?: unknown };
+  if (o.mode !== "static" || typeof o.since !== "string") return null;
+  const m = o.material as { url?: unknown; title?: unknown } | null | undefined;
+  const material =
+    m && typeof m.url === "string" && typeof m.title === "string"
+      ? { url: m.url, title: m.title }
+      : null;
+  return { since: o.since, material };
+}
+
+/**
+ * S3 チャット本体: 「考え中」表示・タイムアウト（F2例外1）・静的教材モード（F2②）。
+ * タイムアウトの判定は**サーバー側（10秒）**が正。ここでの中断は、サーバーが
+ * 応答しない場合の保険としてやや長め（15秒）に置く。
+ */
+export function ChatPanel({ initialOutage }: { initialOutage: OutageNotice | null }) {
   const [question, setQuestion] = useState("");
   const [entries, setEntries] = useState<ChatEntry[]>([]);
   const [thinking, setThinking] = useState(false);
   const [error, setError] = useState("");
+  const [outage, setOutage] = useState<OutageNotice | null>(initialOutage);
   const controllerRef = useRef<AbortController | null>(null);
   const canceledRef = useRef(false);
 
@@ -43,7 +62,7 @@ export function ChatPanel() {
     canceledRef.current = false;
     const controller = new AbortController();
     controllerRef.current = controller;
-    const timeout = setTimeout(() => controller.abort(), 10_000);
+    const timeout = setTimeout(() => controller.abort(), 15_000);
     const result = await postJson<ChatResponse>(
       "/api/chat",
       { question },
@@ -54,6 +73,12 @@ export function ChatPanel() {
     setThinking(false);
 
     if (!result.ok) {
+      // 停止中（静的教材モード）: エラーではなく案内に切り替える。質問文は残す
+      const nextOutage = asOutage(result.json);
+      if (nextOutage) {
+        setOutage(nextOutage);
+        return;
+      }
       setError(
         result.aborted
           ? canceledRef.current
@@ -64,6 +89,8 @@ export function ChatPanel() {
       return;
     }
     const answer = result.data;
+    // 応答が返った＝復旧している
+    setOutage(null);
     setEntries((prev) => [
       ...prev,
       {
@@ -78,6 +105,7 @@ export function ChatPanel() {
 
   return (
     <section aria-label="チャット" style={{ marginTop: "1rem" }}>
+      {outage && <OutageNoticeBox outage={outage} />}
       <ul style={{ listStyle: "none" }} aria-label="会話のきろく">
         {entries.map((entry, i) => (
           <li key={i} style={{ margin: "0.75rem 0" }}>

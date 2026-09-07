@@ -1,13 +1,17 @@
+import { currentOutage } from "@/lib/f2/outage";
 import { ChatPanel } from "./chat-panel";
 
 export const dynamic = "force-dynamic";
 
 /** S3 AI講師チャット（docs/画面仕様書.md S3） */
-export default function ChatPage() {
+export default async function ChatPage() {
+  // 停止中に画面を開いた受講生には、質問する前から教材への案内を出す（F2②）
+  const outage = await currentOutage();
+
   return (
     <main style={{ display: "flex", flexDirection: "column", minHeight: "90vh" }}>
       <h1>AI講師に質問する</h1>
-      <ChatPanel />
+      <ChatPanel initialOutage={outage} />
       <p
         aria-label="AI回答の注意"
         style={{

@@ -217,3 +217,19 @@ export const auditLog = pgTable("audit_log", {
   before: jsonb("before"),
   after: jsonb("after"),
 });
+
+/**
+ * AI講師の稼働状態（受け入れ基準 F2②・2026-09-04）。**1行だけ**（id=1）。
+ * 連続失敗が閾値に達すると停止中になり、受講生の画面は静的教材モードへ切り替わる。
+ * 停止・復旧の履歴は監査ログ（entity=ai_outage）に残す。
+ */
+export const aiHealth = pgTable("ai_health", {
+  id: integer("id").primaryKey(),
+  consecutiveFailures: integer("consecutive_failures").notNull().default(0),
+  /** 停止中の開始時刻。null なら稼働中 */
+  outageStartedAt: timestamp("outage_started_at", { withTimezone: true }),
+  /** 停止中に推論を再試行した最終時刻（一定間隔で1件だけ試す） */
+  lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
+  notifiedAt: timestamp("notified_at", { withTimezone: true }),
+  notifySkippedReason: text("notify_skipped_reason"),
+});

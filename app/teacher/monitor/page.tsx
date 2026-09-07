@@ -3,6 +3,7 @@ import { STATUS_LABELS, type ExerciseStatus } from "@/lib/f3/types";
 import { isAttendedWithoutSubmission } from "@/lib/f4/fixtures";
 import { getRoster } from "@/lib/roster";
 import { MessageBox } from "./message-box";
+import { OutageBanner } from "./outage-banner";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,7 @@ export default async function MonitorPage() {
   return (
     <main style={{ maxWidth: "64rem" }}>
       <h1>授業中モニタリング</h1>
+      <OutageBanner />
       <div
         style={{
           display: "grid",

@@ -1,5 +1,6 @@
 import { getAdminDb } from "./adminClient";
 import {
+  aiHealth as aiHealthTable,
   assignments as assignmentsTable,
   auditLog as auditLogTable,
   chatLogs as chatLogsTable,
@@ -37,6 +38,9 @@ export async function resetDatabase(): Promise<void> {
     await tx.delete(assignmentsTable);
     await tx.delete(auditLogTable);
     await tx.delete(weeklyReportsTable);
+    // AI講師の稼働状態（F2②）。前のテストで停止中にしたまま次のテストへ持ち越さない
+    await tx.delete(aiHealthTable);
+    await tx.insert(aiHealthTable).values({ id: 1 });
 
     async function insertMinimalSeed() {
       await tx.insert(assignmentsTable).values(MINIMAL_ASSIGNMENT);

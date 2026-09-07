@@ -49,6 +49,11 @@ export default defineConfig({
       DEV_COOKIE_ROLES: "1",
       // 外部システム連携API（E7）のテスト用トークン。**架空値**（CLAUDE.md 2章）
       INTEGRATION_API_TOKEN: "e2e-integration-token-0123456789abcdef",
+      // 静的教材モード（F2②）: 停止中の再試行を即時にし、教材リンク（A-1a）も出す。
+      // URLは架空（example.com は例示用に予約されたドメイン）
+      AI_OUTAGE_PROBE_INTERVAL_MS: "0",
+      STATIC_MATERIAL_URL: "https://example.com/materials/step03",
+      STATIC_MATERIAL_TITLE: "STEP03 業務を観察する",
     },
   },
 });

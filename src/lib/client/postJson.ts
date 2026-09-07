@@ -5,7 +5,15 @@
 
 export type PostJsonResult<T> =
   | { ok: true; data: T }
-  | { ok: false; message: string; aborted?: boolean };
+  | {
+      ok: false;
+      message: string;
+      aborted?: boolean;
+      /** HTTPステータス（通信自体が失敗したときは undefined） */
+      status?: number;
+      /** 応答がJSONだったときの本文（例: 503 の静的教材モード情報） */
+      json?: unknown;
+    };
 
 export async function postJson<T = unknown>(
   url: string,
@@ -20,7 +28,16 @@ export async function postJson<T = unknown>(
       signal: options?.signal,
     });
     if (!res.ok) {
-      return { ok: false, message: await res.text() };
+      const text = await res.text();
+      let json: unknown;
+      if (res.headers.get("content-type")?.includes("application/json")) {
+        try {
+          json = JSON.parse(text);
+        } catch {
+          json = undefined;
+        }
+      }
+      return { ok: false, message: text, status: res.status, json };
     }
     let data: T;
     try {
