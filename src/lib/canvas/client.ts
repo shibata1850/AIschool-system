@@ -262,6 +262,10 @@ export class CanvasClient {
     // 週次レポート・AI講師停止の通知が「送信済み」なのに受信箱に届かない。
     // 宛先は講師数名なので同期でも十分軽い（手動対応リスト B21）
     params.set("mode", "sync");
+    // **毎回新しい会話にする（2026-09-08）**。指定しないとCanvasは同じ相手との既存の
+    // 会話に本文だけを追加し、件名は最初の会話のまま残る。週次レポートで
+    // 「件名は 08-31 の週、本文は 09-07 の週」という食い違いが本番で出た
+    params.set("force_new", "true");
 
     await this.request<unknown>("/api/v1/conversations", {
       method: "POST",

@@ -59,6 +59,26 @@ describe("CanvasClient", () => {
     expect(body.comment.text_comment).toBe("よくできました");
   });
 
+  it("メッセージ送信は同期・毎回新しい会話・宛先ごとに個別（本番Canvasの挙動に合わせる）", async () => {
+    const fetchFn = stubFetch(200, []);
+    const client = new CanvasClient({
+      baseUrl: "https://canvas.example.jp",
+      apiToken: "t",
+      fetchFn,
+    });
+    await client.createConversation([7, 8], "件名", "本文");
+    const [url, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toContain("/api/v1/conversations");
+    const params = new URLSearchParams(init.body as string);
+    expect(params.getAll("recipients[]")).toEqual(["7", "8"]);
+    // 2026-09-08 本番で判明した2点を固定する:
+    // - async は裏の処理（delayed_job）待ちになり、動いていないと届かない → sync
+    // - 既存の会話に追記されると件名が最初の週のまま残る → force_new
+    expect(params.get("mode")).toBe("sync");
+    expect(params.get("force_new")).toBe("true");
+    expect(params.get("group_conversation")).toBe("false");
+  });
+
   it("スコア範囲外は送信前に拒否する", async () => {
     const fetchFn = stubFetch(200, {});
     const client = new CanvasClient({ baseUrl: "https://c", apiToken: "t", fetchFn });
