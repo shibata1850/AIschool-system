@@ -256,7 +256,12 @@ export class CanvasClient {
     params.set("body", body);
     // 宛先ごとに個別の会話にする（受信者同士が互いに見えないようにする）
     params.set("group_conversation", "false");
-    params.set("mode", "async");
+    // **同期送信にする（2026-09-08）**。async は Canvas の裏の処理（delayed_job）に
+    // 積まれるだけで、本番Canvasにその処理を担うコンテナが無いことが B15 の調査で
+    // 判明した（開発者キーの変更がアプリへ配られなかった）。async のままだと
+    // 週次レポート・AI講師停止の通知が「送信済み」なのに受信箱に届かない。
+    // 宛先は講師数名なので同期でも十分軽い（手動対応リスト B21）
+    params.set("mode", "sync");
 
     await this.request<unknown>("/api/v1/conversations", {
       method: "POST",
