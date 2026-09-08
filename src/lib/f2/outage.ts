@@ -24,7 +24,12 @@ import { aiHealth } from "@/lib/db/schema";
 /** 何回連続で失敗したら停止中にするか */
 export const AI_OUTAGE_THRESHOLD = 3;
 
-/** 停止中に推論を再試行する間隔（ミリ秒）。E2Eでは 0 にして即時復旧を試せるようにする */
+/**
+ * 停止中に推論を再試行する間隔（ミリ秒）。E2Eでは 0 にして即時復旧を試せるようにする。
+ * 0 は「絞らない」の意味で、同時に来た2件の排他までは保証しない（時刻の比較なので
+ * ミリ秒が1つ違えば両方通る）。本番の60秒では実害がない — 目的は排他ではなく、
+ * 停止中に全員を10秒ずつ待たせないための絞りだから
+ */
 export function probeIntervalMs(): number {
   const raw = process.env.AI_OUTAGE_PROBE_INTERVAL_MS;
   if (raw === undefined || raw === "") return 60_000;

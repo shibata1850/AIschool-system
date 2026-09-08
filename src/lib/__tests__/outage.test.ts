@@ -1,5 +1,8 @@
+import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getAuditLog } from "@/lib/audit/log";
+import { getDb } from "@/lib/db/client";
+import { aiHealth } from "@/lib/db/schema";
 import { resetStore } from "@/lib/f3/store";
 import {
   AI_OUTAGE_THRESHOLD,
@@ -69,12 +72,20 @@ describe("AI講師の停止検知", () => {
     const blocked = await shouldAttemptInference();
     expect(blocked.attempt).toBe(false);
 
-    // 間隔0にすると1件だけ通り、同時のもう1件は通らない
-    process.env.AI_OUTAGE_PROBE_INTERVAL_MS = "0";
-    // 間隔0でも「前回の再試行より後」が条件なので、時刻を確実に進める
-    await new Promise((r) => setTimeout(r, 5));
+    // 前回の再試行を間隔より前に戻す（sleepで待つ代わりに時刻を巻き戻す）。
+    // **間隔0では同時2件の排他は保証できない**（ミリ秒が1つ違えば両方通る）ため、
+    // 排他の検証は実際の間隔（1秒）で行う。E2Eの間隔0は「絞らない」設定で、
+    // 排他ではなく即時復旧を試すためのもの
+    process.env.AI_OUTAGE_PROBE_INTERVAL_MS = "1000";
+    await getDb()
+      .update(aiHealth)
+      .set({ lastAttemptAt: new Date(Date.now() - 2_000) })
+      .where(eq(aiHealth.id, 1));
     const [a, b] = await Promise.all([shouldAttemptInference(), shouldAttemptInference()]);
     expect([a.attempt, b.attempt].filter(Boolean)).toHaveLength(1);
+
+    // 直後（間隔内）はもう通らない
+    expect((await shouldAttemptInference()).attempt).toBe(false);
   });
 
   it("成功で復旧し、連続失敗・通知状態が消え、監査ログに残る", async () => {
