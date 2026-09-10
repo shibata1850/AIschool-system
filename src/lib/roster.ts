@@ -1,6 +1,6 @@
 import { asc, eq } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
-import { deviceAssignments, students } from "@/lib/db/schema";
+import { deviceAssignments, students, studentCourses } from "@/lib/db/schema";
 import { STUDENTS, type StudentProfile } from "@/lib/f4/fixtures";
 
 /**
@@ -76,6 +76,7 @@ export async function recordStudentLaunch(input: {
   id: string;
   displayName?: string;
   canvasUserId?: number;
+  courseId?: string;
 }): Promise<void> {
   const db = getDb();
   const now = new Date();
@@ -101,6 +102,10 @@ export async function recordStudentLaunch(input: {
         lastSeenAt: now,
       },
     });
+  if (input.courseId?.trim()) {
+    await db.insert(studentCourses).values({studentId:input.id,courseId:input.courseId,lastSeenAt:now})
+      .onConflictDoUpdate({target:[studentCourses.studentId,studentCourses.courseId],set:{lastSeenAt:now}});
+  }
 }
 
 /** 退会者データ削除（F5②）で使う */

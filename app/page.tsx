@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { listTeacherMessages } from "@/lib/f2/chatLog";
-import { listActiveSubmissionsForStudent } from "@/lib/f3/store";
+import { listActiveSubmissionsForStudent, hasAssignmentsForStudent } from "@/lib/f3/store";
+import { emptyAssignmentLabel } from "@/lib/f3/allocationPolicy";
 import { STATUS_LABELS, type ExerciseStatus } from "@/lib/f3/types";
 
 export const dynamic = "force-dynamic";
@@ -32,9 +33,10 @@ export default async function Home() {
     );
   }
 
-  const [items, messages] = await Promise.all([
+  const [items, messages, hasAssignments] = await Promise.all([
     listActiveSubmissionsForStudent(userId),
     listTeacherMessages(userId),
+    hasAssignmentsForStudent(userId),
   ]);
 
   return (
@@ -71,7 +73,7 @@ export default async function Home() {
 
       {items.length === 0 ? (
         <div className="banner banner--ok">
-          <p className="banner__title">すべて完了しています。</p>
+          <p className="banner__title">{emptyAssignmentLabel(hasAssignments)}</p>
           <p className="muted">新しい課題が出ると、ここに表示されます。</p>
         </div>
       ) : (
@@ -115,6 +117,7 @@ export default async function Home() {
           <h2>講師用メニュー</h2>
           <ul className="card-list">
             {[
+              { href: "/teacher/assignments", title: "課題の割当", desc: "受講生を選んで課題を配布" },
               { href: "/teacher/monitor", title: "授業中モニタリング", desc: "16席の状態を色で把握" },
               { href: "/teacher/attendance", title: "出席の記録", desc: "この授業の出席をつける" },
               // 2026-09-04追加: 実装済みなのに導線が無く、URL直打ちでしか開けなかった。

@@ -156,6 +156,13 @@ export const students = pgTable("students", {
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull(),
 });
 
+/** Verified LTI course membership; no inference from the global demo roster. */
+export const studentCourses = pgTable("student_courses", {
+  studentId: text("student_id").notNull().references(() => students.id, {onDelete:"cascade"}),
+  courseId: text("course_id").notNull(),
+  lastSeenAt: timestamp("last_seen_at", {withTimezone:true}).notNull(),
+}, t => [primaryKey({columns:[t.studentId,t.courseId]})]);
+
 /**
  * AI講師との会話ログ（F2）。
  *

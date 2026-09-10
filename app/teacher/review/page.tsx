@@ -1,5 +1,6 @@
 import { listCanvasSyncFailures, listSubmissionsPendingReview } from "@/lib/f3/store";
 import { ReviewForm } from "./review-form";
+import { getRoster } from "@/lib/roster";
 
 export const dynamic = "force-dynamic";
 
@@ -9,10 +10,13 @@ export const dynamic = "force-dynamic";
  * 講師の手動採点で完了・差戻しできるようにする（監査指摘#5）。
  */
 export default async function ReviewPage() {
-  const [pending, syncFailures] = await Promise.all([
+  const [pending, syncFailures, roster] = await Promise.all([
     listSubmissionsPendingReview(),
     listCanvasSyncFailures(),
+    getRoster(),
   ]);
+  const names = new Map(roster.map(s=>[s.id,s.displayName]));
+  const nameOf = (id:string) => names.get(id) || `名簿未登録（${id}）`;
 
   return (
     <main>
@@ -39,7 +43,7 @@ export default async function ReviewPage() {
             {syncFailures.map(({ submission, assignment }) => (
               <li key={submission.id}>
                 {assignment?.title ?? submission.assignmentId} ／ 提出者{" "}
-                {submission.studentId}
+                {nameOf(submission.studentId)}
                 {submission.teacherScore !== undefined && `（${submission.teacherScore}点）`}
                 : {submission.canvasSyncError}
               </li>
@@ -64,7 +68,7 @@ export default async function ReviewPage() {
             >
               <h2 style={{ fontSize: "1.2rem" }}>{assignment?.title}</h2>
               <p style={{ color: "var(--fg-sub)" }}>
-                提出者: {submission.studentId} ・第{submission.version}版
+                提出者: {nameOf(submission.studentId)} ・第{submission.version}版
                 {submission.isLate && (
                   <strong style={{ color: "var(--warn)" }}>（遅延提出）</strong>
                 )}

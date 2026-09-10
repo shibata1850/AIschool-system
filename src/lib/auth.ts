@@ -13,6 +13,7 @@ export interface CurrentUser {
   name?: string;
   /** LTIセッション由来か（デモ・E2EのCookie判定と区別する） */
   viaLti: boolean;
+  courseId?: string;
   /**
    * LTI Advantage AGS（成績・提出状態の書き戻し）に必要な情報。
    * 起動時にlineitemを取得できた場合のみ設定する。デモ表示モードでは、
@@ -59,6 +60,7 @@ export async function getCurrentUser(): Promise<CurrentUser> {
       userId: demoMode ? "student-demo" : ltiSession.sub,
       name: ltiSession.name,
       viaLti: true,
+      courseId: demoMode ? undefined : ltiSession.courseId,
       canvasUserId: demoMode ? undefined : ltiSession.canvasUserId,
       ags:
         !demoMode && ltiSession.agsLineItem

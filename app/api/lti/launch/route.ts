@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
         id: launch.sub,
         displayName: launch.name,
         canvasUserId: launch.canvasUserId,
+        courseId: launch.courseId,
       });
     } catch (e) {
       console.error("受講生名簿の記録に失敗しました:", e instanceof Error ? e.message : e);

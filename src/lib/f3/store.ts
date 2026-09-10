@@ -206,6 +206,12 @@ export async function recordCanvasSync(
 }
 
 /** S1受講生ホーム用: 未完了の提出と、その課題をまとめて取得する */
+export async function hasAssignmentsForStudent(studentId:string):Promise<boolean> {
+  const rows = await getDb().select({id:submissionsTable.id}).from(submissionsTable)
+    .where(eq(submissionsTable.studentId,studentId)).limit(1);
+  return rows.length > 0;
+}
+
 export async function listActiveSubmissionsForStudent(
   studentId: string,
 ): Promise<Array<{ submission: Submission; assignment: Assignment | undefined }>> {
