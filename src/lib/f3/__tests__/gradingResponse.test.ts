@@ -7,6 +7,20 @@ const valid = { totalScore: 90, feedback: "Clear instructions", rationale: "Audi
 const grade = (content: string) => new AiGrader({ provider: "mock", complete: async () => ({ content, model: "test" }) } satisfies AiClient).grade(assignment, "Fictional prompt");
 
 describe("grading response regression", () => {
+  it("reserves enough output tokens for Japanese grading JSON", async () => {
+    const client: AiClient = { provider: "mock", complete: async request => {
+      expect(request.maxTokens).toBe(1200);
+      return {content: JSON.stringify(valid), model:"test"};
+    }};
+    await new AiGrader(client).grade(assignment, "Fictional prompt");
+  });
+  it("rejects truncated output even when the partial text happens to be valid JSON", async () => {
+    const client: AiClient = { provider: "mock", complete: async () => ({
+      content: JSON.stringify(valid), model:"test", stopReason:"max_tokens",
+    })};
+    await expect(new AiGrader(client).grade(assignment, "Fictional prompt"))
+      .rejects.toThrow("AI採点の出力が上限に達しました");
+  });
   it("accepts uppercase fences and surrounding whitespace", async () => {
     expect((await grade(" \n```JSON\n" + JSON.stringify(valid) + "\n```\n ")).totalScore).toBe(90);
   });

@@ -58,6 +58,7 @@ async function startFixture() {
       let output = JSON.stringify({ totalScore, feedback: '\u5bfe\u8c61\u8aad\u8005\u304c\u660e\u78ba\u3067\u3059\u3002', rationale: 'Fictional test response' });
       if (text.includes('E2E_FENCE')) output = '```json\n' + output + '\n```';
       if (text.includes('E2E_INVALID')) { output = '```json\n{"unfinished":'; seen = true; }
+      if (text.includes('E2E_BUDGET') && input.max_tokens < 1200) output = '{"unfinished":';
       res.end(JSON.stringify({ id: 'msg_local_test', type: 'message', role: 'assistant', model: input.model, content: [{ type: 'text', text: output }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 10, output_tokens: 10 } }));
     } catch { res.statusCode = 400; res.end('{}'); }
   });

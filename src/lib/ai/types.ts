@@ -26,6 +26,8 @@ export interface AiCompletionRequest {
 
 export interface AiCompletionResult {
   content: string;
+  /** Provider completion reason; never contains response text. */
+  stopReason?: string | null;
   /** 採点・応答の再現性確認用（監査・乖離分析に記録する） */
   model: string;
 }

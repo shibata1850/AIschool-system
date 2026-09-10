@@ -47,6 +47,6 @@ export class ClaudeAiClient implements AiClient {
       .map((block) => block.text)
       .join("");
 
-    return { content: text, model: response.model };
+    return { content: text, model: response.model, stopReason: response.stop_reason };
   }
 }

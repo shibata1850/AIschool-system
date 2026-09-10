@@ -3,7 +3,7 @@ import { filterContent } from "@/lib/f2/contentFilter";
 import { maskPersonalInfo } from "@/lib/f2/masking";
 import type { AiGradeResult, Assignment } from "./types";
 
-export const GRADING_PROMPT_VERSION = "grading-v2";
+export const GRADING_PROMPT_VERSION = "grading-v3";
 
 /** 講評がフィルタでブロックされたときに受講生へ見せる定型文 */
 export const BLOCKED_FEEDBACK_FALLBACK =
@@ -56,8 +56,12 @@ export class AiGrader implements Grader {
           content: `課題:「${assignment.title}」\n${assignment.description}\n\n提出されたプロンプト:\n${masked}`,
         },
       ],
-      maxTokens: 300, // 要求出力は短いJSONのみ。暴走出力の課金と遅延を抑える
+      maxTokens: 1200, // Japanese feedback and rationale can exceed 300 tokens even when concise.
     });
+
+    if (result.stopReason === "max_tokens") {
+      throw new Error("AI採点の出力が上限に達しました（提出は保持されます）");
+    }
 
     // Accept only a complete JSON response, optionally wrapped in one code fence.
     const content = result.content.trim();

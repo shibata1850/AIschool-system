@@ -9,7 +9,7 @@ test.beforeEach(async ({ request, baseURL }) => {
   await resetStore(request);
 });
 
-for (const marker of ["FENCE", "PLAIN", "ZERO", "HUNDRED"]) {
+for (const marker of ["FENCE", "PLAIN", "ZERO", "HUNDRED", "BUDGET"]) {
   test(`AI grading ${marker}: submit, review and show final score`, async ({ page, request }) => {
     const score = marker === "ZERO" ? 0 : marker === "HUNDRED" ? 100 : 90;
     await setRole(page, "student");
