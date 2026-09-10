@@ -1,0 +1,10 @@
+{
+  "name": "aischool-local-grading-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node check-local-db.mjs --e2e" },
+  "dependencies": {
+    "pg": "8.23.0",
+    "@embedded-postgres/windows-x64": "16.14.0-beta.17"
+  }
+}

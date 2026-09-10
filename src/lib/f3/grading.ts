@@ -3,7 +3,7 @@ import { filterContent } from "@/lib/f2/contentFilter";
 import { maskPersonalInfo } from "@/lib/f2/masking";
 import type { AiGradeResult, Assignment } from "./types";
 
-export const GRADING_PROMPT_VERSION = "grading-v1";
+export const GRADING_PROMPT_VERSION = "grading-v2";
 
 /** 講評がフィルタでブロックされたときに受講生へ見せる定型文 */
 export const BLOCKED_FEEDBACK_FALLBACK =
@@ -45,8 +45,9 @@ export class AiGrader implements Grader {
 
     const result = await this.client.complete({
       system: [
-        "あなたはプロンプト演習の採点者です。受講生には小中高生も含まれます。",
+        "あなたはプロンプト演習の採点者です。対象は企業・行政の社員（社会人）です。",
         "次のJSONだけを出力してください（他のテキスト禁止）:",
+        "Markdownのコード囲みは付けないでください。講評と採点根拠はそれぞれ短く書いてください。",
         '{"totalScore": 0-100の整数, "feedback": "受講生向け講評（ほめる点1つ以上＋改善点1つ、平易な日本語）", "rationale": "講師向けの採点根拠"}',
       ].join("\n"),
       messages: [
@@ -58,17 +59,33 @@ export class AiGrader implements Grader {
       maxTokens: 300, // 要求出力は短いJSONのみ。暴走出力の課金と遅延を抑える
     });
 
-    const parsed = JSON.parse(result.content) as {
-      totalScore: number;
-      feedback: string;
-      rationale: string;
-    };
+    // Accept only a complete JSON response, optionally wrapped in one code fence.
+    const content = result.content.trim();
+    const fenced = /^```(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n```$/i.exec(content);
+    let value: unknown;
+    try {
+      value = JSON.parse(fenced ? fenced[1] : content);
+    } catch {
+      // SyntaxError messages may contain submitted material. Do not log them.
+      throw new Error("AI採点の応答形式が不正です（JSON）");
+    }
+    if (value === null || typeof value !== "object" || Array.isArray(value)) {
+      throw new Error("AI採点の応答形式が不正です（JSON）");
+    }
+    const parsed = value as Record<string, unknown>;
     if (
       typeof parsed.totalScore !== "number" ||
+      !Number.isInteger(parsed.totalScore) ||
       parsed.totalScore < 0 ||
       parsed.totalScore > 100
     ) {
       throw new Error("AI採点の応答形式が不正です（totalScore）");
+    }
+    if (typeof parsed.feedback !== "string" || !parsed.feedback.trim()) {
+      throw new Error("AI採点の応答形式が不正です（feedback）");
+    }
+    if (typeof parsed.rationale !== "string" || !parsed.rationale.trim()) {
+      throw new Error("AI採点の応答形式が不正です（rationale）");
     }
 
     // 講評は受講生に表示されるため、未成年向けフィルタを必ず通す（CLAUDE.md 9章）

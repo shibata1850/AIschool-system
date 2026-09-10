@@ -7,6 +7,8 @@ import { defineConfig, devices } from "@playwright/test";
  */
 export default defineConfig({
   testDir: "./e2e",
+  // Real SDK grading regressions use the local HTTP fixture in the dedicated config.
+  testIgnore: "**/2026-09-10-grading-json.spec.ts",
   // 参照実装は共有インメモリストアを使うため直列実行（並列だとリセットが衝突する）
   fullyParallel: false,
   workers: 1,
