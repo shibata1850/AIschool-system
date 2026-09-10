@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { assignments, submissions, students, studentCourses, auditLog } from "@/lib/db/schema";
 import type { CurrentUser } from "@/lib/auth";
@@ -23,7 +23,8 @@ export async function allocateAssignment(actor:CurrentUser, assignmentId:string,
   if (!ids.length || ids.length > 100) throw new AllocationError("受講生を選択してください。");
   return getDb().transaction(async tx => {
     // Serialize allocation for this exercise. Existing submissions are never updated.
-    const [assignment] = await tx.select().from(assignments).where(eq(assignments.id,assignmentId)).for("update");
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`assignment-allocation:${assignmentId}`}, 0))`);
+    const [assignment] = await tx.select().from(assignments).where(eq(assignments.id,assignmentId));
     if (!assignment) throw new AllocationError("課題が見つかりません。");
     const roster = await tx.select({id:students.id,canvasUserId:students.canvasUserId})
       .from(studentCourses).innerJoin(students,eq(students.id,studentCourses.studentId))

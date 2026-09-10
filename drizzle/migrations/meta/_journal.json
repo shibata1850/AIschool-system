@@ -78,6 +78,13 @@
       "when": 1789027200000,
       "tag": "0010_student_courses",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1789027200001,
+      "tag": "0011_assignment_allocation_permission",
+      "breakpoints": true
     }
   ]
 }
