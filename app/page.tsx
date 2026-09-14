@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
+import { courseAccess } from "@/lib/course/access";
 import { listTeacherMessages } from "@/lib/f2/chatLog";
 import { listActiveSubmissionsForStudent, hasAssignmentsForStudent } from "@/lib/f3/store";
 import { emptyAssignmentLabel } from "@/lib/f3/allocationPolicy";
@@ -20,7 +21,8 @@ function badgeClass(status: ExerciseStatus): string {
  * （2026-07-03 監査指摘#6: 学習ログは要配慮データ）。
  */
 export default async function Home() {
-  const { role, userId } = await getCurrentUser();
+  const actor = await getCurrentUser();
+  const { role, userId } = actor;
 
   if (role === "guest") {
     return (
@@ -33,10 +35,13 @@ export default async function Home() {
     );
   }
 
+  const access = courseAccess(actor);
+  if (!access) return <main><p>Canvasのコースから起動してください。</p></main>;
+
   const [items, messages, hasAssignments] = await Promise.all([
-    listActiveSubmissionsForStudent(userId),
-    listTeacherMessages(userId),
-    hasAssignmentsForStudent(userId),
+    listActiveSubmissionsForStudent(userId, access.courseId),
+    listTeacherMessages(userId, 20, access.courseId),
+    hasAssignmentsForStudent(userId, access.courseId),
   ]);
 
   return (
@@ -109,6 +114,9 @@ export default async function Home() {
         </Link>
         <Link href="/achievement" className="button">
           自分の到達度
+        </Link>
+        <Link href="/achievement/history" className="button">
+          旧履歴
         </Link>
       </nav>
 

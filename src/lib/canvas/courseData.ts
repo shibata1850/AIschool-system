@@ -53,14 +53,21 @@ export function toDomainAssignment(a: CanvasAssignment): Assignment {
 
 /**
  * 連携対象のコース1件を解決し、名簿と課題（公開済みのみ）をまとめて返す。
- * 複数コースがある場合は先頭を対象とする（本番は授業コマから解決する）。
+ * セッションのLTIコースを直接照合する。コース不明時は取得しない。
  */
-export async function resolveCourseData(client: CanvasClient | null): Promise<CourseData> {
+export async function resolveCourseData(client: CanvasClient | null, courseId: string | null = null): Promise<CourseData> {
   if (!client) return { state: "notConfigured" };
+  if (!courseId?.trim()) return { state: "error", message: "Canvasのコースから講師として起動してください" };
   try {
-    const courses = await client.listCourses();
-    if (courses.length === 0) return { state: "empty" };
-    const course = courses[0];
+    return await readCourseData(client, await client.getCourseByLtiContext(courseId));
+  } catch (e) {
+    return courseDataError(e);
+  }
+}
+
+/** Internal read after the caller has resolved an authorized Canvas course. */
+export async function readCourseData(client: CanvasClient, course: CanvasCourse): Promise<CourseData> {
+  try {
     const [students, rawAssignments] = await Promise.all([
       client.listStudents(course.id),
       client.listAssignments(course.id),
@@ -70,6 +77,11 @@ export async function resolveCourseData(client: CanvasClient | null): Promise<Co
       .map(toDomainAssignment);
     return { state: "ok", course, students, assignments };
   } catch (e) {
+    return courseDataError(e);
+  }
+}
+
+function courseDataError(e: unknown): CourseData {
     const message =
       e instanceof CanvasApiError
         ? e.status === 401
@@ -77,5 +89,4 @@ export async function resolveCourseData(client: CanvasClient | null): Promise<Co
           : `Canvasからの取得に失敗しました（HTTP ${e.status}）。`
         : "Canvasからの取得中に想定外のエラーが発生しました。";
     return { state: "error", message };
-  }
 }

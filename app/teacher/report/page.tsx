@@ -6,8 +6,13 @@ import {
 } from "@/lib/f4/achievement";
 import { getExternalMasteryForStudent } from "@/lib/integration/mastery";
 import { getLessonRecords } from "@/lib/f3/store";
-import { getRoster } from "@/lib/roster";
+import { getRoster, listRecordedCourseIds } from "@/lib/roster";
 import { getLatestWeeklyReport } from "@/lib/f4/generateWeeklyReport";
+import { getCurrentUser } from "@/lib/auth";
+import { canReadAllCourses } from "@/lib/course/access";
+import { staffCourseSelection } from "@/lib/course/staffSelection";
+import { CourseSelector } from "../course-selector";
+import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -29,14 +34,19 @@ function formatJst(iso: string): string {
  * 週の途中でも使える現在値の集計を並べて表示する。
  * 権限ガードは proxy.ts（講師・管理者のみ）。
  */
-export default async function ReportPage() {
+export default async function ReportPage({ searchParams }: { searchParams?: Promise<{ course?: string | string[] }> }) {
+  const actor = await getCurrentUser();
+  if (!canReadAllCourses(actor)) notFound();
+  const access = staffCourseSelection(actor, await listRecordedCourseIds(), (await searchParams)?.course);
+  if (!access) notFound();
+  const courseId = access.courseId;
   const [snapshot, allRows] = await Promise.all([
-    getLatestWeeklyReport(),
+    getLatestWeeklyReport(courseId),
     Promise.all(
-      (await getRoster()).map(async (student) => {
+      (await getRoster(courseId)).map(async (student) => {
         const [records, homeStudy] = await Promise.all([
-          getLessonRecords(student.id),
-          getExternalMasteryForStudent(student.id),
+          getLessonRecords(student.id, courseId),
+          getExternalMasteryForStudent(student.id, courseId),
         ]);
         const weekly = computeWeeklyAchievements(records);
         const latest = latestAchievement(weekly);
@@ -58,6 +68,7 @@ export default async function ReportPage() {
   return (
     <main style={{ maxWidth: "64rem" }}>
       <h1>週次到達度レポート</h1>
+      <CourseSelector courses={access.courses} courseId={courseId} />
 
       <section
         aria-label="自動生成レポート"

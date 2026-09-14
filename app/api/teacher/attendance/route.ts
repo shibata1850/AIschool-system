@@ -3,12 +3,16 @@ import { CURRENT_LESSON_WEEK, setAttendance } from "@/lib/f3/store";
 import { getRoster } from "@/lib/roster";
 import { recordAudit } from "@/lib/audit/log";
 import { getCurrentUser } from "@/lib/auth";
+import { teacherCourseAccess } from "@/lib/course/access";
 
 /**
  * 出席の記録（未決#11）。講師・管理者のみ（proxy.ts /api/teacher ガード）。
  * 指定した受講生の当該週の出席を true/false で更新し、監査ログに記録する。
  */
 export async function POST(request: NextRequest) {
+  const actor = await getCurrentUser();
+  const access = teacherCourseAccess(actor);
+  if (!access) return new NextResponse("このコースへの操作権限がありません", { status: 403 });
   let body: { studentId?: unknown; weekStart?: unknown; attended?: unknown };
   try {
     body = await request.json();
@@ -26,21 +30,20 @@ export async function POST(request: NextRequest) {
     typeof body.weekStart === "string" ? body.weekStart : CURRENT_LESSON_WEEK;
 
   // 名簿にいる受講生のみ（架空のデモ名簿で検証）
-  if (!(await getRoster()).some((s) => s.id === body.studentId)) {
-    return new NextResponse("その受講生は名簿にいません", { status: 400 });
+  if (!(await getRoster(access.courseId)).some((s) => s.id === body.studentId)) {
+    return new NextResponse("このコースへの操作権限がありません", { status: 403 });
   }
 
-  const result = await setAttendance(body.studentId, weekStart, body.attended);
+  const result = await setAttendance(body.studentId, weekStart, body.attended, access.courseId);
   if (result.changed) {
-    const actor = await getCurrentUser();
     await recordAudit({
       actorRole: actor.role,
       actorId: actor.viaLti ? actor.userId : undefined,
       action: "update",
       entity: "attendance",
-      entityId: `${body.studentId}/${weekStart}`,
+      entityId: access.courseId === null ? `${body.studentId}/${weekStart}` : JSON.stringify([access.courseId,body.studentId,weekStart]),
       before: { attended: result.before },
-      after: { attended: body.attended },
+      after: { attended: body.attended, courseId: access.courseId },
     });
   }
   return NextResponse.json({ attended: body.attended, changed: result.changed });

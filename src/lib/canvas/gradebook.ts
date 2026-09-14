@@ -27,7 +27,7 @@ export type Gradebook =
   | {
       state: "ok";
       course: CanvasCourse;
-      assignment: { id: number; title: string };
+      assignment: { id: number; title: string; pointsPossible: number | null };
       rows: GradebookRow[];
     };
 
@@ -58,7 +58,7 @@ export async function resolveGradebook(client: CanvasClient | null): Promise<Gra
         workflowState: sub?.workflow_state ?? "unsubmitted",
       };
     });
-    return { state: "ok", course, assignment: { id: assignment.id, title: assignment.name }, rows };
+    return { state: "ok", course, assignment: { id: assignment.id, title: assignment.name, pointsPossible: assignment.points_possible }, rows };
   } catch (e) {
     return { state: "error", message: toErrorMessage(e) };
   }
@@ -67,6 +67,35 @@ export async function resolveGradebook(client: CanvasClient | null): Promise<Gra
 export type ParseScoreResult =
   | { ok: true; score: number }
   | { ok: false; message: string };
+
+/** Explicit course/assignment resolution for production writes. No first-item fallback. */
+export async function resolveScopedGradebook(
+  client: CanvasClient | null,
+  courseId: string,
+  assignmentId: number,
+): Promise<Gradebook> {
+  if (!client) return { state: "notConfigured" };
+  if (!courseId.trim() || !Number.isSafeInteger(assignmentId) || assignmentId <= 0) {
+    return { state: "error", message: "コース・課題の対応が設定されていません" };
+  }
+  try {
+    const course = await client.getCourseByLtiContext(courseId);
+    const assignments = await client.listAssignments(course.id);
+    const assignment = assignments.find(item => item.id === assignmentId && item.published);
+    if (!assignment) return { state: "noAssignment" };
+    const [students, submissions] = await Promise.all([
+      client.listStudents(course.id), client.listSubmissions(course.id, assignment.id),
+    ]);
+    const byUser = new Map(submissions.map(item => [item.user_id, item]));
+    return {
+      state: "ok", course, assignment: { id: assignment.id, title: assignment.name, pointsPossible: assignment.points_possible },
+      rows: students.map(student => ({ student, score: byUser.get(student.id)?.score ?? null,
+        workflowState: byUser.get(student.id)?.workflow_state ?? "unsubmitted" })),
+    };
+  } catch (error) {
+    return { state: "error", message: toErrorMessage(error) };
+  }
+}
 
 /**
  * 講師が入力した点数を検証する（0〜100の整数）。

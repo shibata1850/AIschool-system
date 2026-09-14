@@ -1,9 +1,15 @@
-import { and, desc, eq, inArray, isNotNull, ne } from "drizzle-orm";
-import { getDb } from "@/lib/db/client";
+import { and, desc, eq, inArray, isNotNull, ne, or } from "drizzle-orm";
+import type { CurrentUser } from "@/lib/auth";
+import { canReadAllCourses } from "@/lib/course/access";
+import { inCourse } from "@/lib/course/query";
+import { listCourseLessonRecords, getCourseAttendance, setCourseAttendance, recordCourseCompletionScore } from "@/lib/course/lessonRecords";
+import { getDb, withWeeklyReportLock, type DbExecutor } from "@/lib/db/client";
+import { redactStoredWeeklyReports } from "@/lib/retention/weeklyReports";
 import {
   assignments as assignmentsTable,
   deviceAssignments as deviceAssignmentsTable,
   lessonRecords as lessonRecordsTable,
+  courseLessonRecords as courseLessonRecordsTable,
   submissions as submissionsTable,
   chatLogs as chatLogsTable,
   students as studentsTable,
@@ -61,6 +67,7 @@ type LessonRecordRow = typeof lessonRecordsTable.$inferSelect;
 function toSubmission(row: SubmissionRow): Submission {
   return {
     id: row.id,
+    courseId: row.courseId ?? undefined,
     assignmentId: row.assignmentId,
     studentId: row.studentId,
     status: row.status as Submission["status"],
@@ -107,6 +114,7 @@ export async function getAssignment(id: string): Promise<Assignment | undefined>
 export async function findSubmission(
   assignmentId: string,
   studentId: string,
+  courseId: string | null = null,
 ): Promise<Submission | undefined> {
   const db = getDb();
   const [row] = await db
@@ -116,6 +124,7 @@ export async function findSubmission(
       and(
         eq(submissionsTable.assignmentId, assignmentId),
         eq(submissionsTable.studentId, studentId),
+        inCourse(submissionsTable.courseId, courseId),
       ),
     )
     .limit(1);
@@ -123,12 +132,13 @@ export async function findSubmission(
 }
 
 /** 提出をIDのみで取得する（講師の採点画面・AI採点タスク用） */
-export async function getSubmissionById(id: string): Promise<Submission | undefined> {
+export async function getSubmissionById(id: string, courseId?: string | null): Promise<Submission | undefined> {
   const db = getDb();
   const [row] = await db
     .select()
     .from(submissionsTable)
-    .where(eq(submissionsTable.id, id))
+    .where(and(eq(submissionsTable.id, id),
+      courseId === undefined ? undefined : inCourse(submissionsTable.courseId, courseId)))
     .limit(1);
   return row ? toSubmission(row) : undefined;
 }
@@ -172,6 +182,7 @@ export async function updateSubmissionIfVersion(
     .where(
       and(
         eq(submissionsTable.id, next.id),
+        inCourse(submissionsTable.courseId, next.courseId ?? null),
         eq(submissionsTable.version, expectedVersion),
         // **版数だけでは足りない**（2026-09-02 の回帰）。`submit()` は再提出のときしか
         // versionを増やさないため、初回提出では version が据え置きのまま書き戻され、
@@ -193,6 +204,7 @@ export async function updateSubmissionIfVersion(
 export async function recordCanvasSync(
   submissionId: string,
   result: { syncedAt: Date } | { error: string },
+  courseId: string | null = null,
 ): Promise<void> {
   const db = getDb();
   await db
@@ -202,24 +214,25 @@ export async function recordCanvasSync(
         ? { canvasSyncedAt: result.syncedAt, canvasSyncError: null }
         : { canvasSyncedAt: null, canvasSyncError: result.error },
     )
-    .where(eq(submissionsTable.id, submissionId));
+    .where(and(eq(submissionsTable.id, submissionId), inCourse(submissionsTable.courseId, courseId)));
 }
 
 /** S1受講生ホーム用: 未完了の提出と、その課題をまとめて取得する */
-export async function hasAssignmentsForStudent(studentId:string):Promise<boolean> {
+export async function hasAssignmentsForStudent(studentId:string, courseId: string | null = null):Promise<boolean> {
   const rows = await getDb().select({id:submissionsTable.id}).from(submissionsTable)
-    .where(eq(submissionsTable.studentId,studentId)).limit(1);
+    .where(and(eq(submissionsTable.studentId,studentId), inCourse(submissionsTable.courseId, courseId))).limit(1);
   return rows.length > 0;
 }
 
 export async function listActiveSubmissionsForStudent(
   studentId: string,
+  courseId: string | null = null,
 ): Promise<Array<{ submission: Submission; assignment: Assignment | undefined }>> {
   const db = getDb();
   const submissionRows = await db
     .select()
     .from(submissionsTable)
-    .where(eq(submissionsTable.studentId, studentId));
+    .where(and(eq(submissionsTable.studentId, studentId), inCourse(submissionsTable.courseId, courseId)));
   const active = submissionRows.filter((r) => r.status !== "completed");
   if (active.length === 0) return [];
 
@@ -236,15 +249,33 @@ export async function listActiveSubmissionsForStudent(
   }));
 }
 
+/** Cross-course staff view only; review mutations retain their course checks. */
+export async function listStaffReviewSubmissions(actor: CurrentUser) {
+  if (!canReadAllCourses(actor)) throw new Error("Forbidden");
+  const db = getDb();
+  const rows = await db.select().from(submissionsTable)
+    .where(or(inArray(submissionsTable.status, ["submitted", "ai_graded"]), isNotNull(submissionsTable.canvasSyncError)))
+    .orderBy(desc(submissionsTable.submittedAt), desc(submissionsTable.id));
+  if (!rows.length) return { pending: [], syncFailures: [] };
+  const assignmentRows = await db.select().from(assignmentsTable)
+    .where(inArray(assignmentsTable.id, [...new Set(rows.map(row => row.assignmentId))]));
+  const byId = new Map(assignmentRows.map(row => [row.id, row]));
+  const entries = rows.map(row => ({ submission: toSubmission(row), assignment: byId.get(row.assignmentId) }));
+  return {
+    pending: entries.filter(({ submission }) => submission.status === "submitted" || submission.status === "ai_graded"),
+    syncFailures: entries.filter(({ submission }) => submission.canvasSyncError !== undefined),
+  };
+}
+
 /** S7採点・差戻し用: 採点待ち（提出済・AI採点済）の提出と課題をまとめて取得する */
-export async function listSubmissionsPendingReview(): Promise<
+export async function listSubmissionsPendingReview(courseId: string | null = null): Promise<
   Array<{ submission: Submission; assignment: Assignment | undefined }>
 > {
   const db = getDb();
   const rows = await db
     .select()
     .from(submissionsTable)
-    .where(inArray(submissionsTable.status, ["submitted", "ai_graded"]));
+    .where(and(inArray(submissionsTable.status, ["submitted", "ai_graded"]), inCourse(submissionsTable.courseId, courseId)));
   if (rows.length === 0) return [];
 
   const assignmentIds = [...new Set(rows.map((r) => r.assignmentId))];
@@ -264,14 +295,14 @@ export async function listSubmissionsPendingReview(): Promise<
  * Canvas成績表への反映に失敗したまま残っている提出（F3①）。
  * 講師が見落とさないようS7に一覧表示する。
  */
-export async function listCanvasSyncFailures(): Promise<
+export async function listCanvasSyncFailures(courseId: string | null = null): Promise<
   Array<{ submission: Submission; assignment: Assignment | undefined }>
 > {
   const db = getDb();
   const rows = await db
     .select()
     .from(submissionsTable)
-    .where(isNotNull(submissionsTable.canvasSyncError));
+    .where(and(isNotNull(submissionsTable.canvasSyncError), inCourse(submissionsTable.courseId, courseId)));
   if (rows.length === 0) return [];
 
   const assignmentIds = [...new Set(rows.map((r) => r.assignmentId))];
@@ -288,7 +319,8 @@ export async function listCanvasSyncFailures(): Promise<
 }
 
 /** 受講生の学習記録（到達度の入力）を取得する */
-export async function getLessonRecords(studentId: string): Promise<LessonRecord[]> {
+export async function getLessonRecords(studentId: string, courseId: string | null = null): Promise<LessonRecord[]> {
+  if (courseId !== null) return (await listCourseLessonRecords(courseId, studentId)).map(toLessonRecord);
   const db = getDb();
   const rows = await db
     .select()
@@ -302,9 +334,13 @@ export async function getLessonRecords(studentId: string): Promise<LessonRecord[
  * 全受講生の学習記録を一括取得する（F4: 週次レポートのバッチ生成）。
  * 受講生ごとに1クエリ投げないための一括版。週順に整列して返す。
  */
-export async function getAllLessonRecords(): Promise<Map<string, LessonRecord[]>> {
-  const db = getDb();
-  const rows = await db
+export async function getAllLessonRecords(courseId: string | null = null, db: DbExecutor = getDb()): Promise<Map<string, LessonRecord[]>> {
+  const rows = courseId !== null ? await db
+    .select()
+    .from(courseLessonRecordsTable)
+    .where(eq(courseLessonRecordsTable.courseId, courseId))
+    .orderBy(courseLessonRecordsTable.studentId, courseLessonRecordsTable.weekStart)
+    : await db
     .select()
     .from(lessonRecordsTable)
     .orderBy(lessonRecordsTable.studentId, lessonRecordsTable.weekStart);
@@ -322,8 +358,7 @@ export async function getAllLessonRecords(): Promise<Map<string, LessonRecord[]>
  * 受講生ごとの未提出（完了していない）課題名を一括取得する
  * （F4: 週次レポートの「未提出課題一覧」）。
  */
-export async function getPendingAssignmentsByStudent(): Promise<Map<string, string[]>> {
-  const db = getDb();
+export async function getPendingAssignmentsByStudent(courseId: string | null = null, db: DbExecutor = getDb()): Promise<Map<string, string[]>> {
   const rows = await db
     .select({
       studentId: submissionsTable.studentId,
@@ -331,7 +366,7 @@ export async function getPendingAssignmentsByStudent(): Promise<Map<string, stri
     })
     .from(submissionsTable)
     .innerJoin(assignmentsTable, eq(submissionsTable.assignmentId, assignmentsTable.id))
-    .where(ne(submissionsTable.status, "completed"))
+    .where(and(inCourse(submissionsTable.courseId, courseId), ne(submissionsTable.status, "completed")))
     .orderBy(submissionsTable.studentId, assignmentsTable.title);
 
   const byStudent = new Map<string, string[]>();
@@ -420,7 +455,9 @@ export async function setAttendance(
   studentId: string,
   weekStart: string,
   attended: boolean,
+  courseId: string | null = null,
 ): Promise<{ before: boolean | "none"; changed: boolean }> {
+  if (courseId !== null) return setCourseAttendance(courseId, studentId, weekStart, attended);
   const db = getDb();
   return db.transaction(async (tx) => {
     const [existing] = await tx
@@ -464,7 +501,9 @@ export async function setAttendance(
 export async function getAttendance(
   studentId: string,
   weekStart: string,
+  courseId: string | null = null,
 ): Promise<boolean | undefined> {
+  if (courseId !== null) return getCourseAttendance(courseId, studentId, weekStart);
   const db = getDb();
   const [row] = await db
     .select({ attended: lessonRecordsTable.attended })
@@ -490,7 +529,11 @@ export async function purgeStudentData(studentId: string): Promise<{
   removedFromRoster: boolean;
   releasedSeats: number;
 }> {
-  const db = getDb();
+  if (!studentId.trim()) throw new Error("A student ID is required");
+  return withWeeklyReportLock(db => db.transaction(tx => purgeStudentDataInConnection(studentId, tx)));
+}
+
+async function purgeStudentDataInConnection(studentId: string, db: DbExecutor) {
   const deletedSubmissions = await db
     .delete(submissionsTable)
     .where(eq(submissionsTable.studentId, studentId))
@@ -499,6 +542,9 @@ export async function purgeStudentData(studentId: string): Promise<{
     .delete(lessonRecordsTable)
     .where(eq(lessonRecordsTable.studentId, studentId))
     .returning({ weekStart: lessonRecordsTable.weekStart });
+  const deletedCourseRecords = await db.delete(courseLessonRecordsTable)
+    .where(eq(courseLessonRecordsTable.studentId, studentId))
+    .returning({ weekStart: courseLessonRecordsTable.weekStart });
   // eラーニングから受け取った自宅学習の到達度も消す（E7-c）。
   // ここに足し忘れると、退会者のデータが1テーブルだけ残る
   const deletedExternalMastery = await db
@@ -527,9 +573,10 @@ export async function purgeStudentData(studentId: string): Promise<{
     .delete(studentsTable)
     .where(eq(studentsTable.id, studentId))
     .returning({ id: studentsTable.id });
+  await redactStoredWeeklyReports(db, studentId);
   return {
     deletedSubmissions: deletedSubmissions.length,
-    hadLessonRecords: deletedLessonRecords.length > 0,
+    hadLessonRecords: deletedLessonRecords.length > 0 || deletedCourseRecords.length > 0,
     deletedExternalMastery: deletedExternalMastery.length,
     deletedChatLogs: deletedChatLogs.length,
     deletedTeacherMessages: deletedTeacherMessages.length,
@@ -542,7 +589,8 @@ export async function purgeStudentData(studentId: string): Promise<{
  * 講師の成績確定を最新の授業コマ記録へ反映する（F3→F4連携）。
  * 記録がない受講生（学習記録の収集前）は何もしない。
  */
-export async function recordCompletionScore(studentId: string, score: number): Promise<void> {
+export async function recordCompletionScore(studentId: string, score: number, courseId: string | null = null): Promise<void> {
+  if (courseId !== null) return recordCourseCompletionScore(courseId, studentId, score);
   const db = getDb();
   const [latest] = await db
     .select({ weekStart: lessonRecordsTable.weekStart })

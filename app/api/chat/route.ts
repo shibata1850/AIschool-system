@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { courseAccess } from "@/lib/course/access";
 import { recordChatLog } from "@/lib/f2/chatLog";
 import { notifyAiOutage } from "@/lib/f2/notifyOutage";
 import {
@@ -54,6 +55,9 @@ function staticModeResponse(outage: OutageInfo): NextResponse {
 }
 
 export async function POST(request: NextRequest) {
+  const actor = await getCurrentUser();
+  const access = courseAccess(actor);
+  if (!access) return new NextResponse("Canvasのコースから起動してください", { status: 403 });
   let body: { question?: unknown };
   try {
     body = await request.json();
@@ -93,9 +97,9 @@ export async function POST(request: NextRequest) {
     // 会話ログを残す（保存するのは**マスキング済みの本文だけ**）。
     // 記録に失敗しても回答は返す — ログのために授業を止めない
     try {
-      const actor = await getCurrentUser();
       await recordChatLog({
         studentId: actor.userId,
+        courseId: access.courseId,
         maskedQuestion: answer.maskedQuestion,
         reply: answer.reply,
         blocked: answer.blocked,

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { resume, start, submit, TransitionError } from "@/lib/f3/stateMachine";
 import { runAiGrading } from "@/lib/f3/gradingTask";
 import { getCurrentUser, type CurrentUser } from "@/lib/auth";
+import { courseAccess } from "@/lib/course/access";
 import { recordAudit } from "@/lib/audit/log";
 import { findSubmission, getAssignment, updateSubmissionIfVersion } from "@/lib/f3/store";
 import { getLtiConfig } from "@/lib/lti/config";
@@ -48,6 +49,8 @@ export async function POST(
   }
 
   const actor = await getCurrentUser();
+  const access = courseAccess(actor);
+  if (!access) return new NextResponse("Canvasのコースから起動してください", { status: 403 });
 
   let body: {
     promptText?: unknown;
@@ -82,7 +85,7 @@ export async function POST(
     });
   }
 
-  const submission = await findSubmission(id, actor.userId);
+  const submission = await findSubmission(id, actor.userId, access.courseId);
   if (!submission) {
     return new NextResponse("提出データが見つかりません", { status: 404 });
   }

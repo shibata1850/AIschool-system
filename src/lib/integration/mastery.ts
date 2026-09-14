@@ -1,13 +1,13 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
-import { assignments as assignmentsTable, externalMastery } from "@/lib/db/schema";
+import { assignments as assignmentsTable, externalMastery, submissions } from "@/lib/db/schema";
 
 /**
  * eラーニングシステムから受け取る自宅学習の到達度（E7-c）。
  *
- * **教室の到達度とは合成しない。** 並べて別々に見せる方針
- * （docs/eラーニング連携.md 3.2.2）。このモジュールは「受け取って保存する」ことと
- * 「表示のために取り出す」ことだけを担い、教室側の集計には一切関与しない。
+ * 原記録は教室の記録と別に保持する。このモジュールは受信・保存・取得を担う。
+ * 表示時の合成（教室80%・自宅20%）は f4/achievement の責務
+ * （2026-09-02決定、docs/eラーニング連携.md 3.2.2）。
  */
 
 /** 送信元システム。現在はeラーニングのみ */
@@ -161,12 +161,20 @@ export async function saveMastery(
 /** 受講生1名分の自宅学習到達度を、単元名を添えて取り出す（S5表示用） */
 export async function getExternalMasteryForStudent(
   studentId: string,
+  courseId?: string | null,
 ): Promise<MasteryRecord[]> {
   const db = getDb();
   const rows = await db
     .select()
     .from(externalMastery)
-    .where(eq(externalMastery.studentId, studentId));
+    .where(and(
+      eq(externalMastery.studentId, studentId),
+      typeof courseId === "string" ? inArray(externalMastery.unitId,
+        db.select({ assignmentId: submissions.assignmentId }).from(submissions).where(and(
+          eq(submissions.courseId, courseId), eq(submissions.studentId, studentId),
+        )),
+      ) : undefined,
+    ));
   if (rows.length === 0) return [];
 
   const titles = new Map<string, string>();

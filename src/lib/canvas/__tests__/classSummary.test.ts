@@ -11,20 +11,20 @@ describe("resolveClassSummary", () => {
     expect((await resolveClassSummary(null)).state).toBe("notConfigured");
     expect(
       (await resolveClassSummary(stubClient({ listCourses: async () => [] }))).state,
-    ).toBe("empty");
+    ).toBe("error");
     const noAssign = stubClient({
-      listCourses: async () => [{ id: 1, name: "c" }],
+      getCourseByLtiContext: async () => ({ id: 1, name: "c", lti_context_id: "course-a" }),
       listStudents: async () => [],
       listAssignments: async () => [
         { id: 1, name: "下書き", description: null, points_possible: null, due_at: null, published: false },
       ],
     });
-    expect((await resolveClassSummary(noAssign)).state).toBe("noAssignment");
+    expect((await resolveClassSummary(noAssign, "course-a")).state).toBe("noAssignment");
   });
 
   it("複数課題を横断して提出数・採点数・平均点を集計する", async () => {
     const client = stubClient({
-      listCourses: async () => [{ id: 1, name: "デモコース" }],
+      getCourseByLtiContext: async () => ({ id: 1, name: "デモコース", lti_context_id: "course-a" }),
       listStudents: async () => [
         { id: 11, name: "デモ生徒01" },
         { id: 12, name: "デモ生徒02" },
@@ -46,7 +46,7 @@ describe("resolveClassSummary", () => {
         ];
       },
     });
-    const summary = await resolveClassSummary(client);
+    const summary = await resolveClassSummary(client, "course-a");
     expect(summary.state).toBe("ok");
     if (summary.state === "ok") {
       expect(summary.totalAssignments).toBe(2);
@@ -65,14 +65,15 @@ describe("resolveClassSummary", () => {
 
   it("採点が1件もない受講生は平均点null", async () => {
     const client = stubClient({
-      listCourses: async () => [{ id: 1, name: "c" }],
+      getCourseByLtiContext: async () => ({ id: 1, name: "c", lti_context_id: "course-a" }),
       listStudents: async () => [{ id: 11, name: "デモ生徒01" }],
       listAssignments: async () => [
         { id: 91, name: "課題A", description: null, points_possible: 100, due_at: null, published: true },
       ],
       listSubmissions: async () => [],
     });
-    const summary = await resolveClassSummary(client);
+    const summary = await resolveClassSummary(client, "course-a");
+    expect(summary.state).toBe("ok");
     if (summary.state === "ok") {
       expect(summary.rows[0].averageScore).toBeNull();
       expect(summary.rows[0].gradedCount).toBe(0);
@@ -81,11 +82,11 @@ describe("resolveClassSummary", () => {
 
   it("APIエラーは状態errorにして本文を漏らさない", async () => {
     const client = stubClient({
-      listCourses: async () => {
+      getCourseByLtiContext: async () => {
         throw new CanvasApiError(500, "秘匿本文");
       },
     });
-    const summary = await resolveClassSummary(client);
+    const summary = await resolveClassSummary(client, "course-a");
     expect(summary.state).toBe("error");
     if (summary.state === "error") {
       expect(summary.message).not.toContain("秘匿");

@@ -6,12 +6,20 @@ import { writeFile, unlink, readFile, stat } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import net from 'node:net';
 import http from 'node:http';
+import { prepareProductionFixture } from './production-fixture.mjs';
+import { createCanvasFixture } from './canvas-fixture.mjs';
 
 const baseline = process.argv.includes('--baseline');
+const productionLoad = process.argv.includes('--production-load');
+if (productionLoad && (baseline || !process.argv.includes('--e2e') || !process.argv.includes('--course-isolation'))) {
+  throw new Error('--production-load requires --e2e --course-isolation without --baseline');
+}
+const courseIsolation = process.argv.includes('--course-isolation');
+if (courseIsolation && (baseline || !process.argv.includes('--e2e'))) throw new Error('--course-isolation requires --e2e without --baseline');
 if (baseline) throw new Error('Baseline comparison uses a separate historical checkout and harness');
 if (baseline && !process.argv.includes('--e2e')) throw new Error('--baseline requires --e2e');
 const repo = resolve('../..');
-for (const file of ['.env', '.env.local', '.env.development', '.env.development.local', '.env.test', '.env.test.local']) {
+for (const file of ['.env', '.env.local', '.env.development', '.env.development.local', '.env.test', '.env.test.local', '.env.production', '.env.production.local']) {
   if (existsSync(resolve(repo, file))) throw new Error(`Unexpected ${file}; stopped`);
 }
 const e2e = process.argv.includes('--e2e');
@@ -41,11 +49,16 @@ const env = { ...process.env, DATABASE_URL: url('aischool_app'), DATABASE_ADMIN_
 for (const name of Object.keys(env)) if (/^(LTI_|JUPYTER_|ANTHROPIC_|CANVAS_)/.test(name)) env[name] = '';
 env.DEMO_RICH_SEED = '';
 env.ALLOW_DEV_RESET = '';
+env.DEV_COOKIE_ROLES = '';
+env.LOCAL_PRODUCTION_LOAD = productionLoad ? '1' : '';
+env.NEXT_TELEMETRY_DISABLED = '1';
 let fixture;
 async function startFixture() {
   let seen = false;
+  const canvasFixture = createCanvasFixture();
   fixture = http.createServer(async (req, res) => {
     res.setHeader('content-type', 'application/json');
+    if (courseIsolation && await canvasFixture(req, res)) return;
     if (req.url === '/seen-invalid') return res.end(JSON.stringify({ seen }));
     if (req.url === '/reset-fixture') { seen = false; return res.end('{}'); }
     if (req.method !== 'POST' || req.url !== '/v1/messages') { res.statusCode = 404; return res.end('{}'); }
@@ -68,10 +81,23 @@ async function startFixture() {
   env.ANTHROPIC_MODEL = 'local-fixture';
   env.AI_PROVIDER = 'claude';
   env.LOCAL_GRADING_E2E = '1';
+  if (courseIsolation) {
+    env.LOCAL_COURSE_ISOLATION = '1';
+    env.LTI_SESSION_SECRET = randomBytes(48).toString('hex');
+  }
   env.LOCAL_E2E_PORT = String(await new Promise((done, reject) => {
     const server = net.createServer(); server.on('error', reject);
     server.listen(0, '127.0.0.1', () => { const p = server.address().port; server.close(() => done(p)); });
   }));
+  if (courseIsolation) {
+    env.CANVAS_BASE_URL = env.ANTHROPIC_BASE_URL;
+    env.CANVAS_API_TOKEN = 'fictional-local-canvas-token';
+    env.LTI_ISSUER = env.CANVAS_BASE_URL;
+    env.LTI_CLIENT_ID = 'fictional-client';
+    env.LTI_AUTH_URL = env.CANVAS_BASE_URL + '/unused-authorize';
+    env.LTI_JWKS_URL = env.CANVAS_BASE_URL + '/unused-jwks';
+    env.LTI_TOOL_URL = `http://localhost:${env.LOCAL_E2E_PORT}`;
+  }
   const edge = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
   if (!env.PLAYWRIGHT_CHROMIUM_PATH && existsSync(edge)) env.PLAYWRIGHT_CHROMIUM_PATH = edge;
 }
@@ -100,8 +126,16 @@ try {
   await run(['node_modules/tsx/dist/cli.mjs', 'scripts/migrate.ts']);
   if (e2e) {
     await startFixture();
+    if (productionLoad) {
+      const fixtureDb = new pg.Client({ connectionString: env.DATABASE_ADMIN_URL });
+      await fixtureDb.connect();
+      try { await prepareProductionFixture(fixtureDb, env); }
+      finally { await fixtureDb.end(); }
+      env.NODE_ENV = 'production';
+      await run(['node_modules/next/dist/bin/next', 'build', '--webpack']);
+    }
     const startedAt = Date.now();
-    const args = ['node_modules/@playwright/test/cli.js', 'test', '--config=playwright.grading.config.ts'];
+    const args = ['node_modules/@playwright/test/cli.js', 'test', productionLoad ? '--config=playwright.production-load.config.ts' : courseIsolation ? '--config=playwright.course-isolation.config.ts' : '--config=playwright.grading.config.ts'];
     if (baseline) args.push('--grep', 'AI grading (FENCE|PLAIN)');
     const code = await run(args, baseline);
     if (baseline) {

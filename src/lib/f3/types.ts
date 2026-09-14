@@ -42,6 +42,7 @@ export interface AiGradeResult {
 }
 
 export interface Submission {
+  courseId?: string;
   id: string;
   assignmentId: string;
   studentId: string;

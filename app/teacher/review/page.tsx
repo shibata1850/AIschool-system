@@ -1,6 +1,9 @@
-import { listCanvasSyncFailures, listSubmissionsPendingReview } from "@/lib/f3/store";
+import { listStaffReviewSubmissions } from "@/lib/f3/store";
 import { ReviewForm } from "./review-form";
 import { getRoster } from "@/lib/roster";
+import { getCurrentUser } from "@/lib/auth";
+import { canReadAllCourses, teacherCourseAccess } from "@/lib/course/access";
+import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -10,9 +13,11 @@ export const dynamic = "force-dynamic";
  * 講師の手動採点で完了・差戻しできるようにする（監査指摘#5）。
  */
 export default async function ReviewPage() {
-  const [pending, syncFailures, roster] = await Promise.all([
-    listSubmissionsPendingReview(),
-    listCanvasSyncFailures(),
+  const actor = await getCurrentUser();
+  if (!canReadAllCourses(actor)) notFound();
+  const access = teacherCourseAccess(actor);
+  const [{ pending, syncFailures }, roster] = await Promise.all([
+    listStaffReviewSubmissions(actor),
     getRoster(),
   ]);
   const names = new Map(roster.map(s=>[s.id,s.displayName]));
@@ -98,10 +103,10 @@ export default async function ReviewPage() {
                   AI採点なし（失敗または処理中）。手動でスコアを入力してください
                 </p>
               )}
-              <ReviewForm
+              {access && (submission.courseId ?? null) === access.courseId ? <ReviewForm
                 submissionId={submission.id}
                 aiScore={submission.aiGrade?.totalScore}
-              />
+              /> : <p className="muted">閲覧のみ（起動元コース外の提出）</p>}
             </section>
           );
         })

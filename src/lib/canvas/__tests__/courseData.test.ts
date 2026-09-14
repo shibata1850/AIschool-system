@@ -49,19 +49,16 @@ describe("resolveCourseData", () => {
     expect((await resolveCourseData(null)).state).toBe("notConfigured");
   });
 
-  it("コースが無ければ empty", async () => {
+  it("コース指定が無ければ error", async () => {
     const client = stubClient({ listCourses: async () => [] });
-    expect((await resolveCourseData(client)).state).toBe("empty");
+    expect((await resolveCourseData(client)).state).toBe("error");
   });
 
-  it("先頭コースの名簿と公開課題のみを返す", async () => {
+  it("指定コースの名簿と公開課題のみを返す", async () => {
     const client = stubClient({
-      listCourses: async () => [
-        { id: 1, name: "デモコース（架空）" },
-        { id: 2, name: "別コース" },
-      ],
+      getCourseByLtiContext: async () => ({ id: 1, name: "デモコース（架空）", lti_context_id: "course-a" }),
       listStudents: async (courseId: number) => {
-        expect(courseId).toBe(1); // 先頭コースを対象にする
+        expect(courseId).toBe(1);
         return [
           { id: 11, name: "デモ生徒01" },
           { id: 12, name: "デモ生徒02" },
@@ -72,7 +69,7 @@ describe("resolveCourseData", () => {
         { id: 2, name: "下書き課題", description: null, points_possible: null, due_at: null, published: false },
       ],
     });
-    const data = await resolveCourseData(client);
+    const data = await resolveCourseData(client, "course-a");
     expect(data.state).toBe("ok");
     if (data.state === "ok") {
       expect(data.course.id).toBe(1);
@@ -85,11 +82,11 @@ describe("resolveCourseData", () => {
 
   it("APIエラーはメッセージ化して返す（本文は漏らさない）", async () => {
     const client = stubClient({
-      listCourses: async () => {
+      getCourseByLtiContext: async () => {
         throw new CanvasApiError(401, "秘匿本文");
       },
     });
-    const data = await resolveCourseData(client);
+    const data = await resolveCourseData(client, "course-a");
     expect(data.state).toBe("error");
     if (data.state === "error") {
       expect(data.message).toContain("トークン");

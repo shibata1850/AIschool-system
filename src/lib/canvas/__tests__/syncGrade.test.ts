@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { CanvasClient } from "../client";
+import { CanvasApiError, type CanvasClient } from "../client";
 import { syncGradeToCanvas } from "../syncGrade";
 import { readCanvasUserId } from "@/lib/lti/launch";
 
@@ -7,8 +7,9 @@ import { readCanvasUserId } from "@/lib/lti/launch";
 function stubClient(over: Partial<Record<string, unknown>> = {}): CanvasClient {
   return {
     listCourses: async () => [{ id: 1, name: "デモコース" }],
+    getCourseByLtiContext: async () => ({ id: 1, name: "デモコース", lti_context_id: "course-a" }),
     listStudents: async () => [{ id: 501, name: "デモ生徒01" }],
-    listAssignments: async () => [{ id: 900, name: "課題A", published: true }],
+    listAssignments: async () => [{ id: 900, name: "課題A", published: true, points_possible: 100 }],
     listSubmissions: async () => [],
     gradeSubmission: vi.fn(async () => ({})),
     ...over,
@@ -16,12 +17,19 @@ function stubClient(over: Partial<Record<string, unknown>> = {}): CanvasClient {
 }
 
 describe("syncGradeToCanvas（F3① REST方式の成績書き戻し）", () => {
+  it("does not write without an explicit course and assignment mapping", async () => {
+    const gradeSubmission = vi.fn(async () => ({}));
+    const result = await syncGradeToCanvas({ canvasUserId: 501, score: 90 }, stubClient({ gradeSubmission }));
+    expect(result.state).toBe("skipped");
+    expect(gradeSubmission).not.toHaveBeenCalled();
+  });
+
   it("正常系: 名簿にいる受講生の成績をCanvasへ書き込む", async () => {
     const gradeSubmission = vi.fn(async () => ({}));
     const client = stubClient({ gradeSubmission });
 
     const result = await syncGradeToCanvas(
-      { canvasUserId: 501, score: 90, comment: "よくできました" },
+      { canvasUserId: 501, score: 90, comment: "よくできました", courseId: "course-a", canvasAssignmentId: 900 },
       client,
     );
 
@@ -47,7 +55,7 @@ describe("syncGradeToCanvas（F3① REST方式の成績書き戻し）", () => {
   it("名簿にいない受講生はスキップ（他コースの利用者へ書き込まない）", async () => {
     const gradeSubmission = vi.fn(async () => ({}));
     const result = await syncGradeToCanvas(
-      { canvasUserId: 999, score: 90 },
+      { canvasUserId: 999, score: 90, courseId: "course-a", canvasAssignmentId: 900 },
       stubClient({ gradeSubmission }),
     );
     expect(result.state).toBe("skipped");
@@ -57,7 +65,7 @@ describe("syncGradeToCanvas（F3① REST方式の成績書き戻し）", () => {
 
   it("公開課題が無ければスキップ（書き込み先が決まらない）", async () => {
     const result = await syncGradeToCanvas(
-      { canvasUserId: 501, score: 90 },
+      { canvasUserId: 501, score: 90, courseId: "course-a", canvasAssignmentId: 900 },
       stubClient({ listAssignments: async () => [{ id: 900, name: "下書き", published: false }] }),
     );
     expect(result.state).toBe("skipped");
@@ -65,15 +73,34 @@ describe("syncGradeToCanvas（F3① REST方式の成績書き戻し）", () => {
 
   it("API失敗はerrorとして理由を返す（採点自体は呼び出し側で成立させる）", async () => {
     const result = await syncGradeToCanvas(
-      { canvasUserId: 501, score: 90 },
+      { canvasUserId: 501, score: 90, courseId: "course-a", canvasAssignmentId: 900 },
       stubClient({
         gradeSubmission: async () => {
-          throw new Error("Canvas APIの呼び出しに失敗しました（HTTP 500）");
+          throw new CanvasApiError(500, "private response");
         },
       }),
     );
     expect(result.state).toBe("error");
     expect(result.state === "error" && result.reason).toContain("HTTP 500");
+  });
+
+  it("does not expose an unexpected exception's private text", async () => {
+    const result = await syncGradeToCanvas(
+      { canvasUserId: 501, score: 90, courseId: "course-a", canvasAssignmentId: 900 },
+      stubClient({ gradeSubmission: async () => { throw new Error("private response"); } }),
+    );
+    expect(result.state).toBe("error");
+    expect(JSON.stringify(result)).not.toContain("private response");
+  });
+
+  it("rechecks the grading scale at send time", async () => {
+    const gradeSubmission = vi.fn();
+    const result = await syncGradeToCanvas(
+      { canvasUserId: 501, score: 90, courseId: "course-a", canvasAssignmentId: 900 },
+      stubClient({ gradeSubmission, listAssignments: async () => [{ id: 900, name: "Changed scale", published: true, points_possible: 10 }] }),
+    );
+    expect(result.state).toBe("skipped");
+    expect(gradeSubmission).not.toHaveBeenCalled();
   });
 });
 

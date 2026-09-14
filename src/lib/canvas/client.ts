@@ -35,6 +35,7 @@ export interface CanvasUser {
 export interface CanvasCourse {
   id: number;
   name: string;
+  lti_context_id?: string;
 }
 
 export interface CanvasSubmission {
@@ -216,6 +217,28 @@ export class CanvasClient {
   /** 自分が参加しているコース一覧（全ページ取得） */
   async listCourses(): Promise<CanvasCourse[]> {
     return this.requestAllPages<CanvasCourse>("/api/v1/courses?per_page=100");
+  }
+
+  /** Root-account catalog for staff browsing, independent of token-owner enrollment. */
+  async listAccountCourses(): Promise<CanvasCourse[]> {
+    const courses = await this.requestAllPages<CanvasCourse>("/api/v1/accounts/self/courses?per_page=100");
+    if (courses.some(course => !course || !Number.isSafeInteger(course.id) || course.id <= 0 || typeof course.name !== "string")) {
+      throw new Error("Canvasのコース一覧を確認できませんでした");
+    }
+    return [...new Map(courses.map(course => [course.id, course])).values()];
+  }
+
+  /** Resolve only the verified LTI context; never substitute the first visible course. */
+  async getCourseByLtiContext(contextId: string): Promise<CanvasCourse> {
+    if (!contextId.trim()) throw new Error("LTIのコース情報がありません");
+    const course = await this.request<CanvasCourse>(
+      `/api/v1/courses/lti_context_id:${encodeURIComponent(contextId)}?include[]=lti_context_id`,
+    );
+    if (!course || !Number.isSafeInteger(course.id) || course.id <= 0 ||
+        course.lti_context_id !== contextId || typeof course.name !== "string") {
+      throw new Error("Canvasのコース情報を照合できませんでした");
+    }
+    return course;
   }
 
   /**

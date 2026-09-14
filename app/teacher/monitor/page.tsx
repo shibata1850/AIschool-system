@@ -1,7 +1,8 @@
-import { CURRENT_ASSIGNMENT_ID, findSubmission, getLessonRecords } from "@/lib/f3/store";
+import { getStaffMonitor } from "@/lib/f3/staffMonitor";
 import { STATUS_LABELS, type ExerciseStatus } from "@/lib/f3/types";
-import { isAttendedWithoutSubmission } from "@/lib/f4/fixtures";
-import { getRoster } from "@/lib/roster";
+import { getCurrentUser } from "@/lib/auth";
+import { canReadAllCourses } from "@/lib/course/access";
+import { notFound } from "next/navigation";
 import { MessageBox } from "./message-box";
 import { OutageBanner } from "./outage-banner";
 
@@ -23,16 +24,9 @@ const STATUS_COLORS: Record<ExerciseStatus, string> = {
 };
 
 export default async function MonitorPage() {
-  // 名簿はLTI起動の記録から引く（架空名簿は起動が1件も無いときのみ — src/lib/roster.ts）
-  const roster = await getRoster();
-  const tiles = await Promise.all(
-    roster.map(async (student) => {
-      const submission = await findSubmission(CURRENT_ASSIGNMENT_ID, student.id);
-      const status: ExerciseStatus = submission?.status ?? "not_started";
-      const attendedNoSubmit = isAttendedWithoutSubmission(await getLessonRecords(student.id));
-      return { student, status, attendedNoSubmit };
-    }),
-  );
+  const actor = await getCurrentUser();
+  if (!canReadAllCourses(actor)) notFound();
+  const tiles = await getStaffMonitor(actor);
 
   return (
     <main style={{ maxWidth: "64rem" }}>
@@ -41,35 +35,41 @@ export default async function MonitorPage() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 14rem), 1fr))",
           gap: "0.75rem",
         }}
       >
-        {tiles.map(({ student, status, attendedNoSubmit }) => {
+        {tiles.map(({ student, states, canMessage }) => {
           return (
             <section
               key={student.id}
               aria-label={`座席${student.seatNo} ${student.displayName}`}
               style={{
-                border: `3px solid ${STATUS_COLORS[status]}`,
+                border: `3px solid ${states.length === 1 ? STATUS_COLORS[states[0].status] : "var(--fg-sub)"}`,
                 borderRadius: 8,
                 padding: "0.75rem",
                 minHeight: 88, // タップターゲット確保（NearHub制約）
                 background: "var(--bg-panel)",
+                minWidth: 0,
+                overflowWrap: "anywhere",
               }}
             >
               <p style={{ fontWeight: "bold" }}>
                 {student.seatNo}. {student.displayName}
               </p>
-              <p style={{ color: STATUS_COLORS[status] }}>{STATUS_LABELS[status]}</p>
-              {attendedNoSubmit && (
+              {states.map(({ courseId, status, attendedNoSubmit }) => <div key={courseId ?? "legacy"}>
+                <p className="muted">{courseId === null ? "コース未設定" : courseId === actor.courseId ? "起動元コース" : `コース ${courseId}`}</p>
+                <p style={{ color: STATUS_COLORS[status] }}>{STATUS_LABELS[status]}</p>
+                {attendedNoSubmit && (
                 <p style={{ color: "var(--warn)" }}>出席・未提出</p>
-              )}
+                )}
+              </div>)}
               {/*
                 成績値は投影されるため出さない方針は維持する（画面仕様書S6）。
                 ここに置くのは「送る」導線だけで、送った本文もタイルには出さない。
               */}
-              <MessageBox studentId={student.id} displayName={student.displayName} />
+              {canMessage ? <MessageBox studentId={student.id} displayName={student.displayName} />
+                : <p className="muted">閲覧のみ（起動元コース外の受講生）</p>}
             </section>
           );
         })}

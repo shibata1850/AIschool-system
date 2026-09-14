@@ -23,7 +23,7 @@ export async function allocateAssignment(actor:CurrentUser, assignmentId:string,
   if (!ids.length || ids.length > 100) throw new AllocationError("受講生を選択してください。");
   return getDb().transaction(async tx => {
     // Serialize allocation for this exercise. Existing submissions are never updated.
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`assignment-allocation:${assignmentId}`}, 0))`);
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${JSON.stringify(["assignment-allocation",courseId,assignmentId])}, 0))`);
     const [assignment] = await tx.select().from(assignments).where(eq(assignments.id,assignmentId));
     if (!assignment) throw new AllocationError("課題が見つかりません。");
     const roster = await tx.select({id:students.id,canvasUserId:students.canvasUserId})
@@ -31,10 +31,10 @@ export async function allocateAssignment(actor:CurrentUser, assignmentId:string,
       .where(and(eq(studentCourses.courseId,courseId),inArray(students.id,ids)));
     if (roster.length !== ids.length) throw new AllocationError("このコースの起動記録にない受講生が含まれています。");
     const existing = await tx.select({studentId:submissions.studentId}).from(submissions)
-      .where(and(eq(submissions.assignmentId,assignmentId),inArray(submissions.studentId,ids)));
+      .where(and(eq(submissions.courseId,courseId),eq(submissions.assignmentId,assignmentId),inArray(submissions.studentId,ids)));
     const allocated = new Set(existing.map(s=>s.studentId));
     const rows = roster.filter(s=>!allocated.has(s.id)).map(s=>({
-      id:randomUUID(),assignmentId,studentId:s.id,canvasUserId:s.canvasUserId,
+      id:randomUUID(),courseId,assignmentId,studentId:s.id,canvasUserId:s.canvasUserId,
       status:"not_started",version:1,promptText:"",aiOutputText:"",reflectionText:"",
       isLate:false,hasDeviation:false,versions:[],
     }));

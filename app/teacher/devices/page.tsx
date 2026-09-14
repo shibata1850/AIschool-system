@@ -18,7 +18,7 @@ export default async function DevicesPage() {
   const pickerRoster = roster.map((s) => ({ id: s.id, displayName: s.displayName }));
 
   return (
-    <main style={{ maxWidth: "64rem" }}>
+    <main style={{ maxWidth: "64rem", minWidth: 0 }}>
       <h1>デバイス割当</h1>
       <p style={{ color: "var(--fg-sub)", marginBottom: "1rem" }}>
         受講生が座った席を選んで「保存」を押してください。
@@ -28,7 +28,8 @@ export default async function DevicesPage() {
         受講生の一覧には、一度でも教材を開いた人が並びます。
         まだ誰も開いていない場合は、開いてもらってからこの画面を開き直してください。
       </p>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <div className="device-table-scroll" role="region" aria-label="座席の割当表" tabIndex={0}>
+      <table style={{ width: "100%", minWidth: "60rem", borderCollapse: "collapse" }}>
         <thead>
           <tr>
             {["座席", "受講生", "受講生の割当", "NUC", "モニター識別子", "表示デバイス", "操作"].map((h) => (
@@ -85,6 +86,7 @@ export default async function DevicesPage() {
           ))}
         </tbody>
       </table>
+      </div>
     </main>
   );
 }

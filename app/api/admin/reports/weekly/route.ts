@@ -1,16 +1,29 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { teacherCourseAccess } from "@/lib/course/access";
+import { getLtiConfig } from "@/lib/lti/config";
 import { recordAudit } from "@/lib/audit/log";
 import { generateWeeklyReport } from "@/lib/f4/generateWeeklyReport";
+import { isReportWeek } from "@/lib/f4/reportWeek";
+import { WeeklyReportBusyError } from "@/lib/db/client";
 
 /**
  * 週次到達度レポートの生成（F4①）。管理者のみ（proxy.ts の /api/admin ガード）。
  * 通常運用は cron（scripts/generate-weekly-report.ts）が担い、本APIは
  * 受け入れテストと、生成失敗時の手動再実行のための入口。
  *
- * 対象週は body.weekStart（省略時は実行日の週）。同じ週の再実行は上書き（冪等）。
+ * 対象週は body.weekStart（省略時は日本時間の実行日の週）。通知開始後は保存済みを使用し再送しない。
  */
 export async function POST(request: NextRequest) {
+  const actor = await getCurrentUser();
+  const courseId = teacherCourseAccess(actor)?.courseId;
+  if (actor.role !== "admin" || !actor.viaLti || !courseId) {
+    return new NextResponse("管理者としてCanvasのコースから起動してください", { status: 403 });
+  }
+  const toolUrl = getLtiConfig()?.toolUrl;
+  if (!toolUrl || request.headers.get("origin") !== new URL(toolUrl).origin) {
+    return new NextResponse("送信元を確認できません", { status: 403 });
+  }
   let body: { weekStart?: unknown } = {};
   try {
     const text = await request.text();
@@ -28,38 +41,45 @@ export async function POST(request: NextRequest) {
   }
 
   if (body.weekStart !== undefined) {
-    if (typeof body.weekStart !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(body.weekStart)) {
+    if (!isReportWeek(body.weekStart)) {
       return new NextResponse("weekStart は YYYY-MM-DD（週の月曜）で指定してください", {
         status: 400,
       });
     }
   }
 
-  const { report, generatedAt, notify } = await generateWeeklyReport({
-    weekStart: body.weekStart as string | undefined,
-  });
-
-  const actor = await getCurrentUser();
-  await recordAudit({
-    actorRole: actor.role,
-    actorId: actor.viaLti ? actor.userId : undefined,
-    action: "create",
-    entity: "weekly_report",
-    entityId: report.weekStart,
-    // 監査ログに個人の点数は残さない（件数のみ — CLAUDE.md 9章）
-    after: {
+  try {
+    const { report, generatedAt, notify, reused } = await generateWeeklyReport({
+      courseId,
+      weekStart: body.weekStart as string | undefined,
+    });
+    await recordAudit({
+      actorRole: actor.role,
+      actorId: actor.viaLti ? actor.userId : undefined,
+      action: "create",
+      entity: "weekly_report",
+      entityId: report.weekStart,
+      after: {
+        courseId,
+        generatedAt,
+        reused: reused ?? false,
+        studentCount: report.summary.studentCount,
+        alertCount: report.alerts.length,
+        notify: notify.state,
+      },
+    });
+    return NextResponse.json({
+      reused: reused ?? false,
+      weekStart: report.weekStart,
       generatedAt,
       studentCount: report.summary.studentCount,
       alertCount: report.alerts.length,
-      notify: notify.state,
-    },
-  });
-
-  return NextResponse.json({
-    weekStart: report.weekStart,
-    generatedAt,
-    studentCount: report.summary.studentCount,
-    alertCount: report.alerts.length,
-    notify,
-  });
+      notify,
+    });
+  } catch (error) {
+    if (error instanceof WeeklyReportBusyError) {
+      return new NextResponse("週次レポートまたは保持期限処理が実行中です。処理の完了後に確認してください", { status: 503 });
+    }
+    return new NextResponse("処理結果を確認できませんでした。保存済みレポート・通知・監査の状況を確認してから再実行してください", { status: 500 });
+  }
 }

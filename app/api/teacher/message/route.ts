@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit/log";
 import { sendTeacherMessage, TeacherMessageError } from "@/lib/f2/chatLog";
 import { getRoster } from "@/lib/roster";
+import { teacherCourseAccess } from "@/lib/course/access";
 
 /**
  * 講師から受講生への一言（S6モニタリングの介入導線）。
@@ -12,6 +13,9 @@ import { getRoster } from "@/lib/roster";
  * テキストそのものを手渡す場面が頻繁にある。口頭では渡せない。
  */
 export async function POST(request: NextRequest) {
+  const actor = await getCurrentUser();
+  const access = teacherCourseAccess(actor);
+  if (!access) return new NextResponse("このコースへの操作権限がありません", { status: 403 });
   let body: { studentId?: unknown; body?: unknown };
   try {
     body = await request.json();
@@ -26,14 +30,14 @@ export async function POST(request: NextRequest) {
     return new NextResponse("body は文字列で指定してください", { status: 400 });
   }
   // 名簿にない宛先へは送らせない（出席記録APIと同じ方針）
-  if (!(await getRoster()).some((s) => s.id === body.studentId)) {
-    return new NextResponse("その受講生は名簿にありません", { status: 400 });
+  if (!(await getRoster(access.courseId)).some((s) => s.id === body.studentId)) {
+    return new NextResponse("このコースへの操作権限がありません", { status: 403 });
   }
 
-  const actor = await getCurrentUser();
   try {
     const message = await sendTeacherMessage({
       studentId: body.studentId,
+      courseId: access.courseId,
       body: body.body,
       // デモ運用では送信者を特定できないため記録しない（CLAUDE.md 8章）
       sentBy: actor.viaLti ? actor.userId : undefined,
@@ -47,7 +51,7 @@ export async function POST(request: NextRequest) {
       action: "create",
       entity: "teacher_message",
       entityId: String(message.id),
-      after: { studentId: message.studentId, length: message.body.length },
+      after: { studentId: message.studentId, courseId: access.courseId, length: message.body.length },
     });
 
     return NextResponse.json({ id: message.id, sentAt: message.sentAt });

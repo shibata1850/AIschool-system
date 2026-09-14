@@ -81,7 +81,8 @@ export function buildWeeklyReport(input: WeeklyReportInput): WeeklyReport {
   const rows: WeeklyReportRow[] = [];
 
   for (const student of input.students) {
-    const records = input.recordsByStudent.get(student.id) ?? [];
+    const records = (input.recordsByStudent.get(student.id) ?? [])
+      .filter(record => record.weekStart <= input.weekStart);
     if (records.length === 0) continue;
 
     const weekly = computeWeeklyAchievements(records, input.weights);
@@ -99,13 +100,22 @@ export function buildWeeklyReport(input: WeeklyReportInput): WeeklyReport {
   }
 
   rows.sort((a, b) => a.seatNo - b.seatNo);
+  return summarizeReportRows(input.weekStart, rows);
+}
 
+/** Rebuild aggregates as well as alerts; removing a row alone leaves personal information in totals. */
+export function redactReportStudent(report: WeeklyReport, studentId: string): WeeklyReport {
+  if (!studentId.trim()) throw new Error("A student ID is required");
+  return summarizeReportRows(report.weekStart, report.rows.filter(row => row.studentId !== studentId));
+}
+
+function summarizeReportRows(weekStart: string, rows: WeeklyReportRow[]): WeeklyReport {
   const measurable = rows
     .map((r) => r.latest)
     .filter((l): l is WeeklyAchievement => l !== null);
 
   return {
-    weekStart: input.weekStart,
+    weekStart,
     summary: {
       studentCount: rows.length,
       averageAchievement: averageOrNull(measurable.map((l) => l.total)),

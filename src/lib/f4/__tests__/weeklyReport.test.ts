@@ -36,6 +36,16 @@ function input(over: Partial<WeeklyReportInput> = {}): WeeklyReportInput {
 }
 
 describe("buildWeeklyReport（要件定義書F4 週次到達度レポート）", () => {
+  it("excludes lesson records after the requested week", () => {
+    const report = buildWeeklyReport(input({ recordsByStudent: new Map([
+      ["s01", [rec("2026-10-19", 80), rec("2026-10-26", 10)]],
+      ["s02", [rec("2026-10-26", 100)]],
+    ]) }));
+    expect(report.rows).toHaveLength(1);
+    expect(report.rows[0].weekly).toHaveLength(1);
+    expect(report.rows[0].weekly[0].weekStart).toBe("2026-10-19");
+    expect(report.summary.studentCount).toBe(1);
+  });
   it("正常系: 受講生別の行とクラス平均を組み立てる", () => {
     const report = buildWeeklyReport(
       input({

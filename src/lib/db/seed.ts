@@ -9,8 +9,11 @@ import {
   externalMastery as externalMasteryTable,
   teacherMessages as teacherMessagesTable,
   lessonRecords as lessonRecordsTable,
+  courseLessonRecords as courseLessonRecordsTable,
+  canvasAssignmentLinks as canvasAssignmentLinksTable,
   submissions as submissionsTable,
   weeklyReports as weeklyReportsTable,
+  courseWeeklyReports as courseWeeklyReportsTable,
 } from "./schema";
 import type { Assignment } from "@/lib/f3/types";
 import { buildRichAuditEntries, buildRichSeed } from "@/lib/f3/demoSeed";
@@ -26,6 +29,7 @@ export async function resetDatabase(): Promise<void> {
     // 子→親の順に削除（submissionsがassignmentsを参照するFK制約のため）
     await tx.delete(submissionsTable);
     await tx.delete(lessonRecordsTable);
+    await tx.delete(courseLessonRecordsTable);
     // 外部システムから受信した到達度（E7-c）。消し忘れるとリセット後も前のテストの
     // 値がS5に残り続ける（実運用でも初期化が不完全になる）
     await tx.delete(externalMasteryTable);
@@ -35,9 +39,11 @@ export async function resetDatabase(): Promise<void> {
     // 名簿（LTI起動の記録）。E2E・デモは架空名簿へフォールバックする
     await tx.delete(studentsTable);
     await tx.delete(deviceAssignmentsTable);
+    await tx.delete(canvasAssignmentLinksTable);
     await tx.delete(assignmentsTable);
     await tx.delete(auditLogTable);
     await tx.delete(weeklyReportsTable);
+    await tx.delete(courseWeeklyReportsTable);
     // AI講師の稼働状態（F2②）。前のテストで停止中にしたまま次のテストへ持ち越さない
     await tx.delete(aiHealthTable);
     await tx.insert(aiHealthTable).values({ id: 1 });

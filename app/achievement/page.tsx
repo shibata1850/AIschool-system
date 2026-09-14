@@ -4,6 +4,8 @@ import {
   latestAchievement,
 } from "@/lib/f4/achievement";
 import { getCurrentUser } from "@/lib/auth";
+import { notFound } from "next/navigation";
+import { courseAccess } from "@/lib/course/access";
 import { getLessonRecords } from "@/lib/f3/store";
 import { getExternalMasteryForStudent } from "@/lib/integration/mastery";
 
@@ -15,13 +17,16 @@ export const dynamic = "force-dynamic";
  * 学習記録はストア経由で取得する（成績確定が反映される — F3→F4連携）。
  */
 export default async function AchievementPage() {
-  const { userId } = await getCurrentUser();
-  const records = await getLessonRecords(userId);
+  const actor = await getCurrentUser();
+  const access = courseAccess(actor);
+  if (!access) notFound();
+  const { userId } = actor;
+  const records = await getLessonRecords(userId, access.courseId);
   const weekly = computeWeeklyAchievements(records);
   const latest = latestAchievement(weekly);
   // 自宅学習の到達度（eラーニングから受信・E7-c）を教室の到達度と**合成して1つにする**
   // （2026-09-02 柴田さま「到達度は一つに絞る」）。内訳は下に必ず出す（先方 受け入れ基準B-3）
-  const homeStudy = await getExternalMasteryForStudent(userId);
+  const homeStudy = await getExternalMasteryForStudent(userId, access.courseId);
   const combined = latest
     ? combineAchievement(
         latest.total,

@@ -7,6 +7,7 @@ import {
   serial,
   text,
   timestamp,
+  unique,
 } from "drizzle-orm/pg-core";
 
 /**
@@ -27,6 +28,7 @@ export const assignments = pgTable("assignments", {
 
 export const submissions = pgTable("submissions", {
   id: text("id").primaryKey(),
+  courseId: text("course_id"),
   assignmentId: text("assignment_id")
     .notNull()
     .references(() => assignments.id),
@@ -57,6 +59,18 @@ export const submissions = pgTable("submissions", {
   canvasSyncError: text("canvas_sync_error"),
 });
 
+/** Explicit, append-only mapping. No inference from titles or the first Canvas assignment. */
+export const canvasAssignmentLinks = pgTable("canvas_assignment_links", {
+  courseId: text("course_id").notNull(),
+  assignmentId: text("assignment_id").notNull().references(() => assignments.id),
+  canvasAssignmentId: integer("canvas_assignment_id").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  createdBy: text("created_by").notNull(),
+}, table => [
+  primaryKey({ columns: [table.courseId, table.assignmentId] }),
+  unique("canvas_assignment_links_target_key").on(table.courseId, table.canvasAssignmentId),
+]);
+
 /** 授業コマ1回分の学習記録（到達度・出席が同居。既存 LessonRecord に対応） */
 export const lessonRecords = pgTable(
   "lesson_records",
@@ -71,6 +85,18 @@ export const lessonRecords = pgTable(
   },
   (t) => [primaryKey({ columns: [t.studentId, t.weekStart] })],
 );
+
+/** Scoped records keep the legacy table intact until its ownership is verified. */
+export const courseLessonRecords = pgTable("course_lesson_records", {
+  courseId: text("course_id").notNull(),
+  studentId: text("student_id").notNull(),
+  lessonId: text("lesson_id").notNull(),
+  weekStart: text("week_start").notNull(),
+  attended: boolean("attended").notNull(),
+  submitted: boolean("submitted").notNull(),
+  score: integer("score"),
+  dataMissing: boolean("data_missing").notNull().default(false),
+}, (t) => [primaryKey({ columns: [t.courseId, t.studentId, t.weekStart] })]);
 
 export const deviceAssignments = pgTable("device_assignments", {
   seatNo: integer("seat_no").primaryKey(),
@@ -99,12 +125,24 @@ export const weeklyReports = pgTable("weekly_reports", {
   notifySkippedReason: text("notify_skipped_reason"),
 });
 
+/** Course snapshots are separate from legacy snapshots; generationId guards stale notification updates. */
+export const courseWeeklyReports = pgTable("course_weekly_reports", {
+  courseId: text("course_id").notNull(),
+  weekStart: text("week_start").notNull(),
+  generationId: text("generation_id").notNull(),
+  generatedAt: timestamp("generated_at", { withTimezone: true }).notNull(),
+  notificationClaimedAt: timestamp("notification_claimed_at", { withTimezone: true }),
+  payload: jsonb("payload").notNull(),
+  notifiedAt: timestamp("notified_at", { withTimezone: true }),
+  notifySkippedReason: text("notify_skipped_reason"),
+}, table => [primaryKey({ columns: [table.courseId, table.weekStart] })]);
+
 /**
  * eラーニングシステム（姉妹システム）から受け取った自宅学習の到達度（E7-c）。
  *
- * **教室の到達度（lesson_records 由来）とは別物として保持し、合成しない。**
- * 尺度も期間も母集団も違うため加重平均に意味がなく、合成すると相手側が
- * 自分の算出根拠を説明できなくなる（docs/eラーニング連携.md 3.2.2）。
+ * 教室の記録とは別に原記録を保持し、表示時に教室80%・自宅20%で合成する。
+ * 算出根拠と内訳は表示側で保持する。過去週の教室記録には混ぜない
+ * （2026-09-02決定、docs/eラーニング連携.md 3.2.2）。
  *
  * 1受講生×1単元につき最新の1行だけを持つ（上書き）。履歴は監査ログ側に残る。
  * unit_id に外部キーを張らないのは、課題が削除されても受信済みの記録を
@@ -178,6 +216,7 @@ export const studentCourses = pgTable("student_courses", {
  */
 export const chatLogs = pgTable("chat_logs", {
   id: serial("id").primaryKey(),
+  courseId: text("course_id"),
   studentId: text("student_id").notNull(),
   askedAt: timestamp("asked_at", { withTimezone: true }).notNull(),
   /** マスキング済みの質問。原文は保存しない */
@@ -205,6 +244,7 @@ export const chatLogs = pgTable("chat_logs", {
  */
 export const teacherMessages = pgTable("teacher_messages", {
   id: serial("id").primaryKey(),
+  courseId: text("course_id"),
   studentId: text("student_id").notNull(),
   sentAt: timestamp("sent_at", { withTimezone: true }).notNull(),
   /** 送信した講師・管理者のID（LTI起動時のみ。デモ運用では null） */

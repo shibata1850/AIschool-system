@@ -8,23 +8,23 @@ describe("course-scoped assignment persistence",()=>{
   it("allocates once even under concurrent requests",async()=>{
     const results=await Promise.all([allocateAssignment(teacher,"a1",["new-student"]),allocateAssignment(teacher,"a1",["new-student"])]);
     expect(results.reduce((n,r)=>n+r.created,0)).toBe(1);
-    expect((await findSubmission("a1","new-student"))?.status).toBe("not_started");
+    expect((await findSubmission("a1","new-student","course-a"))?.status).toBe("not_started");
   });
   it("does not modify completed work",async()=>{
     await allocateAssignment(teacher,"a1",["new-student"]);
-    const base=(await findSubmission("a1","new-student"))!;
+    const base=(await findSubmission("a1","new-student","course-a"))!;
     await updateSubmissionIfVersion({...base,status:"completed",teacherScore:91,promptText:"Preserved"},1,"not_started");
     expect(await allocateAssignment(teacher,"a1",["new-student"])).toEqual({created:0,skipped:1});
-    expect(await findSubmission("a1","new-student")).toMatchObject({teacherScore:91,promptText:"Preserved",status:"completed"});
+    expect(await findSubmission("a1","new-student","course-a")).toMatchObject({teacherScore:91,promptText:"Preserved",status:"completed"});
   });
   it("rejects another course without partial writes",async()=>{
     await recordStudentLaunch({id:"other",courseId:"course-b"});
     await expect(allocateAssignment(teacher,"a1",["new-student","other"])).rejects.toThrow();
-    expect(await findSubmission("a1","new-student")).toBeUndefined();
+    expect(await findSubmission("a1","new-student","course-a")).toBeUndefined();
   });
   it("relaunch neither duplicates membership nor assigns implicitly",async()=>{
     await recordStudentLaunch({id:"new-student",courseId:"course-a"});
     expect((await listAllocationOptions("course-a")).roster).toHaveLength(1);
-    expect(await hasAssignmentsForStudent("new-student")).toBe(false);
+    expect(await hasAssignmentsForStudent("new-student","course-a")).toBe(false);
   });
 });

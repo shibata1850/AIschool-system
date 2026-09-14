@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
+import { courseAccess } from "@/lib/course/access";
 import { findSubmission, getAssignment } from "@/lib/f3/store";
 import { STATUS_LABELS } from "@/lib/f3/types";
 import { AutoRefresh } from "./auto-refresh";
@@ -17,8 +18,10 @@ export default async function ExercisePage({
   const assignment = await getAssignment(id);
   if (!assignment) notFound();
 
-  const { userId } = await getCurrentUser();
-  const submission = await findSubmission(id, userId);
+  const actor = await getCurrentUser();
+  const access = courseAccess(actor);
+  if (!access) notFound();
+  const submission = await findSubmission(id, actor.userId, access.courseId);
   if (!submission) notFound();
 
   const editable = ["not_started", "in_progress", "returned"].includes(

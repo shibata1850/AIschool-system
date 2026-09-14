@@ -1,5 +1,6 @@
 import { createCanvasClient, type CanvasClient } from "./client";
-import { resolveGradebook } from "./gradebook";
+import { resolveScopedGradebook } from "./gradebook";
+import { toErrorMessage } from "./errorMessage";
 
 /**
  * 講師の確定スコアをCanvas成績表へ反映する（F3①・REST方式）。
@@ -22,6 +23,8 @@ export async function syncGradeToCanvas(
   params: {
     /** 提出者のCanvas数値ユーザーID（LTI起動時のカスタムフィールド由来） */
     canvasUserId: number | undefined;
+    courseId?: string;
+    canvasAssignmentId?: number;
     score: number;
     /** 受講生に見える講評（任意） */
     comment?: string;
@@ -39,8 +42,13 @@ export async function syncGradeToCanvas(
     };
   }
 
+  if (!params.courseId?.trim() || !Number.isSafeInteger(params.canvasAssignmentId) ||
+      (params.canvasAssignmentId ?? 0) <= 0) {
+    return { state: "skipped", reason: "コース・課題のCanvas対応が設定されていません" };
+  }
+
   try {
-    const gb = await resolveGradebook(client);
+    const gb = await resolveScopedGradebook(client, params.courseId, params.canvasAssignmentId!);
     if (gb.state === "error") {
       // 接続不能・APIエラーは「載せに行って失敗した」＝再実行で解消し得る。
       // 設定不足（コース・課題が無い）とは区別する（前者はerror、後者はskipped）
@@ -55,6 +63,9 @@ export async function syncGradeToCanvas(
     if (!gb.rows.some((r) => r.student.id === params.canvasUserId)) {
       return { state: "skipped", reason: "その受講生はCanvasの名簿にいません" };
     }
+    if (gb.assignment.pointsPossible !== 100) {
+      return { state: "skipped", reason: "送信先のCanvas課題が100点満点ではありません" };
+    }
 
     await client.gradeSubmission(
       gb.course.id,
@@ -68,7 +79,7 @@ export async function syncGradeToCanvas(
     // 応答本文は個人情報を含み得るためメッセージのみ
     return {
       state: "error",
-      reason: error instanceof Error ? error.message : "Canvasへの反映に失敗しました",
+      reason: toErrorMessage(error),
     };
   }
 }

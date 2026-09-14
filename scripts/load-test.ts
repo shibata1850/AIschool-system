@@ -2,12 +2,11 @@
  * 16クライアント同時操作の負荷テスト（CLAUDE.md 7章「負荷要件」・
  * docs/テスト計画書.md 4章「16台負荷試験」・要件定義書 KPI#1）。
  *
- * 受け入れ前に1回実施する。実機16台が搬入される前に、ステージングへ向けて
- * 流しておくためのもの（当日は同じコマンドを実機のURLへ向ける）。
+ * データ初期化を伴う旧開発用シナリオ。本番・ステージングでは実行禁止。
+ * LTIの別受講生16名による受け入れ試験の代わりにはならない。
  *
  * 使い方:
- *   npm run test:load
- *   npm run test:load -- --base-url https://app.133-125-225-64.sslip.io --clients 16
+ *   隔離ローカル開発環境だけで LOCAL_LOAD_TEST=1 を明示して実行する。
  *
  * **測るものを2つに分けている理由**:
  * LTI起動でない環境では、ロールCookieの利用者は全員 `student-damo` ではなく
@@ -29,6 +28,7 @@
  *   - システム起因の中断 0件（KPI#1）
  */
 import { chromium, type Browser, type BrowserContext } from "@playwright/test";
+import { assertLocalLoadTarget } from "../src/lib/testing/loadSafety";
 
 interface Options {
   baseUrl: string;
@@ -127,6 +127,7 @@ async function runReadScenario(
 
 async function main(): Promise<void> {
   const opts = parseArgs(process.argv.slice(2));
+  assertLocalLoadTarget(opts.baseUrl, process.env);
   console.log(
     `16台負荷試験: ${opts.baseUrl} / ${opts.clients}クライアント / 各${opts.iterations}周\n`,
   );
@@ -145,7 +146,7 @@ async function main(): Promise<void> {
     if (!reset.ok) {
       throw new Error(
         `ストア初期化に失敗しました（HTTP ${reset.status}）。` +
-          `本番ビルドでは ALLOW_DEV_RESET=1 が必要です`,
+          `隔離開発環境を確認してください。本番のリセット許可は設定しないでください`,
       );
     }
 

@@ -3,6 +3,7 @@ import { recordAudit } from "@/lib/audit/log";
 import { getDeviceAssignment, setDeviceStudent } from "@/lib/f3/store";
 import { getCurrentUser } from "@/lib/auth";
 import { getRoster } from "@/lib/roster";
+import { getLtiConfig } from "@/lib/lti/config";
 
 /**
  * S9: 座席に座る受講生を割り当てる／空席に戻す。権限は proxy.ts（講師・管理者のみ）。
@@ -16,6 +17,14 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ seatNo: string }> },
 ) {
+  const actor = await getCurrentUser();
+  if (actor.role !== "teacher" && actor.role !== "admin") {
+    return new NextResponse("権限がありません", { status: 403 });
+  }
+  const toolUrl = getLtiConfig()?.toolUrl;
+  if (!toolUrl || request.headers.get("origin") !== new URL(toolUrl).origin) {
+    return new NextResponse("送信元を確認できません", { status: 403 });
+  }
   const { seatNo: seatNoText } = await params;
   const seatNo = Number(seatNoText);
   if (!Number.isInteger(seatNo)) {
@@ -26,6 +35,9 @@ export async function POST(
   try {
     body = await request.json();
   } catch {
+    return new NextResponse("リクエストの形式が正しくありません", { status: 400 });
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
     return new NextResponse("リクエストの形式が正しくありません", { status: 400 });
   }
   // null は「空席に戻す」。未指定（undefined）は指示が無いのと区別できないため弾く
@@ -55,7 +67,6 @@ export async function POST(
     return new NextResponse("座席が見つかりません", { status: 404 });
   }
 
-  const actor = await getCurrentUser();
   await recordAudit({
     actorRole: actor.role,
     actorId: actor.viaLti ? actor.userId : undefined,

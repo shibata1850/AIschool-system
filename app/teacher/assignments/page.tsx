@@ -12,6 +12,7 @@ export default async function AssignmentsPage() {
   return <main style={{maxWidth:"52rem"}}>
     <Link href="/">← ホームにもどる</Link>
     <h1>課題の割当</h1>
+    <p><Link href="/teacher/assignment-links">Canvas課題の対応</Link></p>
     {!exercises.length ? <p>登録されている課題がありません。</p> :
       !roster.length ? <p>このコースの受講生の起動記録はまだありません。</p> :
       <AllocationForm roster={roster} exercises={exercises} />}

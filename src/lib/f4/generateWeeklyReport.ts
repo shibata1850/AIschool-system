@@ -1,10 +1,10 @@
-import { desc, eq } from "drizzle-orm";
-import { getDb } from "@/lib/db/client";
-import { weeklyReports } from "@/lib/db/schema";
+import { getRoster } from "@/lib/roster";
+import { withWeeklyReportLock } from "@/lib/db/client";
+import { saveCourseReport, readCourseReport, recordCourseReportNotification, claimCourseReportNotification } from "./courseReportStore";
 import { getAllLessonRecords, getPendingAssignmentsByStudent } from "@/lib/f3/store";
-import { STUDENTS } from "./fixtures";
 import { notifyWeeklyReport, type NotifyResult } from "./notifyReport";
-import { buildWeeklyReport, weekStartOf, type WeeklyReport } from "./weeklyReport";
+import { buildWeeklyReport, type WeeklyReport } from "./weeklyReport";
+import { currentReportWeek, isReportWeek } from "./reportWeek";
 
 /**
  * 週次到達度レポートの生成（要件定義書 9.2 F4①: 月曜7:00に自動生成し講師へ通知）。
@@ -18,6 +18,7 @@ export interface GenerateResult {
   report: WeeklyReport;
   generatedAt: string;
   notify: NotifyResult;
+  reused?: boolean;
 }
 
 export interface StoredWeeklyReport {
@@ -29,72 +30,52 @@ export interface StoredWeeklyReport {
 
 /** 対象週を決めてレポートを生成・保存・通知する。weekStart省略時は実行日の週 */
 export async function generateWeeklyReport(options: {
+  courseId?: string;
   weekStart?: string;
   now?: Date;
   /** テスト用に通知処理を差し替える */
   notify?: (report: WeeklyReport) => Promise<NotifyResult>;
 } = {}): Promise<GenerateResult> {
+  const courseId = options.courseId;
+  if (!courseId?.trim()) throw new Error("A report course is required");
   const now = options.now ?? new Date();
-  const weekStart = options.weekStart ?? weekStartOf(now);
+  const weekStart = options.weekStart ?? currentReportWeek(now);
+  if (!isReportWeek(weekStart)) throw new Error("Report week must be a valid Monday");
 
-  const [recordsByStudent, pendingByStudent] = await Promise.all([
-    getAllLessonRecords(),
-    getPendingAssignmentsByStudent(),
-  ]);
-
-  const report = buildWeeklyReport({
-    weekStart,
-    students: STUDENTS,
-    recordsByStudent,
-    pendingByStudent,
+  return withWeeklyReportLock(async (db) => {
+    const [recordsByStudent, pendingByStudent, students] = await Promise.all([
+      getAllLessonRecords(courseId, db),
+      getPendingAssignmentsByStudent(courseId, db),
+      getRoster(courseId, db),
+    ]);
+    const report = buildWeeklyReport({ weekStart, students, recordsByStudent, pendingByStudent });
+    const generationId = await saveCourseReport(courseId, report, now, db);
+    if (!await claimCourseReportNotification(courseId, weekStart, generationId, db)) {
+      const stored = await readCourseReport(courseId, weekStart, db);
+      if (!stored) throw new Error("Report snapshot is unavailable; verify before retrying");
+      return {
+        report: stored.report, generatedAt: stored.generatedAt, reused: true,
+        notify: { state: "skipped", reason: "別の生成処理または通知開始の記録があるため再送しません。保存済みの通知状況を確認してください" },
+      };
+    }
+    const notify = options.notify
+      ? await options.notify(report)
+      : await notifyWeeklyReport(report, undefined, courseId);
+    if (!await recordCourseReportNotification(courseId, weekStart, generationId, notify, undefined, db)) {
+      throw new Error("Notification result could not be recorded; verify before retrying");
+    }
+    return { report, generatedAt: now.toISOString(), notify };
   });
-
-  const notify = await (options.notify ?? notifyWeeklyReport)(report);
-  const notifiedAt = notify.state === "sent" ? now : null;
-  const notifySkippedReason = notify.state === "sent" ? null : notify.reason;
-
-  const db = getDb();
-  await db
-    .insert(weeklyReports)
-    .values({ weekStart, generatedAt: now, payload: report, notifiedAt, notifySkippedReason })
-    .onConflictDoUpdate({
-      target: weeklyReports.weekStart,
-      set: { generatedAt: now, payload: report, notifiedAt, notifySkippedReason },
-    });
-
-  return { report, generatedAt: now.toISOString(), notify };
 }
 
 /** 保存済みの最新レポート（1件も無ければ null） */
-export async function getLatestWeeklyReport(): Promise<StoredWeeklyReport | null> {
-  const db = getDb();
-  const [row] = await db
-    .select()
-    .from(weeklyReports)
-    .orderBy(desc(weeklyReports.weekStart))
-    .limit(1);
-  if (!row) return null;
-  return {
-    report: row.payload as WeeklyReport,
-    generatedAt: row.generatedAt.toISOString(),
-    notifiedAt: row.notifiedAt?.toISOString() ?? null,
-    notifySkippedReason: row.notifySkippedReason,
-  };
+export async function getLatestWeeklyReport(courseId?: string | null): Promise<StoredWeeklyReport | null> {
+  if (!courseId?.trim()) return null;
+  return readCourseReport(courseId);
 }
 
 /** 指定週の保存済みレポート */
-export async function getWeeklyReport(weekStart: string): Promise<StoredWeeklyReport | null> {
-  const db = getDb();
-  const [row] = await db
-    .select()
-    .from(weeklyReports)
-    .where(eq(weeklyReports.weekStart, weekStart))
-    .limit(1);
-  if (!row) return null;
-  return {
-    report: row.payload as WeeklyReport,
-    generatedAt: row.generatedAt.toISOString(),
-    notifiedAt: row.notifiedAt?.toISOString() ?? null,
-    notifySkippedReason: row.notifySkippedReason,
-  };
+export async function getWeeklyReport(weekStart: string, courseId?: string | null): Promise<StoredWeeklyReport | null> {
+  if (!courseId?.trim()) return null;
+  return readCourseReport(courseId, weekStart);
 }

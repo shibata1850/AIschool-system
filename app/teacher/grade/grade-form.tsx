@@ -5,6 +5,7 @@ import { postJson } from "@/lib/client/postJson";
 
 interface Props {
   userId: number;
+  assignmentId: number;
   studentName: string;
   initialScore: number | null;
 }
@@ -13,7 +14,7 @@ interface Props {
  * 1受講生分の点数入力→Canvas成績表へ反映（B-3）。
  * 成功/失敗を行内に明示する（画面仕様書 共通仕様: 何が起きたか＋次にすること）。
  */
-export function GradeForm({ userId, studentName, initialScore }: Props) {
+export function GradeForm({ userId, assignmentId, studentName, initialScore }: Props) {
   const [score, setScore] = useState<string>(initialScore?.toString() ?? "");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string>("");
@@ -25,6 +26,7 @@ export function GradeForm({ userId, studentName, initialScore }: Props) {
     setOk(null);
     const result = await postJson<{ score: number }>("/api/teacher/grade", {
       userId,
+      assignmentId,
       score: Number(score),
     });
     setSaving(false);

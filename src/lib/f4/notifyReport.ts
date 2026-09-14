@@ -1,4 +1,5 @@
 import { createCanvasClient, type CanvasClient } from "@/lib/canvas/client";
+import { toErrorMessage } from "@/lib/canvas/errorMessage";
 import { buildNotificationBody, type WeeklyReport } from "./weeklyReport";
 
 /**
@@ -20,23 +21,22 @@ function reportUrl(): string | undefined {
 export async function notifyWeeklyReport(
   report: WeeklyReport,
   client: CanvasClient | null = createCanvasClient(),
+  courseId: string | null = null,
 ): Promise<NotifyResult> {
+  if (!courseId?.trim()) {
+    return { state: "skipped", reason: "通知対象のコースが指定されていません" };
+  }
   if (!client) {
     return { state: "skipped", reason: "Canvas未接続（CANVAS_BASE_URL/CANVAS_API_TOKEN 未設定）" };
   }
 
   try {
-    const courses = await client.listCourses();
-    if (courses.length === 0) {
-      return { state: "skipped", reason: "通知対象のコースがありません" };
-    }
+    const course = await client.getCourseByLtiContext(courseId);
 
-    // 全コースの講師・TAを宛先にする（同一人物の重複はIDで除く）
+    // 起動コースの講師・TAだけを宛先にする（重複はIDで除く）。
     const recipientIds = new Set<number>();
-    for (const course of courses) {
-      for (const teacher of await client.listTeachers(course.id)) {
-        recipientIds.add(teacher.id);
-      }
+    for (const teacher of await client.listTeachers(course.id)) {
+      recipientIds.add(teacher.id);
     }
     if (recipientIds.size === 0) {
       return { state: "skipped", reason: "コースに講師・TAが登録されていません" };
@@ -49,10 +49,10 @@ export async function notifyWeeklyReport(
     );
     return { state: "sent", recipientCount: recipientIds.size };
   } catch (error) {
-    // 応答本文は個人情報を含み得るため、メッセージのみ記録する
+    // 例外メッセージ自体にも資格情報や個人情報が含まれ得る。
     return {
       state: "error",
-      reason: error instanceof Error ? error.message : "通知の送信に失敗しました",
+      reason: toErrorMessage(error),
     };
   }
 }

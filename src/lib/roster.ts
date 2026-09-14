@@ -1,5 +1,5 @@
 import { asc, eq } from "drizzle-orm";
-import { getDb } from "@/lib/db/client";
+import { getDb, type DbExecutor } from "@/lib/db/client";
 import { deviceAssignments, students, studentCourses } from "@/lib/db/schema";
 import { STUDENTS, type StudentProfile } from "@/lib/f4/fixtures";
 
@@ -24,6 +24,13 @@ export function isDemoRoster(roster: StudentProfile[]): boolean {
   return roster === STUDENTS;
 }
 
+/** Recorded LTI courses, not a claim about current Canvas enrollment status. */
+export async function listRecordedCourseIds(): Promise<string[]> {
+  const rows = await getDb().selectDistinct({ courseId: studentCourses.courseId })
+    .from(studentCourses).orderBy(asc(studentCourses.courseId));
+  return rows.map(row => row.courseId).filter(id => id.trim().length > 0);
+}
+
 /**
  * 現在の受講生名簿を返す。
  *
@@ -31,10 +38,14 @@ export function isDemoRoster(roster: StudentProfile[]): boolean {
  * **1件でもあれば実名簿だけを返す** — 架空と実物を混ぜると、講師画面に
  * 存在しない受講生が並ぶ。
  */
-export async function getRoster(): Promise<StudentProfile[]> {
-  const db = getDb();
-  const rows = await db.select().from(students).orderBy(asc(students.id));
-  if (rows.length === 0) return STUDENTS;
+export async function getRoster(courseId?: string | null, db: DbExecutor = getDb()): Promise<StudentProfile[]> {
+  const rows = typeof courseId === "string"
+    ? await db.select({ id: students.id, displayName: students.displayName })
+        .from(students)
+        .innerJoin(studentCourses, eq(studentCourses.studentId, students.id))
+        .where(eq(studentCourses.courseId, courseId)).orderBy(asc(students.id))
+    : await db.select().from(students).orderBy(asc(students.id));
+  if (rows.length === 0) return typeof courseId === "string" ? [] : STUDENTS;
 
   const seats = await db.select().from(deviceAssignments);
   const seatOf = new Map(

@@ -1,5 +1,10 @@
 import { createCanvasClient } from "@/lib/canvas/client";
-import { resolveCourseData } from "@/lib/canvas/courseData";
+import { readCourseData, type CourseData } from "@/lib/canvas/courseData";
+import { getCurrentUser } from "@/lib/auth";
+import { canReadAllCourses } from "@/lib/course/access";
+import { resolveStaffCatalog } from "@/lib/canvas/staffCatalog";
+import { CourseSelector } from "../course-selector";
+import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -8,12 +13,23 @@ export const dynamic = "force-dynamic";
  * Canvas接続時は実際の受講生名簿と課題を表示する（F1/F3の連携確認）。
  * 未接続時はデモモードの案内を出す（インメモリ動作）。
  */
-export default async function ClassPage() {
-  const data = await resolveCourseData(createCanvasClient());
+export default async function ClassPage({ searchParams }: { searchParams?: Promise<{ course?: string | string[] }> }) {
+  const actor = await getCurrentUser();
+  if (!canReadAllCourses(actor)) notFound();
+  const client = createCanvasClient();
+  const catalog = await resolveStaffCatalog(actor, client, (await searchParams)?.course);
+  const data: CourseData = catalog.state !== "ok" ? catalog
+    : client && catalog.selected ? await readCourseData(client, catalog.selected) : { state: "empty" };
 
   return (
     <main style={{ maxWidth: "48rem" }}>
       <h1>クラス名簿</h1>
+      {catalog.state === "ok" && <CourseSelector
+        courses={catalog.courses.map(course => String(course.id))}
+        courseId={catalog.selected ? String(catalog.selected.id) : null}
+        labels={Object.fromEntries(catalog.courses.map(course => [String(course.id), course.name]))}
+        emptyLabel="コースを選択"
+      />}
       <p style={{ color: "var(--fg-sub)", marginBottom: "1rem" }}>
         Canvasに登録されている受講生と課題の一覧です。
       </p>
@@ -28,8 +44,7 @@ export default async function ClassPage() {
 
       {data.state === "empty" && (
         <p style={{ color: "var(--fg-sub)" }}>
-          Canvasにコースがまだありません。デモデータ投入（infra/canvas/seed-demo-data.sh）で
-          架空のクラスを作成できます。
+          {catalog.state === "ok" && catalog.courses.length > 0 ? "コースを選択してください。" : "Canvasにコースがまだありません。"}
         </p>
       )}
 

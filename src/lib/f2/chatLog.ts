@@ -1,7 +1,10 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
+import { inCourse } from "@/lib/course/query";
 import { getDb } from "@/lib/db/client";
 import { chatLogs, teacherMessages } from "@/lib/db/schema";
 import { TEACHER_MESSAGE_LIMIT } from "./constants";
+import type { CurrentUser } from "@/lib/auth";
+import { canReadAllCourses } from "@/lib/course/access";
 
 /**
  * AI講師の会話ログ（F2）と、講師から受講生への一言（S6の介入導線）。
@@ -25,6 +28,7 @@ export interface ChatLogEntry {
 /** 1件の会話を記録する。**呼び出し側はマスキング済みの本文を渡すこと** */
 export async function recordChatLog(entry: {
   studentId: string;
+  courseId?: string | null;
   maskedQuestion: string;
   reply?: string;
   blocked: boolean;
@@ -35,6 +39,7 @@ export async function recordChatLog(entry: {
   const db = getDb();
   await db.insert(chatLogs).values({
     studentId: entry.studentId,
+    courseId: entry.courseId ?? null,
     askedAt: new Date(),
     maskedQuestion: entry.maskedQuestion,
     reply: entry.reply ?? null,
@@ -49,12 +54,13 @@ export async function recordChatLog(entry: {
 export async function listChatLogs(
   studentId: string,
   limit = 100,
+  courseId: string | null = null,
 ): Promise<ChatLogEntry[]> {
   const db = getDb();
   const rows = await db
     .select()
     .from(chatLogs)
-    .where(eq(chatLogs.studentId, studentId))
+    .where(and(eq(chatLogs.studentId, studentId), inCourse(chatLogs.courseId, courseId)))
     .orderBy(desc(chatLogs.askedAt))
     .limit(limit);
   return rows.map((r) => ({
@@ -78,12 +84,29 @@ export async function listChatLogs(
  * 名簿を起点にすると、保存されているのに0件に見える
  * （2026-09-02 に本番で実際に踏んだ）。**テーブルにある物を起点にする。**
  */
-export async function listStudentsWithChatLogs(): Promise<string[]> {
+export async function listStudentsWithChatLogs(courseId: string | null = null): Promise<string[]> {
   const db = getDb();
   const rows = await db
     .selectDistinct({ studentId: chatLogs.studentId })
-    .from(chatLogs);
+    .from(chatLogs)
+    .where(inCourse(chatLogs.courseId, courseId));
   return rows.map((r) => r.studentId).sort();
+}
+
+/** Staff-only reads include legacy logs without a course; student reads stay scoped. */
+export async function listStaffChatLogs(actor: CurrentUser): Promise<{
+  studentId: string;
+  logs: ChatLogEntry[];
+}[]> {
+  if (!canReadAllCourses(actor)) throw new Error("Forbidden");
+  const db = getDb();
+  const students = await db.selectDistinct({ studentId: chatLogs.studentId }).from(chatLogs);
+  return Promise.all(students.sort((a, b) => a.studentId.localeCompare(b.studentId)).map(async ({ studentId }) => {
+    const rows = await db.select().from(chatLogs)
+      .where(eq(chatLogs.studentId, studentId))
+      .orderBy(desc(chatLogs.askedAt), desc(chatLogs.id)).limit(50);
+    return { studentId, logs: rows.map(row => ({ ...row, askedAt: row.askedAt.toISOString() })) };
+  }));
 }
 
 /** 退会者データ削除（F5②）で使う */
@@ -114,6 +137,7 @@ export class TeacherMessageError extends Error {}
  */
 export async function sendTeacherMessage(input: {
   studentId: string;
+  courseId?: string | null;
   body: string;
   sentBy?: string;
 }): Promise<TeacherMessage> {
@@ -135,6 +159,7 @@ export async function sendTeacherMessage(input: {
     .insert(teacherMessages)
     .values({
       studentId: input.studentId,
+      courseId: input.courseId ?? null,
       sentAt: new Date(),
       sentBy: input.sentBy ?? null,
       // 前後の空白だけ落とす。改行はプロンプト本文で意味を持つため保つ
@@ -154,12 +179,13 @@ export async function sendTeacherMessage(input: {
 export async function listTeacherMessages(
   studentId: string,
   limit = 20,
+  courseId: string | null = null,
 ): Promise<TeacherMessage[]> {
   const db = getDb();
   const rows = await db
     .select()
     .from(teacherMessages)
-    .where(eq(teacherMessages.studentId, studentId))
+    .where(and(eq(teacherMessages.studentId, studentId), inCourse(teacherMessages.courseId, courseId)))
     .orderBy(desc(teacherMessages.sentAt))
     .limit(limit);
   return rows.map((r) => ({

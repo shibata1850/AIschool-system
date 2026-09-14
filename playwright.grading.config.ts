@@ -12,7 +12,7 @@ if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error("Inv
 
 export default defineConfig({
   testDir: "./e2e/regression",
-  testMatch: "2026-09-10-grading-json.spec.ts",
+  testMatch: ["2026-09-10-grading-json.spec.ts", "2026-09-10-assignment-display.spec.ts"],
   workers: 1, fullyParallel: false, retries: 0, forbidOnly: true,
   timeout: 60_000,
   expect: { timeout: 20_000 },
@@ -25,6 +25,7 @@ export default defineConfig({
   projects: [
     { name: "desktop", use: { viewport: { width: 1920, height: 1080 } } },
     { name: "monitor", use: { viewport: { width: 1366, height: 768 } } },
+    { name: "mobile", use: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true }, testMatch: "2026-09-10-assignment-display.spec.ts" },
   ],
   webServer: {
     command: `node node_modules/next/dist/bin/next dev --webpack -H 127.0.0.1 -p ${port}`,

@@ -1,5 +1,10 @@
 import { createCanvasClient } from "@/lib/canvas/client";
-import { resolveClassSummary } from "@/lib/canvas/classSummary";
+import { readClassSummary, type ClassSummary } from "@/lib/canvas/classSummary";
+import { getCurrentUser } from "@/lib/auth";
+import { canReadAllCourses } from "@/lib/course/access";
+import { resolveStaffCatalog } from "@/lib/canvas/staffCatalog";
+import { CourseSelector } from "../course-selector";
+import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -8,12 +13,23 @@ export const dynamic = "force-dynamic";
  * Canvasの提出・点数から受講生ごとの提出率・平均点を集計して表示する。
  * 出席込みの到達度（S5/S8のF4式）はカスタム層側に残す（未決#11の出席管理が前提）。
  */
-export default async function ClassSummaryPage() {
-  const summary = await resolveClassSummary(createCanvasClient());
+export default async function ClassSummaryPage({ searchParams }: { searchParams?: Promise<{ course?: string | string[] }> }) {
+  const actor = await getCurrentUser();
+  if (!canReadAllCourses(actor)) notFound();
+  const client = createCanvasClient();
+  const catalog = await resolveStaffCatalog(actor, client, (await searchParams)?.course);
+  const summary: ClassSummary = catalog.state !== "ok" ? catalog
+    : client && catalog.selected ? await readClassSummary(client, catalog.selected) : { state: "empty" };
 
   return (
     <main style={{ maxWidth: "52rem" }}>
       <h1>クラス成績サマリ（Canvas）</h1>
+      {catalog.state === "ok" && <CourseSelector
+        courses={catalog.courses.map(course => String(course.id))}
+        courseId={catalog.selected ? String(catalog.selected.id) : null}
+        labels={Object.fromEntries(catalog.courses.map(course => [String(course.id), course.name]))}
+        emptyLabel="コースを選択"
+      />}
       <p style={{ color: "var(--fg-sub)", marginBottom: "1rem" }}>
         Canvasに記録された提出と点数から、受講生ごとの提出状況と平均点をまとめています。
         （出席をふくめた到達度は別画面です）
@@ -25,7 +41,7 @@ export default async function ClassSummaryPage() {
         </p>
       )}
       {summary.state === "empty" && (
-        <p style={{ color: "var(--fg-sub)" }}>Canvasにコースがまだありません。</p>
+        <p style={{ color: "var(--fg-sub)" }}>{catalog.state === "ok" && catalog.courses.length > 0 ? "コースを選択してください。" : "Canvasにコースがまだありません。"}</p>
       )}
       {summary.state === "noAssignment" && (
         <p style={{ color: "var(--fg-sub)" }}>このコースに公開中の課題がありません。</p>

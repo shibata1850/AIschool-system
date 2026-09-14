@@ -1,6 +1,7 @@
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import * as schema from "./schema";
+export type DbExecutor = Pick<NodePgDatabase<typeof schema>, "select" | "selectDistinct" | "insert" | "update" | "delete" | "execute">;
 
 /**
  * 実行時アプリ用のDB接続（権限を絞った aischool_app ロール）。
@@ -29,4 +30,39 @@ function getPool(): Pool {
 
 export function getDb(): NodePgDatabase<typeof schema> {
   return drizzle(getPool(), { schema });
+}
+
+export class WeeklyReportBusyError extends Error {
+  constructor() { super("Weekly report generation or retention is already running"); }
+}
+
+/** Use the supplied DB for every operation; acquiring another pooled connection can deadlock. */
+export async function withWeeklyReportLock<T>(work: (db: NodePgDatabase<typeof schema>) => Promise<T>): Promise<T> {
+  const client = await getPool().connect();
+  const lockId = 1313297234;
+  let acquired = false;
+  let discard = true;
+  try {
+    const result = await client.query<{ acquired: boolean }>(
+      "SELECT pg_try_advisory_lock($1) AS acquired", [lockId],
+    );
+    acquired = result.rows[0]?.acquired === true;
+    discard = false;
+    if (!acquired) throw new WeeklyReportBusyError();
+    // Session lock, not transaction lock: notification claims must commit before HTTP delivery.
+    return await work(drizzle(client, { schema }));
+  } finally {
+    if (acquired) {
+      try {
+        const result = await client.query<{ released: boolean }>(
+          "SELECT pg_advisory_unlock($1) AS released", [lockId],
+        );
+        discard = result.rows[0]?.released !== true;
+      } catch {
+        // Never return a connection with an uncertain session lock to the pool.
+        discard = true;
+      }
+    }
+    client.release(discard);
+  }
 }

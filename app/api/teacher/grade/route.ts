@@ -1,16 +1,21 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createCanvasClient } from "@/lib/canvas/client";
 import { CanvasApiError } from "@/lib/canvas/client";
-import { parseScore, resolveGradebook } from "@/lib/canvas/gradebook";
+import { parseScore, resolveScopedGradebook } from "@/lib/canvas/gradebook";
 import { recordAudit } from "@/lib/audit/log";
 import { getCurrentUser } from "@/lib/auth";
+import { teacherCourseAccess } from "@/lib/course/access";
 
 /**
  * 講師採点をCanvasの成績表へ書き込む（B-3）。
- * 権限（講師・管理者のみ）は proxy.ts の /api/teacher ガードで担保。
- * 採点は講師の操作のため、生徒本人の識別（LTI）なしで実行できる。
+ * ルート内でも講師権限と検証済みLTIコースを確認する。
  */
 export async function POST(request: NextRequest) {
+  const actor = await getCurrentUser();
+  const access = teacherCourseAccess(actor);
+  if (!access) {
+    return new NextResponse("Canvasのコースから講師として起動してください", { status: 403 });
+  }
   const client = createCanvasClient();
   if (!client) {
     // Canvas未接続（デモ）環境では成績反映はできない
@@ -19,18 +24,25 @@ export async function POST(request: NextRequest) {
       { status: 409 },
     );
   }
+  if (!access.courseId) {
+    return new NextResponse("Canvasのコースから講師として起動してください", { status: 403 });
+  }
 
-  let body: { userId?: unknown; score?: unknown; comment?: unknown };
+  let body: { userId?: unknown; assignmentId?: unknown; score?: unknown; comment?: unknown };
   try {
     body = await request.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Invalid body");
   } catch {
     return new NextResponse("リクエストの形式が正しくありません", { status: 400 });
   }
 
-  if (typeof body.userId !== "number" || !Number.isInteger(body.userId)) {
+  if (typeof body.userId !== "number" || !Number.isSafeInteger(body.userId) || body.userId <= 0) {
     return new NextResponse("userId は受講生のCanvas IDを数値で指定してください", {
       status: 400,
     });
+  }
+  if (typeof body.assignmentId !== "number" || !Number.isSafeInteger(body.assignmentId) || body.assignmentId <= 0) {
+    return new NextResponse("採点するCanvas課題を選択してください", { status: 400 });
   }
   const parsed = parseScore(body.score);
   if (!parsed.ok) {
@@ -44,7 +56,7 @@ export async function POST(request: NextRequest) {
   }
 
   // 対象コース・課題はサーバー側で解決し、受講生が名簿にいることを確認する
-  const gb = await resolveGradebook(client);
+  const gb = await resolveScopedGradebook(client, access.courseId, body.assignmentId);
   if (gb.state !== "ok") {
     const message =
       gb.state === "error"
@@ -54,7 +66,7 @@ export async function POST(request: NextRequest) {
   }
   const row = gb.rows.find((r) => r.student.id === body.userId);
   if (!row) {
-    return new NextResponse("その受講生はこのコースの名簿にいません", { status: 400 });
+    return new NextResponse("その受講生はこのコースの名簿にいません", { status: 403 });
   }
 
   try {
@@ -65,7 +77,6 @@ export async function POST(request: NextRequest) {
       parsed.score,
       typeof body.comment === "string" && body.comment.length > 0 ? body.comment : undefined,
     );
-    const actor = await getCurrentUser();
     await recordAudit({
       actorRole: actor.role,
       actorId: actor.viaLti ? actor.userId : undefined,
@@ -74,7 +85,7 @@ export async function POST(request: NextRequest) {
       // 監査ログに氏名は残さない（IDのみ — CLAUDE.md 9章）
       entityId: `course:${gb.course.id}/assignment:${gb.assignment.id}/user:${body.userId}`,
       before: { score: row.score },
-      after: { score: parsed.score },
+      after: { score: parsed.score, courseId: access.courseId },
     });
     return NextResponse.json({ score: result.score ?? parsed.score });
   } catch (error) {

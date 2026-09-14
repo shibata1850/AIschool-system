@@ -9,6 +9,8 @@ import {
 } from "@/lib/f3/store";
 import { syncGradeToCanvas, type GradeSyncResult } from "@/lib/canvas/syncGrade";
 import { getCurrentUser } from "@/lib/auth";
+import { teacherCourseAccess } from "@/lib/course/access";
+import { getCanvasAssignmentLink } from "@/lib/canvas/assignmentLinks";
 
 /**
  * 講師の確認（F3）: 提出済・AI採点済→完了 または 差戻し。
@@ -19,7 +21,10 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const submission = await getSubmissionById(id);
+  const actor = await getCurrentUser();
+  const access = teacherCourseAccess(actor);
+  if (!access) return new NextResponse("このコースへの操作権限がありません", { status: 403 });
+  const submission = await getSubmissionById(id, access.courseId);
   if (!submission) {
     return new NextResponse("提出が見つかりません", { status: 404 });
   }
@@ -27,6 +32,7 @@ export async function POST(
   let body: { action?: unknown; score?: unknown; comment?: unknown };
   try {
     body = await request.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Invalid body");
   } catch {
     return new NextResponse("リクエストの形式が正しくありません", { status: 400 });
   }
@@ -43,6 +49,9 @@ export async function POST(
   }
 
   try {
+    const canvasLink = body.action === "complete"
+      ? await getCanvasAssignmentLink(access.courseId, submission.assignmentId)
+      : undefined;
     const next =
       body.action === "return"
         ? returnToStudent(submission, typeof body.comment === "string" ? body.comment : "")
@@ -64,10 +73,12 @@ export async function POST(
     let canvasSync: GradeSyncResult | undefined;
     if (updated.status === "completed" && updated.teacherScore !== undefined) {
       // 成績確定を到達度の学習記録へ反映する（F3→F4連携）
-      await recordCompletionScore(updated.studentId, updated.teacherScore);
+      await recordCompletionScore(updated.studentId, updated.teacherScore, access.courseId);
 
       canvasSync = await syncGradeToCanvas({
         canvasUserId: updated.canvasUserId,
+        courseId: access.courseId ?? undefined,
+        canvasAssignmentId: canvasLink?.canvasAssignmentId,
         score: updated.teacherScore,
         comment: updated.aiGrade?.feedback,
       });
@@ -76,9 +87,9 @@ export async function POST(
         canvasSync.state === "synced"
           ? { syncedAt: new Date() }
           : { error: canvasSync.reason },
+        access.courseId,
       );
     }
-    const actor = await getCurrentUser();
     await recordAudit({
       actorRole: actor.role,
       actorId: actor.viaLti ? actor.userId : undefined,
@@ -91,6 +102,8 @@ export async function POST(
         teacherScore: updated.teacherScore,
         hasDeviation: updated.hasDeviation,
         canvasSync: canvasSync?.state,
+        courseId: access.courseId,
+        canvasAssignmentId: canvasLink?.canvasAssignmentId,
       },
     });
     return NextResponse.json({

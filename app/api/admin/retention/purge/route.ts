@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { getLtiConfig } from "@/lib/lti/config";
+import { WeeklyReportBusyError } from "@/lib/db/client";
 import { recordAudit } from "@/lib/audit/log";
 import { purgeStudentData } from "@/lib/f3/store";
 import { retentionYears, selectExpired, type Withdrawal } from "@/lib/retention/policy";
@@ -12,10 +14,16 @@ import { retentionYears, selectExpired, type Withdrawal } from "@/lib/retention/
  */
 export async function POST(request: NextRequest) {
   const actor = await getCurrentUser();
+  if (actor.role !== "admin") return new NextResponse("管理者権限が必要です", { status: 403 });
+  const toolUrl = getLtiConfig()?.toolUrl;
+  if (!toolUrl || request.headers.get("origin") !== new URL(toolUrl).origin) {
+    return new NextResponse("送信元を確認できません", { status: 403 });
+  }
 
   let body: { withdrawals?: unknown; confirm?: unknown };
   try {
     body = await request.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Invalid body");
   } catch {
     return new NextResponse("リクエストの形式が正しくありません", { status: 400 });
   }
@@ -37,6 +45,7 @@ export async function POST(request: NextRequest) {
       typeof w !== "object" ||
       w === null ||
       typeof (w as { studentId?: unknown }).studentId !== "string" ||
+      !(w as { studentId: string }).studentId.trim() ||
       typeof (w as { withdrawnAt?: unknown }).withdrawnAt !== "string" ||
       Number.isNaN(new Date((w as { withdrawnAt: string }).withdrawnAt).getTime())
     ) {
@@ -69,17 +78,29 @@ export async function POST(request: NextRequest) {
     // 座席の割当も外す（席の行自体は備品として残る）
     releasedSeats: number;
   }> = [];
+  let auditedCount = 0;
   for (const w of expired) {
-    const result = await purgeStudentData(w.studentId);
-    await recordAudit({
-      actorRole: actor.role,
-      actorId: actor.viaLti ? actor.userId : undefined,
-      action: "delete",
-      entity: "student_data",
-      entityId: w.studentId,
-      before: { withdrawnAt: w.withdrawnAt, ...result },
-    });
-    purged.push({ studentId: w.studentId, ...result });
+    try {
+      const result = await purgeStudentData(w.studentId);
+      purged.push({ studentId: w.studentId, ...result });
+      await recordAudit({
+        actorRole: actor.role,
+        actorId: actor.viaLti ? actor.userId : undefined,
+        action: "delete",
+        entity: "student_data",
+        entityId: w.studentId,
+        before: { withdrawnAt: w.withdrawnAt, ...result },
+      });
+      auditedCount++;
+    } catch (error) {
+      return NextResponse.json({
+        message: error instanceof WeeklyReportBusyError
+          ? "週次レポートまたは保持期限処理が実行中です。完了済みの処理を確認してください"
+          : "処理を中断しました。削除と監査の完了状況を確認してから再実行してください",
+        completedCount: purged.length,
+        auditedCount,
+      }, { status: error instanceof WeeklyReportBusyError ? 503 : 500 });
+    }
   }
 
   return NextResponse.json({

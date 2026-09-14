@@ -38,12 +38,19 @@ export type ClassSummary =
 /**
  * 連携対象コースの公開課題すべてについて提出を集め、受講生ごとに集計する。
  */
-export async function resolveClassSummary(client: CanvasClient | null): Promise<ClassSummary> {
+export async function resolveClassSummary(client: CanvasClient | null, courseId: string | null = null): Promise<ClassSummary> {
   if (!client) return { state: "notConfigured" };
+  if (!courseId?.trim()) return { state: "error", message: "Canvasのコースから講師として起動してください" };
   try {
-    const courses = await client.listCourses();
-    if (courses.length === 0) return { state: "empty" };
-    const course = courses[0];
+    return await readClassSummary(client, await client.getCourseByLtiContext(courseId));
+  } catch (e) {
+    return { state: "error", message: toErrorMessage(e) };
+  }
+}
+
+/** Internal read after the caller has resolved an authorized Canvas course. */
+export async function readClassSummary(client: CanvasClient, course: CanvasCourse): Promise<ClassSummary> {
+  try {
     const [students, assignments] = await Promise.all([
       client.listStudents(course.id),
       client.listAssignments(course.id),

@@ -1,5 +1,8 @@
-import { listChatLogs, listStudentsWithChatLogs } from "@/lib/f2/chatLog";
+import { listStaffChatLogs } from "@/lib/f2/chatLog";
 import { getRoster } from "@/lib/roster";
+import { getCurrentUser } from "@/lib/auth";
+import { canReadAllCourses } from "@/lib/course/access";
+import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -25,18 +28,20 @@ function formatJst(iso: string): string {
 }
 
 export default async function ChatLogsPage() {
+  const actor = await getCurrentUser();
+  if (!canReadAllCourses(actor)) notFound();
   // **記録があるIDを起点にする**（架空名簿を順に引くと、本番のLTI利用者の
   // ログが保存されていても0件に見える — 2026-09-02の不具合）
-  const [studentIds, roster] = await Promise.all([
-    listStudentsWithChatLogs(),
+  const [entries, roster] = await Promise.all([
+    listStaffChatLogs(actor),
     getRoster(),
   ]);
   const withLogs = await Promise.all(
-    studentIds.map(async (studentId) => ({
+    entries.map(async ({ studentId, logs }) => ({
       studentId,
       // 名簿から消えた受講生（退会・別コース）のログも読めるよう、IDで代替する
       displayName: roster.find((s) => s.id === studentId)?.displayName ?? studentId,
-      logs: await listChatLogs(studentId, 50),
+      logs,
     })),
   );
   const total = withLogs.reduce((sum, r) => sum + r.logs.length, 0);

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { recordAudit } from "@/lib/audit/log";
 import { getDeviceAssignment, setDeviceBackup } from "@/lib/f3/store";
 import { getCurrentUser } from "@/lib/auth";
+import { getLtiConfig } from "@/lib/lti/config";
 
 /**
  * S9: 座席の表示デバイスを予備機（モバイルモニター）へ切替/復帰する。
@@ -11,6 +12,14 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ seatNo: string }> },
 ) {
+  const actor = await getCurrentUser();
+  if (actor.role !== "teacher" && actor.role !== "admin") {
+    return new NextResponse("権限がありません", { status: 403 });
+  }
+  const toolUrl = getLtiConfig()?.toolUrl;
+  if (!toolUrl || request.headers.get("origin") !== new URL(toolUrl).origin) {
+    return new NextResponse("送信元を確認できません", { status: 403 });
+  }
   const { seatNo: seatNoText } = await params;
   const seatNo = Number(seatNoText);
   if (!Number.isInteger(seatNo)) {
@@ -21,6 +30,9 @@ export async function POST(
   try {
     body = await request.json();
   } catch {
+    return new NextResponse("リクエストの形式が正しくありません", { status: 400 });
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
     return new NextResponse("リクエストの形式が正しくありません", { status: 400 });
   }
   if (typeof body.usingBackup !== "boolean") {
@@ -41,7 +53,6 @@ export async function POST(
   }
 
   await setDeviceBackup(seatNo, body.usingBackup);
-  const actor = await getCurrentUser();
   await recordAudit({
     actorRole: actor.role,
     actorId: actor.viaLti ? actor.userId : undefined,

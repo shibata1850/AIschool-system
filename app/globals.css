@@ -333,6 +333,16 @@ tbody tr + tr td {
 }
 
 /* ---- 入力欄 -------------------------------------------------------------- */
+.device-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.device-table-scroll button,
+.device-table-scroll th {
+  white-space: nowrap;
+}
+
 .text-input,
 input[type="text"],
 input[type="number"],
@@ -360,3 +370,18 @@ textarea:focus {
 ul {
   padding-left: 1.3rem;
 }
+.legacy-history section {
+  margin-block: 1.5rem;
+}
+.legacy-history article {
+  padding-block: 1rem;
+  border-bottom: 1px solid var(--fg-sub);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.legacy-history p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.legacy-history h2 { font-size: 1.25rem; }
+.legacy-history h3, .legacy-history h4 { font-size: 1rem; }

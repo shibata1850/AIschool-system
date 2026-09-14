@@ -319,7 +319,7 @@ describe("接続失敗時のエラーメッセージ", () => {
   it("成績書き戻し（F3①）でも接続不能の理由が講師に伝わる", async () => {
     const { syncGradeToCanvas } = await import("../syncGrade");
     const result = await syncGradeToCanvas(
-      { canvasUserId: 5, score: 90 },
+      { canvasUserId: 5, score: 90, courseId: "course-a", canvasAssignmentId: 900 },
       clientThatFails(networkFailure("ECONNREFUSED")),
     );
     expect(result.state).toBe("error");
