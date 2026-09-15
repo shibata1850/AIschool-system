@@ -4,6 +4,7 @@ import { getDb } from "@/lib/db/client";
 import { assignments, submissions, students, studentCourses, auditLog } from "@/lib/db/schema";
 import type { CurrentUser } from "@/lib/auth";
 import { allocationScope } from "./allocationPolicy";
+import { currentReportWeek, isReportWeek } from "@/lib/f4/reportWeek";
 
 export class AllocationError extends Error {}
 
@@ -16,9 +17,10 @@ export async function listAllocationOptions(courseId: string) {
   return {roster,exercises};
 }
 
-export async function allocateAssignment(actor:CurrentUser, assignmentId:string, studentIds:string[]) {
+export async function allocateAssignment(actor:CurrentUser, assignmentId:string, studentIds:string[], targetWeek = currentReportWeek(new Date())) {
   const courseId = allocationScope(actor);
   if (!courseId) throw new AllocationError("コースから講師として起動してください。");
+  if (!isReportWeek(targetWeek)) throw new AllocationError("対象週は月曜日の日付で指定してください。");
   const ids = [...new Set(studentIds)];
   if (!ids.length || ids.length > 100) throw new AllocationError("受講生を選択してください。");
   return getDb().transaction(async tx => {
@@ -34,7 +36,7 @@ export async function allocateAssignment(actor:CurrentUser, assignmentId:string,
       .where(and(eq(submissions.courseId,courseId),eq(submissions.assignmentId,assignmentId),inArray(submissions.studentId,ids)));
     const allocated = new Set(existing.map(s=>s.studentId));
     const rows = roster.filter(s=>!allocated.has(s.id)).map(s=>({
-      id:randomUUID(),courseId,assignmentId,studentId:s.id,canvasUserId:s.canvasUserId,
+      id:randomUUID(),courseId,assignmentId,targetWeek,studentId:s.id,canvasUserId:s.canvasUserId,
       status:"not_started",version:1,promptText:"",aiOutputText:"",reflectionText:"",
       isLate:false,hasDeviation:false,versions:[],
     }));
@@ -42,7 +44,7 @@ export async function allocateAssignment(actor:CurrentUser, assignmentId:string,
       await tx.insert(submissions).values(rows);
       await tx.insert(auditLog).values(rows.map(r=>({at:new Date(),actorRole:actor.role,actorId:actor.userId,
         action:"create",entity:"submission",entityId:r.id,
-        after:{assignmentId,studentId:r.studentId,courseId,status:"not_started"},
+        after:{assignmentId,studentId:r.studentId,courseId,targetWeek,status:"not_started"},
       })));
     }
     return {created:rows.length,skipped:ids.length-rows.length};

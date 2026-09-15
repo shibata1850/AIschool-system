@@ -13,6 +13,8 @@ import { canReadAllCourses } from "@/lib/course/access";
 import { staffCourseSelection } from "@/lib/course/staffSelection";
 import { CourseSelector } from "../course-selector";
 import { notFound } from "next/navigation";
+import { currentReportWeek } from "@/lib/f4/reportWeek";
+import { countUnscheduledAssignments } from "@/lib/course/learningRecords";
 
 export const dynamic = "force-dynamic";
 
@@ -40,15 +42,17 @@ export default async function ReportPage({ searchParams }: { searchParams?: Prom
   const access = staffCourseSelection(actor, await listRecordedCourseIds(), (await searchParams)?.course);
   if (!access) notFound();
   const courseId = access.courseId;
+  const throughWeek = currentReportWeek(new Date());
   const [snapshot, allRows] = await Promise.all([
     getLatestWeeklyReport(courseId),
     Promise.all(
       (await getRoster(courseId)).map(async (student) => {
-        const [records, homeStudy] = await Promise.all([
+        const [records, homeStudy, unscheduledCount] = await Promise.all([
           getLessonRecords(student.id, courseId),
           getExternalMasteryForStudent(student.id, courseId),
+          courseId === null ? Promise.resolve(0) : countUnscheduledAssignments(courseId, student.id),
         ]);
-        const weekly = computeWeeklyAchievements(records);
+        const weekly = computeWeeklyAchievements(records.filter(record => record.weekStart <= throughWeek));
         const latest = latestAchievement(weekly);
         const declining = isDeclining(weekly);
         // 到達度はS5と同じ合成値を出す（画面ごとに違う数字が出ると講師が混乱する）。
@@ -59,16 +63,23 @@ export default async function ReportPage({ searchParams }: { searchParams?: Prom
               homeStudy.map((m) => m.score),
             )
           : null;
-        return { student, weekly, latest, declining, combined };
+        return { student, weekly, latest, declining, combined, unscheduledCount };
       }),
     ),
   ]);
   const rows = allRows.filter((row) => row.weekly.length > 0);
+  const unscheduled = allRows.filter(row => row.unscheduledCount > 0);
 
   return (
     <main style={{ maxWidth: "64rem" }}>
       <h1>週次到達度レポート</h1>
       <CourseSelector courses={access.courses} courseId={courseId} />
+
+      {unscheduled.length > 0 && <section aria-label="対象週未設定の課題">
+        <h2 style={{ fontSize: "1.1rem" }}>対象週未設定の課題（週ごとの集計対象外）</h2>
+        <ul>{unscheduled.map(({ student, unscheduledCount }) =>
+          <li key={student.id} style={{ overflowWrap: "anywhere" }}>{student.displayName}: {unscheduledCount}件</li>)}</ul>
+      </section>}
 
       <section
         aria-label="自動生成レポート"
@@ -171,10 +182,10 @@ export default async function ReportPage({ searchParams }: { searchParams?: Prom
                 {combined ? <strong>{combined.total}</strong> : "計測不能"}
               </td>
               <td style={{ padding: "0.6rem" }}>
-                {latest ? `${latest.attendanceRate}%` : "—"}
+                {latest?.attendanceRate != null ? `${latest.attendanceRate}%` : "未記録"}
               </td>
               <td style={{ padding: "0.6rem" }}>
-                {latest ? `${latest.submissionRate}%` : "—"}
+                {latest?.submissionRate != null ? `${latest.submissionRate}%` : "対象課題なし"}
               </td>
               <td style={{ padding: "0.6rem", color: "var(--warn)" }}>
                 {declining ? "停滞（2週連続下降）" : ""}

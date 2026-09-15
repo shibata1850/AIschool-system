@@ -4,6 +4,11 @@ import { allocateAssignment } from "@/lib/f3/allocation";
 import { resetStore, findSubmission, getSubmissionById, hasAssignmentsForStudent, setAttendance, getAttendance, getLessonRecords, recordCompletionScore, purgeStudentData, getAllLessonRecords, getPendingAssignmentsByStudent } from "@/lib/f3/store";
 import { recordChatLog, listChatLogs, listStudentsWithChatLogs, sendTeacherMessage, listTeacherMessages } from "@/lib/f2/chatLog";
 import { saveMastery, getExternalMasteryForStudent } from "@/lib/integration/mastery";
+import { eq } from "drizzle-orm";
+import { getDb } from "@/lib/db/client";
+import { submissions } from "@/lib/db/schema";
+import { generateWeeklyReport, getWeeklyReport } from "@/lib/f4/generateWeeklyReport";
+import { countUnscheduledAssignments } from "@/lib/course/learningRecords";
 
 const student = "fictional-shared-student";
 const teacher = (courseId: string) => ({ role: "teacher" as const, userId: "fictional-teacher", viaLti: true, courseId });
@@ -75,11 +80,18 @@ describe("course-separated persistence", () => {
     expect(await getLessonRecords(student, "course-a")).toHaveLength(1);
   });
 
-  it("updates completion scores only within the submission's course", async () => {
-    await setAttendance(student, "2026-09-07", true, "course-a");
+  it("derives grades from the assigned week without overwriting attendance or another course", async () => {
+    await allocateAssignment(teacher("course-a"), "a1", [student], "2026-09-07");
+    const submission = await findSubmission("a1", student, "course-a");
+    await getDb().update(submissions).set({ status: "completed", teacherScore: 87,
+      submittedAt: "2026-10-01T00:00:00Z" }).where(eq(submissions.id, submission!.id));
     await setAttendance(student, "2026-09-14", true, "course-b");
     await recordCompletionScore(student, 87, "course-a");
-    expect((await getLessonRecords(student, "course-a"))[0]).toMatchObject({ score: 87, submitted: true });
+    expect((await getLessonRecords(student, "course-a"))[0]).toMatchObject({ weekStart: "2026-09-07", score: 87, submitted: true });
+    await setAttendance(student, "2026-09-07", true, "course-a");
+    const records = await getLessonRecords(student, "course-a");
+    expect(records.find(row => row.source === "assignment")).toMatchObject({ score: 87, submitted: true });
+    expect(records.find(row => row.source === "attendance")).toMatchObject({ score: null, attended: true });
     expect((await getLessonRecords(student, "course-b"))[0]).toMatchObject({ score: null, submitted: false });
   });
 
@@ -89,6 +101,32 @@ describe("course-separated persistence", () => {
     expect((await purgeStudentData(student)).hadLessonRecords).toBe(true);
     expect(await getLessonRecords(student, "course-a")).toEqual([]);
     expect(await getLessonRecords(student, "course-b")).toEqual([]);
+  });
+
+  it("stores a report with assigned grades but without future or unscheduled work", async () => {
+    await allocateAssignment(teacher("course-a"), "a1", [student], "2026-09-07");
+    const submission = await findSubmission("a1", student, "course-a");
+    await getDb().update(submissions).set({ status: "completed", teacherScore: 80,
+      submittedAt: "2026-09-14T00:00:00Z" }).where(eq(submissions.id, submission!.id));
+    for (const id of ["future-student", "unscheduled-student"]) {
+      await recordStudentLaunch({ id, displayName: id, courseId: "course-a" });
+      await allocateAssignment(teacher("course-a"), "a1", [id], "2026-09-21");
+    }
+    await getDb().update(submissions).set({ targetWeek: null })
+      .where(eq(submissions.studentId, "unscheduled-student"));
+    expect(await countUnscheduledAssignments("course-a", "unscheduled-student")).toBe(1);
+    expect(await countUnscheduledAssignments("course-b", "unscheduled-student")).toBe(0);
+    expect(await countUnscheduledAssignments("course-a", student)).toBe(0);
+    const pending = await getPendingAssignmentsByStudent("course-a", undefined, "2026-09-14");
+    expect(pending.size).toBe(0);
+    const result = await generateWeeklyReport({ courseId: "course-a", weekStart: "2026-09-14",
+      now: new Date("2026-09-14T01:00:00Z"),
+      notify: async () => ({ state: "skipped", reason: "Isolated test; no external notification" }),
+    });
+    expect(result.report.rows.map(row => row.studentId)).toEqual([student]);
+    expect(result.report.rows[0].latest).toMatchObject({ weekStart: "2026-09-07",
+      averageScore: 80, attendanceRate: null, submissionRate: 100, total: 85 });
+    expect((await getWeeklyReport("2026-09-14", "course-a"))?.report).toEqual(result.report);
   });
 
   it("separates weekly attendance sources for the same student", async () => {

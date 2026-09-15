@@ -8,6 +8,8 @@ import { notFound } from "next/navigation";
 import { courseAccess } from "@/lib/course/access";
 import { getLessonRecords } from "@/lib/f3/store";
 import { getExternalMasteryForStudent } from "@/lib/integration/mastery";
+import { countUnscheduledAssignments } from "@/lib/course/learningRecords";
+import { currentReportWeek } from "@/lib/f4/reportWeek";
 
 export const dynamic = "force-dynamic";
 
@@ -21,8 +23,12 @@ export default async function AchievementPage() {
   const access = courseAccess(actor);
   if (!access) notFound();
   const { userId } = actor;
-  const records = await getLessonRecords(userId, access.courseId);
-  const weekly = computeWeeklyAchievements(records);
+  const throughWeek = currentReportWeek(new Date());
+  const [records, unscheduledCount] = await Promise.all([
+    getLessonRecords(userId, access.courseId),
+    access.courseId === null ? Promise.resolve(0) : countUnscheduledAssignments(access.courseId, userId),
+  ]);
+  const weekly = computeWeeklyAchievements(records.filter(record => record.weekStart <= throughWeek));
   const latest = latestAchievement(weekly);
   // 自宅学習の到達度（eラーニングから受信・E7-c）を教室の到達度と**合成して1つにする**
   // （2026-09-02 柴田さま「到達度は一つに絞る」）。内訳は下に必ず出す（先方 受け入れ基準B-3）
@@ -37,6 +43,8 @@ export default async function AchievementPage() {
   return (
     <main>
       <h1>自分の到達度</h1>
+
+      {unscheduledCount > 0 && <p role="status">対象週未設定の課題: {unscheduledCount}件（週ごとの集計対象外）</p>}
 
       {combined ? (
         <section
@@ -97,8 +105,8 @@ export default async function AchievementPage() {
               <p style={{ fontWeight: "bold" }}>{week.weekStart} の週</p>
               {week.measurable ? (
                 <p>
-                  到達度 {week.total} ／ 出席率 {week.attendanceRate}% ／ 提出率{" "}
-                  {week.submissionRate}%
+                  到達度 {week.total} ／ 出席率 {week.attendanceRate === null ? "未記録" : `${week.attendanceRate}%`} ／ 提出率{" "}
+                  {week.submissionRate === null ? "対象課題なし" : `${week.submissionRate}%`}
                 </p>
               ) : (
                 <p>この週は記録がありません（計測不能）</p>

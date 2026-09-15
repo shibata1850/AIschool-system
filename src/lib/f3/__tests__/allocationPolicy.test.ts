@@ -11,7 +11,10 @@ describe("assignment allocation policy", () => {
     expect(allocationScope({role,userId:"x",viaLti:true,courseId:"a"})).toBe("a");
   });
   it("deduplicates explicit recipients", () => {
-    expect(parseAllocation({assignmentId:"a1",studentIds:["s1","s1"]})).toEqual({assignmentId:"a1",studentIds:["s1"]});
+    expect(parseAllocation({assignmentId:"a1",studentIds:["s1","s1"],targetWeek:"2026-09-14"})).toEqual({assignmentId:"a1",studentIds:["s1"],targetWeek:"2026-09-14"});
+  });
+  it.each([null, "", "2026-09-15", "2026-02-30", 123])("rejects invalid target weeks", targetWeek => {
+    expect(parseAllocation({assignmentId:"a1",studentIds:["s1"],targetWeek})).toBeNull();
   });
   it.each([null, {}, {assignmentId:"a",studentIds:[]}, {assignmentId:"a",studentIds:[42]}, {assignmentId:"a",studentIds:Array(101).fill("s")}])("rejects invalid input", input => {
     expect(parseAllocation(input)).toBeNull();

@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { courseLessonRecords as records } from "@/lib/db/schema";
 
@@ -35,11 +35,8 @@ export async function setCourseAttendance(courseId: string, studentId: string, w
   });
 }
 
-export async function recordCourseCompletionScore(courseId: string, studentId: string, score: number) {
-  const db = getDb();
-  const [latest] = await db.select({ weekStart: records.weekStart }).from(records)
-    .where(and(eq(records.courseId, courseId), eq(records.studentId, studentId)))
-    .orderBy(desc(records.weekStart)).limit(1);
-  if (!latest) return;
-  await db.update(records).set({ submitted: true, score }).where(key(courseId, studentId, latest.weekStart));
+export async function recordCourseCompletionScore(_courseId: string, _studentId: string, _score: number) {
+  // The review transaction already persists the grade. Scoped learning reads derive it from
+  // submissions and target_week; never copy it over an unrelated attendance record.
+  return { state: "derived_from_submissions" as const };
 }

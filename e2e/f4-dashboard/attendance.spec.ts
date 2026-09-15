@@ -34,3 +34,29 @@ test("入力検証: attended が真偽値でないと400", async ({ request }) =
   });
   expect(res.status()).toBe(400);
 });
+
+test("対象週は日本時間の当週月曜で固定デモ日付ではない", async ({ page }) => {
+  const monday = () => {
+    const parts = new Intl.DateTimeFormat("en", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
+    const values = Object.fromEntries(parts.map(p => [p.type, p.value]));
+    const date = new Date(`${values.year}-${values.month}-${values.day}T00:00:00Z`);
+    date.setUTCDate(date.getUTCDate() - (date.getUTCDay() + 6) % 7);
+    return date.toISOString().slice(0, 10);
+  };
+  const before = monday();
+  await setRole(page, "teacher");
+  await page.goto("/teacher/attendance");
+  await expect(page.getByRole("heading", { name: "出席の記録" })).toBeVisible();
+  const expected = [...new Set([before, monday()])];
+  await expect(page.getByText(/^対象週:/)).toHaveText(new RegExp(`対象週: (${expected.join("|")})`));
+});
+
+test("不正な対象週は出席APIで保存しない", async ({ request }) => {
+  for (const weekStart of [null, 123, "2026-09-15", "2026-02-30"]) {
+    const response = await request.post("/api/teacher/attendance", {
+      headers: { cookie: "role=teacher" },
+      data: { studentId: "s02", attended: true, weekStart },
+    });
+    expect(response.status()).toBe(400);
+  }
+});

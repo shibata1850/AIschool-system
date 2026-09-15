@@ -1,8 +1,10 @@
-import { and, desc, eq, inArray, isNotNull, ne, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, lte, ne, or } from "drizzle-orm";
+import { isReportWeek } from "@/lib/f4/reportWeek";
 import type { CurrentUser } from "@/lib/auth";
 import { canReadAllCourses } from "@/lib/course/access";
 import { inCourse } from "@/lib/course/query";
-import { listCourseLessonRecords, getCourseAttendance, setCourseAttendance, recordCourseCompletionScore } from "@/lib/course/lessonRecords";
+import { getCourseAttendance, setCourseAttendance, recordCourseCompletionScore } from "@/lib/course/lessonRecords";
+import { readCourseLearningRecords } from "@/lib/course/learningRecords";
 import { getDb, withWeeklyReportLock, type DbExecutor } from "@/lib/db/client";
 import { redactStoredWeeklyReports } from "@/lib/retention/weeklyReports";
 import {
@@ -320,7 +322,7 @@ export async function listCanvasSyncFailures(courseId: string | null = null): Pr
 
 /** 受講生の学習記録（到達度の入力）を取得する */
 export async function getLessonRecords(studentId: string, courseId: string | null = null): Promise<LessonRecord[]> {
-  if (courseId !== null) return (await listCourseLessonRecords(courseId, studentId)).map(toLessonRecord);
+  if (courseId !== null) return (await readCourseLearningRecords(courseId, studentId)).get(studentId) ?? [];
   const db = getDb();
   const rows = await db
     .select()
@@ -335,12 +337,8 @@ export async function getLessonRecords(studentId: string, courseId: string | nul
  * 受講生ごとに1クエリ投げないための一括版。週順に整列して返す。
  */
 export async function getAllLessonRecords(courseId: string | null = null, db: DbExecutor = getDb()): Promise<Map<string, LessonRecord[]>> {
-  const rows = courseId !== null ? await db
-    .select()
-    .from(courseLessonRecordsTable)
-    .where(eq(courseLessonRecordsTable.courseId, courseId))
-    .orderBy(courseLessonRecordsTable.studentId, courseLessonRecordsTable.weekStart)
-    : await db
+  if (courseId !== null) return readCourseLearningRecords(courseId, undefined, db);
+  const rows = await db
     .select()
     .from(lessonRecordsTable)
     .orderBy(lessonRecordsTable.studentId, lessonRecordsTable.weekStart);
@@ -358,7 +356,8 @@ export async function getAllLessonRecords(courseId: string | null = null, db: Db
  * 受講生ごとの未提出（完了していない）課題名を一括取得する
  * （F4: 週次レポートの「未提出課題一覧」）。
  */
-export async function getPendingAssignmentsByStudent(courseId: string | null = null, db: DbExecutor = getDb()): Promise<Map<string, string[]>> {
+export async function getPendingAssignmentsByStudent(courseId: string | null = null, db: DbExecutor = getDb(), throughWeek?: string): Promise<Map<string, string[]>> {
+  if (throughWeek !== undefined && !isReportWeek(throughWeek)) throw new Error("Invalid report week");
   const rows = await db
     .select({
       studentId: submissionsTable.studentId,
@@ -366,7 +365,8 @@ export async function getPendingAssignmentsByStudent(courseId: string | null = n
     })
     .from(submissionsTable)
     .innerJoin(assignmentsTable, eq(submissionsTable.assignmentId, assignmentsTable.id))
-    .where(and(inCourse(submissionsTable.courseId, courseId), ne(submissionsTable.status, "completed")))
+    .where(and(inCourse(submissionsTable.courseId, courseId), ne(submissionsTable.status, "completed"),
+      throughWeek === undefined ? undefined : lte(submissionsTable.targetWeek, throughWeek)))
     .orderBy(submissionsTable.studentId, assignmentsTable.title);
 
   const byStudent = new Map<string, string[]>();
@@ -586,11 +586,13 @@ async function purgeStudentDataInConnection(studentId: string, db: DbExecutor) {
 }
 
 /**
- * 講師の成績確定を最新の授業コマ記録へ反映する（F3→F4連携）。
- * 記録がない受講生（学習記録の収集前）は何もしない。
+ * コース付きの成績は提出から集計する。旧記録のみ従来の互換処理を使う。
  */
 export async function recordCompletionScore(studentId: string, score: number, courseId: string | null = null): Promise<void> {
-  if (courseId !== null) return recordCourseCompletionScore(courseId, studentId, score);
+  if (courseId !== null) {
+    await recordCourseCompletionScore(courseId, studentId, score);
+    return;
+  }
   const db = getDb();
   const [latest] = await db
     .select({ weekStart: lessonRecordsTable.weekStart })

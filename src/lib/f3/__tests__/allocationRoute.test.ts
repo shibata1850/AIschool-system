@@ -22,9 +22,13 @@ describe("allocation API",()=>{
     expect((await POST(request({assignmentId:"a",studentIds:[]}))).status).toBe(400);
   });
   it("uses verified course, not a body override",async()=>{
-    const res=await POST(request({assignmentId:"a",studentIds:["s"],courseId:"other"}));
+    const res=await POST(request({assignmentId:"a",studentIds:["s"],courseId:"other",targetWeek:"2026-09-14"}));
     expect(res.status).toBe(200);
-    expect(mocks.allocate).toHaveBeenCalledWith(expect.objectContaining({courseId:"c"}),"a",["s"]);
+    expect(mocks.allocate).toHaveBeenCalledWith(expect.objectContaining({courseId:"c"}),"a",["s"],"2026-09-14");
+  });
+  it.each([null,"2026-09-15",123])("rejects invalid target weeks before allocation", async targetWeek => {
+    expect((await POST(request({assignmentId:"a",studentIds:["s"],targetWeek}))).status).toBe(400);
+    expect(mocks.allocate).not.toHaveBeenCalled();
   });
   it("does not disclose database errors",async()=>{
     mocks.allocate.mockRejectedValue(new Error("PRIVATE_DATA"));

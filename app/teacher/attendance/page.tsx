@@ -1,4 +1,5 @@
-import { CURRENT_LESSON_WEEK, getAttendance } from "@/lib/f3/store";
+import { getAttendance } from "@/lib/f3/store";
+import { currentReportWeek } from "@/lib/f4/reportWeek";
 import { getRoster, listRecordedCourseIds } from "@/lib/roster";
 import { getCurrentUser } from "@/lib/auth";
 import { canReadAllCourses } from "@/lib/course/access";
@@ -18,10 +19,11 @@ export default async function AttendancePage({ searchParams }: { searchParams?: 
   if (!canReadAllCourses(actor)) notFound();
   const access = staffCourseSelection(actor, await listRecordedCourseIds(), (await searchParams)?.course);
   if (!access) notFound();
+  const weekStart = currentReportWeek(new Date());
   const rows = await Promise.all(
     (await getRoster(access.courseId)).map(async (s) => ({
       student: s,
-      initial: await getAttendance(s.id, CURRENT_LESSON_WEEK, access.courseId),
+      initial: await getAttendance(s.id, weekStart, access.courseId),
     })),
   );
 
@@ -31,7 +33,7 @@ export default async function AttendancePage({ searchParams }: { searchParams?: 
       <CourseSelector courses={access.courses} courseId={access.courseId} />
       {!access.canEdit && <p className="muted">閲覧のみ（起動元コース外の記録）</p>}
       <p className="lead">
-        対象週: {CURRENT_LESSON_WEEK}
+        対象週: {weekStart}
       </p>
       <div>
         {rows.map(({ student: s, initial }) => (
@@ -40,7 +42,7 @@ export default async function AttendancePage({ searchParams }: { searchParams?: 
             studentId={s.id}
             displayName={s.displayName}
             seatNo={s.seatNo}
-            weekStart={CURRENT_LESSON_WEEK}
+            weekStart={weekStart}
             initial={initial}
           /> : <p key={s.id}>{s.seatNo}. {s.displayName} ／ {initial === true ? "出席" : initial === false ? "欠席" : "未記録"}</p>
         ))}

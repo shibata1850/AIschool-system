@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { allocationScope } from "@/lib/f3/allocationPolicy";
 import { listAllocationOptions } from "@/lib/f3/allocation";
 import { AllocationForm } from "./allocation-form";
+import { currentReportWeek } from "@/lib/f4/reportWeek";
 
 export const dynamic = "force-dynamic";
 export default async function AssignmentsPage() {
@@ -15,6 +16,6 @@ export default async function AssignmentsPage() {
     <p><Link href="/teacher/assignment-links">Canvas課題の対応</Link></p>
     {!exercises.length ? <p>登録されている課題がありません。</p> :
       !roster.length ? <p>このコースの受講生の起動記録はまだありません。</p> :
-      <AllocationForm roster={roster} exercises={exercises} />}
+      <AllocationForm roster={roster} exercises={exercises} initialWeek={currentReportWeek(new Date())} />}
   </main>;
 }

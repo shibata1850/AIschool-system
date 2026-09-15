@@ -31,11 +31,27 @@ test("production build serves sixteen independent students", async ({ browser, b
     const pages = await Promise.all(contexts.map(context => context.newPage()));
     for (let round = 0; round < 4; round++) {
       const assignment = `production-load-round-${round}`;
+      // Separate authenticated HTML fetching from simultaneous browser rendering.
+      const htmlFetch = await Promise.all(contexts.map(async context => {
+        const start = Date.now();
+        const response = await context.request.get(`${baseURL}/`);
+        expect(response.status()).toBe(200);
+        await response.body();
+        return Date.now() - start;
+      }));
       const navigation = await Promise.all(pages.map(async page => {
         const start = Date.now();
         expect((await page.goto(`${baseURL}/`, { waitUntil: "domcontentloaded" }))?.status()).toBe(200);
         return Date.now() - start;
       }));
+      const browserTiming = await Promise.all(pages.map(page => page.evaluate(() => {
+        const timing = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming;
+        return {
+          ttfb: timing.responseStart - timing.requestStart,
+          htmlTransfer: timing.responseEnd - timing.responseStart,
+          afterHtml: Math.max(0, timing.domContentLoadedEventStart - timing.responseEnd),
+        };
+      })));
       const submission = await Promise.all(contexts.map(async (context, i) => {
         const start = Date.now();
         const response = await context.request.post(`${baseURL}/api/exercises/${assignment}/submit`, {
@@ -56,6 +72,10 @@ test("production build serves sixteen independent students", async ({ browser, b
       };
       const navigationStats = summarize(navigation);
       const submissionStats = summarize(submission);
+      console.log(JSON.stringify({ environment: "local-production-fixture", method: "html-probe-before-navigation-v1", round,
+        htmlFetch: summarize(htmlFetch), browserTtfb: summarize(browserTiming.map(t => t.ttfb)),
+        browserHtmlTransfer: summarize(browserTiming.map(t => t.htmlTransfer)),
+        browserAfterHtml: summarize(browserTiming.map(t => t.afterHtml)) }));
       console.log(JSON.stringify({ environment: "local-production-fixture", phase: round === 0 ? "warmup" : "measurement", round, navigation: navigationStats, submission: submissionStats, navigationTargetMet: navigationStats.p90 <= 3000, submissionTargetMet: submissionStats.p90 <= 5000 }));
     }
   } finally {

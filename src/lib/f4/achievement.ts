@@ -26,6 +26,8 @@ export const DEFAULT_WEIGHTS: AchievementWeights = {
 
 /** 授業コマ1回分の学習記録 */
 export interface LessonRecord {
+  /** Legacy records omit this and contribute to both denominators. */
+  source?: "attendance" | "assignment";
   lessonId: string;
   /** 週の月曜（ISO日付）。週次集計のキー */
   weekStart: string;
@@ -41,8 +43,8 @@ export interface WeeklyAchievement {
   weekStart: string;
   /** false = 計測不能（その週の全コマがデータ欠損） */
   measurable: boolean;
-  attendanceRate: number;
-  submissionRate: number;
+  attendanceRate: number | null;
+  submissionRate: number | null;
   /** その週に採点済スコアが1件もなければ null（重みを再配分して算出） */
   averageScore: number | null;
   /** 到達度スコア（0-100・小数第1位） */
@@ -94,13 +96,15 @@ export function computeWeeklyAchievements(
         };
       }
 
-      const attendanceRate = round1(
-        (usable.filter((r) => r.attended).length / usable.length) * 100,
-      );
-      const submissionRate = round1(
-        (usable.filter((r) => r.submitted).length / usable.length) * 100,
-      );
-      const scores = usable
+      const attendance = usable.filter(r => r.source !== "assignment");
+      const assignments = usable.filter(r => r.source !== "attendance");
+      const attendanceRate = attendance.length ? round1(
+        (attendance.filter((r) => r.attended).length / attendance.length) * 100,
+      ) : null;
+      const submissionRate = assignments.length ? round1(
+        (assignments.filter((r) => r.submitted).length / assignments.length) * 100,
+      ) : null;
+      const scores = assignments
         .map((r) => r.score)
         .filter((s): s is number => s !== null);
       const averageScore =
@@ -108,21 +112,14 @@ export function computeWeeklyAchievements(
           ? round1(scores.reduce((a, b) => a + b, 0) / scores.length)
           : null;
 
-      // 採点済スコアがない週は、スコアの重みを提出率・出席率へ比例配分して算出する
-      let total: number;
-      if (averageScore !== null) {
-        total =
-          averageScore * weights.score +
-          submissionRate * weights.submission +
-          attendanceRate * weights.attendance;
-      } else {
-        const rest = weights.submission + weights.attendance;
-        total =
-          rest === 0
-            ? 0
-            : submissionRate * (weights.submission / rest) +
-              attendanceRate * (weights.attendance / rest);
-      }
+      // Unrecorded attendance is unknown, not an absence. Redistribute only over measured inputs.
+      const measures = [
+        { value: averageScore, weight: weights.score },
+        { value: submissionRate, weight: weights.submission },
+        { value: attendanceRate, weight: weights.attendance },
+      ].filter((m): m is { value: number; weight: number } => m.value !== null);
+      const weight = measures.reduce((sum, m) => sum + m.weight, 0);
+      const total = weight ? measures.reduce((sum, m) => sum + m.value * m.weight, 0) / weight : 0;
 
       return {
         weekStart,

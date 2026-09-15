@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { CURRENT_LESSON_WEEK, setAttendance } from "@/lib/f3/store";
+import { setAttendance } from "@/lib/f3/store";
+import { currentReportWeek, isReportWeek } from "@/lib/f4/reportWeek";
 import { getRoster } from "@/lib/roster";
 import { recordAudit } from "@/lib/audit/log";
 import { getCurrentUser } from "@/lib/auth";
@@ -16,6 +17,7 @@ export async function POST(request: NextRequest) {
   let body: { studentId?: unknown; weekStart?: unknown; attended?: unknown };
   try {
     body = await request.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Invalid body");
   } catch {
     return new NextResponse("リクエストの形式が正しくありません", { status: 400 });
   }
@@ -25,9 +27,10 @@ export async function POST(request: NextRequest) {
   if (typeof body.attended !== "boolean") {
     return new NextResponse("attended は true/false で指定してください", { status: 400 });
   }
-  // 週は既定で当該コマ。指定がある場合は文字列のみ許可
-  const weekStart =
-    typeof body.weekStart === "string" ? body.weekStart : CURRENT_LESSON_WEEK;
+  const weekStart = body.weekStart === undefined ? currentReportWeek(new Date()) : body.weekStart;
+  if (!isReportWeek(weekStart)) {
+    return new NextResponse("対象週は月曜日の日付（YYYY-MM-DD）で指定してください", { status: 400 });
+  }
 
   // 名簿にいる受講生のみ（架空のデモ名簿で検証）
   if (!(await getRoster(access.courseId)).some((s) => s.id === body.studentId)) {

@@ -107,6 +107,66 @@ test("staff review shows both courses while other-course actions remain unavaila
   await expect(other.getByRole("button")).toHaveCount(0);
 });
 
+test("assigned teaching week keeps a late grade visible before and after attendance", async ({ page }) => {
+  await query("UPDATE submissions SET target_week='2026-09-07', status='completed', teacher_score=80, submitted_at='2026-10-01T00:00:00Z' WHERE id=$1", [submissionA]);
+  const token = await new SignJWT({ role: "student", courseId: courseA })
+    .setProtectedHeader({ alg: "HS256" }).setSubject(studentA)
+    .setIssuedAt().setExpirationTime("10m")
+    .sign(new TextEncoder().encode(process.env.LTI_SESSION_SECRET));
+  await page.context().addCookies([{ name: "lti_session", value: token, domain: "localhost", path: "/" }]);
+  await page.goto("/achievement");
+  const week = page.getByRole("listitem", { name: "2026-09-07の週", exact: true });
+  await expect(week).toContainText("到達度 85");
+  await expect(week).toContainText("出席率 未記録");
+  await expect(week).toContainText("提出率 100%");
+  await expect(page.getByRole("listitem", { name: "2026-09-28の週", exact: true })).toHaveCount(0);
+  await login(page);
+  const response = await page.request.post("/api/teacher/attendance", {
+    data: { studentId: studentA, weekStart: "2026-09-07", attended: true },
+  });
+  expect(response.status()).toBe(200);
+  await page.context().addCookies([{ name: "lti_session", value: token, domain: "localhost", path: "/" }]);
+  await page.reload();
+  await expect(week).toContainText("到達度 88");
+  await expect(week).toContainText("出席率 100%");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await query("UPDATE submissions SET target_week='2099-01-05' WHERE id=$1", [submissionA]);
+  await page.reload();
+  await expect(page.getByRole("listitem", { name: "2099-01-05の週", exact: true })).toHaveCount(0);
+  await expect(week).toContainText("対象課題なし");
+  await query("UPDATE submissions SET target_week=NULL WHERE id=$1", [submissionA]);
+  await page.reload();
+  await expect(page.getByRole("status")).toHaveText("対象週未設定の課題: 1件（週ごとの集計対象外）");
+  await login(page);
+  await page.goto("/teacher/report");
+  await expect(page.getByRole("region", { name: "対象週未設定の課題", exact: true }))
+    .toContainText("架空コースA受講生: 1件");
+  await query("UPDATE submissions SET target_week='2099-01-05' WHERE id=$1", [submissionA]);
+  await page.reload();
+  await expect(page.getByRole("region", { name: "対象週未設定の課題", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("row").filter({ hasText: "架空コースA受講生" })).toContainText("対象課題なし");
+});
+
+test("teacher selects a teaching week and reallocation preserves the original week", async ({ page }) => {
+  const id = "fictional-week-allocation";
+  await query("INSERT INTO students (id,display_name,first_seen_at,last_seen_at) VALUES ($1,$2,now(),now())",
+    [id, "架空対象週受講生"]);
+  await query("INSERT INTO student_courses (student_id,course_id,last_seen_at) VALUES ($1,$2,now())", [id, courseA]);
+  await page.goto("/teacher/assignments");
+  await page.getByLabel("対象週（月曜日）").fill("2026-09-07");
+  await page.getByRole("combobox", { name: "課題", exact: true }).selectOption("a1");
+  await page.getByRole("checkbox", { name: "架空対象週受講生", exact: true }).check();
+  await page.getByRole("button", { name: "選択した1人に割り当てる", exact: true }).click();
+  await expect(page.getByRole("status")).toHaveText("割り当てました（新規1件・割当済み0件）");
+  const stored = await query("SELECT target_week,course_id FROM submissions WHERE student_id=$1", [id]);
+  expect(stored.rows).toEqual([{ target_week: "2026-09-07", course_id: courseA }]);
+  await page.getByLabel("対象週（月曜日）").fill("2026-09-14");
+  await page.getByRole("button", { name: "選択した1人に割り当てる", exact: true }).click();
+  await expect(page.getByRole("status")).toHaveText("割り当てました（新規0件・割当済み1件）");
+  expect((await query("SELECT target_week,course_id FROM submissions WHERE student_id=$1", [id])).rows).toEqual(stored.rows);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
 test("sixteen distinct students read and submit concurrently without mixing records", async ({ browser, baseURL, page }) => {
   test.setTimeout(180_000);
   const ids = Array.from({ length: 16 }, (_, i) => `fictional-concurrent-${i + 1}`);

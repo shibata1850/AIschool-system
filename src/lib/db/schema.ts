@@ -29,6 +29,8 @@ export const assignments = pgTable("assignments", {
 export const submissions = pgTable("submissions", {
   id: text("id").primaryKey(),
   courseId: text("course_id"),
+  /** Explicit teaching week; NULL legacy records must not be inferred from submission dates. */
+  targetWeek: text("target_week"),
   assignmentId: text("assignment_id")
     .notNull()
     .references(() => assignments.id),

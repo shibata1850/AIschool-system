@@ -10,6 +10,10 @@ import { prepareProductionFixture } from './production-fixture.mjs';
 import { createCanvasFixture } from './canvas-fixture.mjs';
 
 const baseline = process.argv.includes('--baseline');
+const attendance = process.argv.includes('--attendance');
+if (attendance && (!process.argv.includes('--e2e') || baseline || process.argv.includes('--course-isolation') || process.argv.includes('--production-load'))) {
+  throw new Error('--attendance requires --e2e without other suite flags');
+}
 const productionLoad = process.argv.includes('--production-load');
 if (productionLoad && (baseline || !process.argv.includes('--e2e') || !process.argv.includes('--course-isolation'))) {
   throw new Error('--production-load requires --e2e --course-isolation without --baseline');
@@ -136,6 +140,7 @@ try {
     }
     const startedAt = Date.now();
     const args = ['node_modules/@playwright/test/cli.js', 'test', productionLoad ? '--config=playwright.production-load.config.ts' : courseIsolation ? '--config=playwright.course-isolation.config.ts' : '--config=playwright.grading.config.ts'];
+    if (attendance) args[2] = '--config=playwright.attendance.config.ts';
     if (baseline) args.push('--grep', 'AI grading (FENCE|PLAIN)');
     const code = await run(args, baseline);
     if (baseline) {

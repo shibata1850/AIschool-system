@@ -2,7 +2,8 @@
 import { useState } from "react";
 import { postJson } from "@/lib/client/postJson";
 
-export function AllocationForm({roster,exercises}:{roster:{id:string;displayName:string}[];exercises:{id:string;title:string}[]}) {
+export function AllocationForm({roster,exercises,initialWeek}:{roster:{id:string;displayName:string}[];exercises:{id:string;title:string}[];initialWeek:string}) {
+  const [targetWeek,setTargetWeek] = useState(initialWeek);
   const [assignmentId,setAssignmentId] = useState("");
   const [selected,setSelected] = useState<string[]>([]);
   const [busy,setBusy] = useState(false);
@@ -12,12 +13,16 @@ export function AllocationForm({roster,exercises}:{roster:{id:string;displayName
     e.preventDefault();
     if (busy) return;
     setBusy(true);setMessage("");setError("");
-    const result = await postJson<{created:number;skipped:number}>("/api/teacher/assignments",{assignmentId,studentIds:selected});
+    const result = await postJson<{created:number;skipped:number}>("/api/teacher/assignments",{assignmentId,studentIds:selected,targetWeek});
     setBusy(false);
     if (!result.ok) {setError(result.message);return;}
     setMessage(`割り当てました（新規${result.data.created}件・割当済み${result.data.skipped}件）`);
   }
   return <form onSubmit={submit} style={{display:"grid",gap:"1rem"}}>
+    <label htmlFor="allocation-week">対象週（月曜日）</label>
+    <input id="allocation-week" type="date" required disabled={busy} value={targetWeek}
+      onChange={e=>{setTargetWeek(e.target.value);setMessage("");}}
+      style={{width:"100%",minWidth:0,minHeight:44,fontSize:"1rem",boxSizing:"border-box"}} />
     <label htmlFor="allocation-exercise">課題</label>
     <select id="allocation-exercise" value={assignmentId} disabled={busy} required onChange={e=>{setAssignmentId(e.target.value);setMessage("");}}
       style={{width:"100%",minWidth:0,minHeight:44,fontSize:"1rem"}}>

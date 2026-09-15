@@ -43,11 +43,10 @@ export async function generateWeeklyReport(options: {
   if (!isReportWeek(weekStart)) throw new Error("Report week must be a valid Monday");
 
   return withWeeklyReportLock(async (db) => {
-    const [recordsByStudent, pendingByStudent, students] = await Promise.all([
-      getAllLessonRecords(courseId, db),
-      getPendingAssignmentsByStudent(courseId, db),
-      getRoster(courseId, db),
-    ]);
+    // The lock owns a single connection; do not submit overlapping queries to it.
+    const recordsByStudent = await getAllLessonRecords(courseId, db);
+    const pendingByStudent = await getPendingAssignmentsByStudent(courseId, db, weekStart);
+    const students = await getRoster(courseId, db);
     const report = buildWeeklyReport({ weekStart, students, recordsByStudent, pendingByStudent });
     const generationId = await saveCourseReport(courseId, report, now, db);
     if (!await claimCourseReportNotification(courseId, weekStart, generationId, db)) {

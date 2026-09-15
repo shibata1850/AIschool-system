@@ -27,11 +27,27 @@ describe("course report generation", () => {
     expect(mocks.records).not.toHaveBeenCalled();
     expect(mocks.notify).not.toHaveBeenCalled();
   });
+  it("serializes reads on the dedicated report connection", async () => {
+    let active = 0;
+    let peak = 0;
+    const read = <T>(value: T) => async () => {
+      active += 1;
+      peak = Math.max(peak, active);
+      await Promise.resolve();
+      active -= 1;
+      return value;
+    };
+    mocks.records.mockImplementationOnce(read(new Map()));
+    mocks.pending.mockImplementationOnce(read(new Map()));
+    mocks.roster.mockImplementationOnce(read([]));
+    await generate("course-a");
+    expect(peak).toBe(1);
+  });
   it("uses one course for roster, sources, persistence and notification", async () => {
     const result = await generate("course-a");
     expect(mocks.roster).toHaveBeenCalledWith("course-a", mocks.db);
     expect(mocks.records).toHaveBeenCalledWith("course-a", mocks.db);
-    expect(mocks.pending).toHaveBeenCalledWith("course-a", mocks.db);
+    expect(mocks.pending).toHaveBeenCalledWith("course-a", mocks.db, "2026-09-07");
     expect(mocks.save).toHaveBeenCalledWith("course-a", result.report, now, mocks.db);
     expect(mocks.claim).toHaveBeenCalledWith("course-a", result.report.weekStart, "generation-a", mocks.db);
     expect(mocks.notify).toHaveBeenCalledWith(result.report, undefined, "course-a");

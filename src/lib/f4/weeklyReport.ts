@@ -119,8 +119,8 @@ function summarizeReportRows(weekStart: string, rows: WeeklyReportRow[]): Weekly
     summary: {
       studentCount: rows.length,
       averageAchievement: averageOrNull(measurable.map((l) => l.total)),
-      averageAttendanceRate: averageOrNull(measurable.map((l) => l.attendanceRate)),
-      averageSubmissionRate: averageOrNull(measurable.map((l) => l.submissionRate)),
+      averageAttendanceRate: averageOrNull(measurable.map((l) => l.attendanceRate).filter((v): v is number => v !== null)),
+      averageSubmissionRate: averageOrNull(measurable.map((l) => l.submissionRate).filter((v): v is number => v !== null)),
       decliningCount: rows.filter((r) => r.declining).length,
       withPendingCount: rows.filter((r) => r.pendingAssignments.length > 0).length,
     },
