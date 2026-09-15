@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { setRole } from "../helpers";
+import { measureTutorReply } from "../tutor-timing";
 
 // Checks browser -> API -> provider prompt transport; real answers require production verification.
 for (const question of [
@@ -7,11 +8,15 @@ for (const question of [
   "STEP03では何をしますか",
   "顧客の氏名と電話番号を1つのテーブルにまとめて持つ設計で大丈夫ですか",
 ]) {
-  test(`concise tutor policy reaches provider: ${question}`, async ({ page, request }) => {
+  test(`concise tutor policy reaches provider: ${question}`, async ({ page, request }, testInfo) => {
     await setRole(page, "student");
     await page.goto("/chat");
     await page.getByLabel("質問（しつもん）").fill(question);
-    await page.getByRole("button", { name: "きく", exact: true }).click();
+    const timing = await measureTutorReply(page);
+    await testInfo.attach("tutor-visible-timing", {
+      body: JSON.stringify({ ...timing, environment: "isolated-local-fixture", acceptance: "not-evaluated" }),
+      contentType: "application/json",
+    });
     const answer = page.getByText("AI講師:");
     await expect(answer).toContainText("講師に確認してください");
     await expect(answer).toHaveCSS("white-space", "pre-wrap");

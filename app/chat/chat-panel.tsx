@@ -4,8 +4,10 @@ import { useRef, useState } from "react";
 import { postJson } from "@/lib/client/postJson";
 import { QUESTION_LIMIT } from "@/lib/f2/constants";
 import { OutageNoticeBox, type OutageNotice } from "./outage-notice";
+import { TimedReply } from "./timed-reply";
 
 interface ChatEntry {
+  startedAt: number;
   question: string; // マスキング済みの質問のみ保持する
   reply?: string;
   blocked: boolean;
@@ -57,6 +59,7 @@ export function ChatPanel({ initialOutage }: { initialOutage: OutageNotice | nul
   }
 
   async function ask() {
+    const startedAt = performance.now();
     setError("");
     setThinking(true);
     canceledRef.current = false;
@@ -94,6 +97,7 @@ export function ChatPanel({ initialOutage }: { initialOutage: OutageNotice | nul
     setEntries((prev) => [
       ...prev,
       {
+        startedAt,
         question: answer.maskedQuestion,
         reply: answer.reply,
         blocked: answer.blocked,
@@ -125,7 +129,7 @@ export function ChatPanel({ initialOutage }: { initialOutage: OutageNotice | nul
                 この質問にはお答えできません。講師にご相談ください
               </p>
             ) : (
-              <p style={{ whiteSpace: "pre-wrap" }}>AI講師: {entry.reply}</p>
+              <TimedReply reply={entry.reply} startedAt={entry.startedAt} />
             )}
           </li>
         ))}
