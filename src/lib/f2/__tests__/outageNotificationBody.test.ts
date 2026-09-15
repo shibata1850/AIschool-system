@@ -1,8 +1,31 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildOutageNotificationBody } from "../notifyOutage";
+import { buildOutageNotificationBody, notifyAiOutage } from "../notifyOutage";
+import type { CanvasClient } from "@/lib/canvas/client";
+
+vi.mock("../outage", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../outage")>(),
+  recordOutageNotification: vi.fn(),
+}));
 
 describe("outage notification guidance", () => {
   afterEach(() => vi.unstubAllEnvs());
+
+  it.each(["", "https://example.com/material"])("uses an accurate subject with material URL %s", async (url) => {
+    vi.stubEnv("STATIC_MATERIAL_URL", url);
+    const createConversation = vi.fn().mockResolvedValue([]);
+    const client = {
+      listCourses: vi.fn().mockResolvedValue([{ id: 1 }]),
+      listTeachers: vi.fn().mockResolvedValue([{ id: 2 }]),
+      createConversation,
+    } as unknown as CanvasClient;
+    const result = await notifyAiOutage("2026-09-15T04:00:00Z", client);
+    expect(result).toEqual({ state: "sent", recipientCount: 1 });
+    expect(createConversation).toHaveBeenCalledExactlyOnceWith(
+      [2],
+      "【AI講師 停止】受講生の画面に停止案内を表示しています",
+      expect.any(String),
+    );
+  });
 
   it("directs students to the teacher when no material is configured", () => {
     vi.stubEnv("STATIC_MATERIAL_URL", "");

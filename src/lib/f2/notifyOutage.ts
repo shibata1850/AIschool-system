@@ -84,7 +84,7 @@ async function send(since: string, client: CanvasClient | null): Promise<NotifyR
     }
     await client.createConversation(
       [...recipientIds],
-      "【AI講師 停止】受講生の画面は教材への案内に切り替わっています",
+      "【AI講師 停止】受講生の画面に停止案内を表示しています",
       buildOutageNotificationBody(since, monitorUrl()),
     );
     return { state: "sent", recipientCount: recipientIds.size };
