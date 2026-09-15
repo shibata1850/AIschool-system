@@ -35,8 +35,10 @@ export function buildOutageNotificationBody(since: string, monitorUrl?: string):
   if (material) lines.push("・分からないことは講師に聞いてください");
   lines.push(
     "",
-    "復旧すると自動で元に戻ります（1分ごとに再試行しています）。",
-    "受講生には口頭で「教材で先に進めてください」と伝えてください。",
+    "停止中も、一定間隔を空けて質問が送られた際に再試行します。応答に成功すると自動で元に戻ります。",
+    material
+      ? "受講生には口頭で「教材で先に進めてください」と伝えてください。"
+      : "受講生には口頭で「分からないことは講師に聞いてください」と伝えてください。",
   );
   if (monitorUrl) lines.push("", `状況: ${monitorUrl}`);
   return lines.join("\n");
