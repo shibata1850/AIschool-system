@@ -8,8 +8,13 @@ import net from 'node:net';
 import http from 'node:http';
 import { prepareProductionFixture } from './production-fixture.mjs';
 import { createCanvasFixture } from './canvas-fixture.mjs';
+import { createTutorFixture } from './tutor-fixture.mjs';
 
 const baseline = process.argv.includes('--baseline');
+const tutor = process.argv.includes('--tutor');
+if (tutor && (!process.argv.includes('--e2e') || ['--baseline', '--attendance', '--course-isolation', '--production-load'].some(flag => process.argv.includes(flag)))) {
+  throw new Error('--tutor requires --e2e without other suite flags');
+}
 const attendance = process.argv.includes('--attendance');
 if (attendance && (!process.argv.includes('--e2e') || baseline || process.argv.includes('--course-isolation') || process.argv.includes('--production-load'))) {
   throw new Error('--attendance requires --e2e without other suite flags');
@@ -60,8 +65,10 @@ let fixture;
 async function startFixture() {
   let seen = false;
   const canvasFixture = createCanvasFixture();
+  const tutorFixture = createTutorFixture();
   fixture = http.createServer(async (req, res) => {
     res.setHeader('content-type', 'application/json');
+    if (tutor && await tutorFixture(req, res)) return;
     if (courseIsolation && await canvasFixture(req, res)) return;
     if (req.url === '/seen-invalid') return res.end(JSON.stringify({ seen }));
     if (req.url === '/reset-fixture') { seen = false; return res.end('{}'); }
@@ -141,6 +148,7 @@ try {
     const startedAt = Date.now();
     const args = ['node_modules/@playwright/test/cli.js', 'test', productionLoad ? '--config=playwright.production-load.config.ts' : courseIsolation ? '--config=playwright.course-isolation.config.ts' : '--config=playwright.grading.config.ts'];
     if (attendance) args[2] = '--config=playwright.attendance.config.ts';
+    if (tutor) args[2] = '--config=playwright.tutor.config.ts';
     if (baseline) args.push('--grep', 'AI grading (FENCE|PLAIN)');
     const code = await run(args, baseline);
     if (baseline) {
