@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { INTEGRATION_TOKEN, integrationHeaders, resetStore, setRole } from "../helpers";
+import { prepareReport } from "../report-helpers";
 
 /**
  * E7-b（単元マスタ参照API）・E7-c（自宅学習の到達度の受信とS5表示）のE2E。
@@ -17,8 +18,10 @@ const MEASURED_AT = "2026-09-01T00:00:00.000Z";
 /** デモ運用でログイン中の受講生ID（src/lib/auth.ts）。表示まで確認するテストはこのIDへ送る */
 const STUDENT = "student-demo";
 
-test.beforeEach(async ({ request }) => {
-  await resetStore(request);
+let signedFixture: Awaited<ReturnType<typeof prepareReport>>;
+test.beforeEach(async ({ request }, info) => {
+  if (info.title.startsWith("E7-A2 ")) signedFixture = await prepareReport();
+  else await resetStore(request);
 });
 
 // ---------- 正常系 ----------
@@ -309,16 +312,20 @@ test("E7-A1 受信は監査ログに残る（氏名は残さない）", async ({
 });
 
 test("E7-A2 退会者データの削除で、自宅学習の到達度も消える", async ({ page, request }) => {
-  await request.post("/api/integration/mastery", {
+  const received = await request.post("/api/integration/mastery", {
     headers: integrationHeaders(),
-    data: { items: [{ studentId: STUDENT, unitId: "a1", score: 55, measuredAt: MEASURED_AT }] },
+    data: { items: [{ studentId: signedFixture.studentId, unitId: signedFixture.assignmentId, score: 55, measuredAt: MEASURED_AT }] },
   });
+  expect(received.status()).toBe(200);
+  await signedFixture.setRole(page, "student");
+  await page.goto("/achievement");
+  await expect(page.getByLabel("自宅学習の内訳")).toContainText("到達度 55");
 
   const purge = await request.post("/api/admin/retention/purge", {
-    headers: { cookie: "role=admin" },
+    headers: await signedFixture.headers(),
     data: {
       confirm: true,
-      withdrawals: [{ studentId: STUDENT, withdrawnAt: "2020-01-01" }],
+      withdrawals: [{ studentId: signedFixture.studentId, withdrawnAt: "2020-01-01" }],
     },
   });
   expect(purge.status()).toBe(200);
@@ -326,7 +333,7 @@ test("E7-A2 退会者データの削除で、自宅学習の到達度も消え�
   expect(purged.purgedCount).toBe(1);
   expect(purged.purged[0].deletedExternalMastery).toBe(1);
 
-  await setRole(page, "student");
+  await signedFixture.setRole(page, "student");
   await page.goto("/achievement");
   await expect(page.getByLabel("自宅学習の内訳")).toBeHidden();
 });

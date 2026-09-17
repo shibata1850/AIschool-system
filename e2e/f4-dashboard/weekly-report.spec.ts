@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
-import { resetStore, setRole } from "../helpers";
+import { prepareReport } from "../report-helpers";
+let report: Awaited<ReturnType<typeof prepareReport>>;
+const setRole: Awaited<ReturnType<typeof prepareReport>>["setRole"] = (page, role) => report.setRole(page, role);
 
 /**
  * F4-N1（週次レポートの自動生成バッチ）のE2E。
@@ -10,8 +12,8 @@ import { resetStore, setRole } from "../helpers";
  * E2Eからは同じ生成処理を呼ぶ管理者API経由で「月曜7:00相当の実行」を再現する。
  */
 
-test.beforeEach(async ({ request }) => {
-  await resetStore(request);
+test.beforeEach(async () => {
+  report = await prepareReport();
 });
 
 test("F4-N1 正常系: バッチ実行でレポートが生成され、画面に生成時刻と内容が出る", async ({
@@ -26,7 +28,7 @@ test("F4-N1 正常系: バッチ実行でレポートが生成され、画面に
   // 月曜7:00相当のバッチ実行（対象週を明示）
   const res = await request.post("/api/admin/reports/weekly", {
     data: { weekStart: "2026-10-19" },
-    headers: { cookie: "role=admin" },
+    headers: await report.headers(),
   });
   expect(res.status()).toBe(200);
   const body = await res.json();
@@ -42,12 +44,12 @@ test("F4-N1 正常系: バッチ実行でレポートが生成され、画面に
 test("F4-N1 正常系: 未提出課題一覧が生成レポートに載る", async ({ page, request }) => {
   await request.post("/api/admin/reports/weekly", {
     data: { weekStart: "2026-10-19" },
-    headers: { cookie: "role=admin" },
+    headers: await report.headers(),
   });
 
   await setRole(page, "teacher");
   await page.goto("/teacher/report");
-  // 最小シードの student-demo は課題a1が未完了のまま
+  // このケース専用コースの課題は未完了のまま。
   await expect(page.getByLabel("未提出課題一覧")).toContainText(
     "お店の紹介文をAIに書かせよう",
   );
@@ -60,7 +62,7 @@ test("F4-N1 正常系: Canvas未接続のときは未通知の理由が表示さ
   // E2EはCanvas未接続で動く（playwright.config.ts でCANVAS_BASE_URLを空にしている）
   await request.post("/api/admin/reports/weekly", {
     data: { weekStart: "2026-10-19" },
-    headers: { cookie: "role=admin" },
+    headers: await report.headers(),
   });
 
   await setRole(page, "teacher");
@@ -73,7 +75,7 @@ test("F4-N1 正常系: 同じ週の再実行は上書きされ、重複しない
   for (let i = 0; i < 2; i += 1) {
     const res = await request.post("/api/admin/reports/weekly", {
       data: { weekStart: "2026-10-19" },
-      headers: { cookie: "role=admin" },
+      headers: await report.headers(),
     });
     expect(res.status()).toBe(200);
   }
@@ -87,7 +89,7 @@ test("F4-N1 正常系: 同じ週の再実行は上書きされ、重複しない
 test("F4-E1 入力エラー: weekStartの形式が不正なら400", async ({ request }) => {
   const res = await request.post("/api/admin/reports/weekly", {
     data: { weekStart: "2026/10/19" },
-    headers: { cookie: "role=admin" },
+    headers: await report.headers(),
   });
   expect(res.status()).toBe(400);
 });
@@ -95,7 +97,7 @@ test("F4-E1 入力エラー: weekStartの形式が不正なら400", async ({ req
 test("F4-E2 入力エラー: 不正なJSONボディは500ではなく400になる", async ({ request }) => {
   const res = await request.post("/api/admin/reports/weekly", {
     data: "{壊れたJSON",
-    headers: { cookie: "role=admin", "content-type": "application/json" },
+    headers: { ...await report.headers(), "content-type": "application/json" },
   });
   expect(res.status()).toBe(400);
 });
@@ -103,10 +105,10 @@ test("F4-E2 入力エラー: 不正なJSONボディは500ではなく400にな�
 test("F4-P1 権限系: 講師・受講生・ゲストは生成APIを叩けない（管理者のみ）", async ({
   request,
 }) => {
-  for (const role of ["teacher", "student", "guest"]) {
+  for (const role of ["teacher", "student", "guest"] as const) {
     const res = await request.post("/api/admin/reports/weekly", {
       data: { weekStart: "2026-10-19" },
-      headers: { cookie: `role=${role}` },
+      headers: await report.headers(role),
     });
     expect(res.status()).toBe(403);
   }
@@ -115,7 +117,7 @@ test("F4-P1 権限系: 講師・受講生・ゲストは生成APIを叩けない
 test("F4-B1 境界値: weekStart省略時は実行日の週で生成される", async ({ request }) => {
   const res = await request.post("/api/admin/reports/weekly", {
     data: {},
-    headers: { cookie: "role=admin" },
+    headers: await report.headers(),
   });
   expect(res.status()).toBe(200);
   const body = await res.json();
@@ -130,7 +132,7 @@ test("F4-B1 境界値: 生成が監査ログに記録される（点数は残さ
 }) => {
   await request.post("/api/admin/reports/weekly", {
     data: { weekStart: "2026-10-19" },
-    headers: { cookie: "role=admin" },
+    headers: await report.headers(),
   });
 
   await setRole(page, "admin");

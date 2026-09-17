@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { resetStore } from "../helpers";
+import { deviceHeaders, prepareDevices } from "../device-helpers";
 
 /**
  * 回帰テスト（2026-07-03 夜間コードレビューの指摘#2・#3）:
@@ -7,8 +8,9 @@ import { resetStore } from "../helpers";
  * - デバイス切替の無変更リクエストは監査ログに虚偽の変更前後を残さない
  */
 
-test.beforeEach(async ({ request }) => {
-  await resetStore(request);
+test.beforeEach(async ({ request }, info) => {
+  if (info.title.startsWith("指摘#3:")) await prepareDevices();
+  else await resetStore(request);
 });
 
 test("指摘#2: aiOutputText にオブジェクトを送ると400（保存されない）", async ({
@@ -34,7 +36,7 @@ test("指摘#3: デバイス切替の無変更リクエストは changed:false �
   // 初期状態は usingBackup=false。同じ値をPOSTしても変更扱いにならない
   const noop = await request.post("/api/devices/1/backup", {
     data: { usingBackup: false },
-    headers: { cookie: "role=teacher" },
+    headers: await deviceHeaders(),
   });
   expect(noop.status()).toBe(200);
   expect(await noop.json()).toMatchObject({ changed: false });
@@ -42,14 +44,16 @@ test("指摘#3: デバイス切替の無変更リクエストは changed:false �
   // 実際の変更は changed:true
   const change = await request.post("/api/devices/1/backup", {
     data: { usingBackup: true },
-    headers: { cookie: "role=teacher" },
+    headers: await deviceHeaders(),
   });
+  expect(change.status()).toBe(200);
   expect(await change.json()).toMatchObject({ changed: true });
 
   // 二重タップ（同値の再送）も changed:false
   const dup = await request.post("/api/devices/1/backup", {
     data: { usingBackup: true },
-    headers: { cookie: "role=teacher" },
+    headers: await deviceHeaders(),
   });
+  expect(dup.status()).toBe(200);
   expect(await dup.json()).toMatchObject({ changed: false });
 });

@@ -15,7 +15,12 @@ test("講師が出席をつけると保存される（トグルが反映）", as
   // 座席1（デモ生徒01）の「欠席」を押す → そのボタンが選択状態になる
   const row = page.getByText("1. デモ生徒01").locator("..");
   const absentBtn = row.getByRole("button", { name: "欠席" });
+  const saved = page.waitForResponse(response => response.request().method() === "POST" &&
+    new URL(response.url()).pathname === "/api/teacher/attendance");
   await absentBtn.click();
+  expect((await saved).status()).toBe(200);
+  await expect(absentBtn).toHaveAttribute("aria-pressed", "true");
+  await page.reload();
   await expect(absentBtn).toHaveAttribute("aria-pressed", "true");
 });
 

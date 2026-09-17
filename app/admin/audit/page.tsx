@@ -24,7 +24,10 @@ export default async function AuditLogPage() {
       {entries.length === 0 ? (
         <p>まだ記録がありません。</p>
       ) : (
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <table className="audit-table">
+          <colgroup>
+            {[16, 14, 8, 18, 22, 22].map((width, i) => <col key={i} style={{ width: `${width}%` }} />)}
+          </colgroup>
           <thead>
             <tr>
               {["日時", "操作者", "操作", "対象", "変更前", "変更後"].map((h) => (
@@ -44,10 +47,10 @@ export default async function AuditLogPage() {
           <tbody>
             {entries.map((entry, i) => (
               <tr key={i}>
-                <td style={{ padding: "0.6rem", whiteSpace: "nowrap" }}>
+                <td data-label="日時" style={{ padding: "0.6rem" }}>
                   {entry.at.replace("T", " ").slice(0, 19)}
                 </td>
-                <td style={{ padding: "0.6rem" }}>
+                <td data-label="操作者" style={{ padding: "0.6rem" }}>
                   {entry.actorRole}
                   {entry.actorId ? (
                     <span style={{ color: "var(--fg-sub)", fontSize: "0.85rem" }}>
@@ -56,16 +59,16 @@ export default async function AuditLogPage() {
                     </span>
                   ) : null}
                 </td>
-                <td style={{ padding: "0.6rem" }}>
+                <td data-label="操作" style={{ padding: "0.6rem" }}>
                   {{ create: "作成", update: "更新", delete: "削除" }[entry.action]}
                 </td>
-                <td style={{ padding: "0.6rem" }}>
+                <td data-label="対象" style={{ padding: "0.6rem" }}>
                   {entry.entity} / {entry.entityId}
                 </td>
-                <td style={{ padding: "0.6rem", fontSize: "0.9rem", color: "var(--fg-sub)" }}>
+                <td data-label="変更前" style={{ padding: "0.6rem", color: "var(--fg-sub)" }}>
                   {entry.before !== undefined ? JSON.stringify(entry.before) : "—"}
                 </td>
-                <td style={{ padding: "0.6rem", fontSize: "0.9rem" }}>
+                <td data-label="変更後" style={{ padding: "0.6rem" }}>
                   {entry.after !== undefined ? JSON.stringify(entry.after) : "—"}
                 </td>
               </tr>

@@ -70,11 +70,14 @@ test("F2②-N1 正常系: 3回連続で失敗すると教材への案内に切�
   await expect(adminPage.locator("body")).toContainText("ai_outage / ai-tutor");
 
   // 復旧: 正常な質問が通ると案内が消える（E2Eは再試行間隔0）
+  await page.bringToFront();
   await page.getByLabel("質問（しつもん）").fill("forぶんとwhileぶんのちがいを教えて");
+  await expect(page.getByRole("button", { name: /きく/ })).toBeEnabled();
   await page.getByRole("button", { name: /きく/ }).click();
   await expect(page.getByText("AI講師:")).toBeVisible();
   await expect(page.getByLabel("AI講師の停止案内")).toHaveCount(0);
 
+  await teacherPage.bringToFront();
   await teacherPage.reload();
   await expect(teacherPage.getByLabel("AI講師の停止")).toHaveCount(0);
 

@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { resetStore } from "../helpers";
+import { prepareReport } from "../report-helpers";
+let fixture: Awaited<ReturnType<typeof prepareReport>>;
 
 /**
  * 保持期限による学習データ削除（Pマーク・要件定義書5.3・未決#10・TASK F）。
@@ -8,33 +9,33 @@ import { resetStore } from "../helpers";
  */
 const URL = "/api/admin/retention/purge";
 
-test.beforeEach(async ({ request }) => {
-  await resetStore(request);
+test.beforeEach(async () => {
+  fixture = await prepareReport();
 });
 
 test("RET-N 正常系: 保持期限を過ぎた退会者の学習データを削除し、再実行しても安全", async ({
   request,
 }) => {
   const res = await request.post(URL, {
-    headers: { cookie: "role=admin" },
+    headers: await fixture.headers(),
     data: {
       confirm: true,
-      withdrawals: [{ studentId: "student-demo", withdrawnAt: "2000-01-01" }],
+      withdrawals: [{ studentId: fixture.studentId, withdrawnAt: "2000-01-01" }],
     },
   });
   expect(res.status()).toBe(200);
   const body = await res.json();
   expect(body.purgedCount).toBe(1);
-  expect(body.purged[0].studentId).toBe("student-demo");
+  expect(body.purged[0].studentId).toBe(fixture.studentId);
   expect(body.purged[0].hadLessonRecords).toBe(true);
   expect(body.purged[0].deletedSubmissions).toBeGreaterThan(0);
 
   // 冪等: もう一度実行しても削除対象は残っていない
   const res2 = await request.post(URL, {
-    headers: { cookie: "role=admin" },
+    headers: await fixture.headers(),
     data: {
       confirm: true,
-      withdrawals: [{ studentId: "student-demo", withdrawnAt: "2000-01-01" }],
+      withdrawals: [{ studentId: fixture.studentId, withdrawnAt: "2000-01-01" }],
     },
   });
   const body2 = await res2.json();
@@ -44,14 +45,14 @@ test("RET-N 正常系: 保持期限を過ぎた退会者の学習データを削
 
 test("RET-N2 削除は監査ログに記録される（管理者が確認できる）", async ({ request }) => {
   await request.post(URL, {
-    headers: { cookie: "role=admin" },
+    headers: await fixture.headers(),
     data: {
       confirm: true,
-      withdrawals: [{ studentId: "student-demo", withdrawnAt: "2000-01-01" }],
+      withdrawals: [{ studentId: fixture.studentId, withdrawnAt: "2000-01-01" }],
     },
   });
   const audit = await request.get("/admin/audit", {
-    headers: { cookie: "role=admin" },
+    headers: await fixture.headers(),
   });
   expect(audit.status()).toBe(200);
   expect(await audit.text()).toContain("student_data");
@@ -59,30 +60,30 @@ test("RET-N2 削除は監査ログに記録される（管理者が確認でき�
 
 test("RET-E1 入力エラー: confirm が無いと削除しない（400）", async ({ request }) => {
   const res = await request.post(URL, {
-    headers: { cookie: "role=admin" },
-    data: { withdrawals: [{ studentId: "student-demo", withdrawnAt: "2000-01-01" }] },
+    headers: await fixture.headers(),
+    data: { withdrawals: [{ studentId: fixture.studentId, withdrawnAt: "2000-01-01" }] },
   });
   expect(res.status()).toBe(400);
 });
 
 test("RET-E2 入力エラー: 退会日が不正だと400", async ({ request }) => {
   const res = await request.post(URL, {
-    headers: { cookie: "role=admin" },
+    headers: await fixture.headers(),
     data: {
       confirm: true,
-      withdrawals: [{ studentId: "student-demo", withdrawnAt: "いつか" }],
+      withdrawals: [{ studentId: fixture.studentId, withdrawnAt: "いつか" }],
     },
   });
   expect(res.status()).toBe(400);
 });
 
 test("RET-P 権限系: 受講生・講師は削除できない（403）", async ({ request }) => {
-  for (const role of ["student", "teacher"]) {
+  for (const role of ["student", "teacher"] as const) {
     const res = await request.post(URL, {
-      headers: { cookie: `role=${role}` },
+      headers: await fixture.headers(role),
       data: {
         confirm: true,
-        withdrawals: [{ studentId: "student-demo", withdrawnAt: "2000-01-01" }],
+        withdrawals: [{ studentId: fixture.studentId, withdrawnAt: "2000-01-01" }],
       },
     });
     expect(res.status()).toBe(403);
@@ -91,11 +92,11 @@ test("RET-P 権限系: 受講生・講師は削除できない（403）", async 
 
 test("RET-B 境界値: 保持期限内（退会直後）の受講生は削除しない", async ({ request }) => {
   const res = await request.post(URL, {
-    headers: { cookie: "role=admin" },
+    headers: await fixture.headers(),
     data: {
       confirm: true,
       withdrawals: [
-        { studentId: "student-demo", withdrawnAt: new Date().toISOString() },
+        { studentId: fixture.studentId, withdrawnAt: new Date().toISOString() },
       ],
     },
   });

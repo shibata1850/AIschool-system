@@ -17,13 +17,19 @@ test("SEC-4: 提出と成績確定が監査ログに記録され管理者が閲�
   await setRole(page, "student");
   await page.goto("/exercises/a1");
   await page.getByLabel("プロンプト本文").fill("メロンパンの紹介文を書いて。");
+  const submitted = page.waitForResponse(response =>
+    response.request().method() === "POST" && new URL(response.url()).pathname === "/api/exercises/a1/submit");
   await page.getByRole("button", { name: "提出する" }).click();
+  expect((await submitted).status()).toBe(200);
   await expect(page.getByLabel("状態")).toContainText("AI採点済");
 
   // 講師が完了にする（update: 成績確定）
   await setRole(page, "teacher");
   await page.goto("/teacher/review");
+  const reviewed = page.waitForResponse(response =>
+    response.request().method() === "POST" && new URL(response.url()).pathname === "/api/submissions/s1/review");
   await page.getByRole("button", { name: "完了にする" }).click();
+  expect((await reviewed).status()).toBe(200);
   await expect(page.getByText("採点待ちの提出はありません")).toBeVisible();
 
   // 管理者が監査ログを閲覧できる（操作者・変更前後が見える）

@@ -26,6 +26,23 @@ export const assignments = pgTable("assignments", {
   deadline: text("deadline").notNull(),
 });
 
+export const courseTrainingSettings = pgTable("course_training_settings", {
+  courseId: text("course_id").primaryKey(),
+  mode: text("mode").notNull(),
+  currentDay: integer("current_day"),
+  revision: integer("revision").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+  updatedBy: text("updated_by").notNull(),
+});
+
+export const courseTrainingDays = pgTable("course_training_days", {
+  courseId: text("course_id").notNull().references(() => courseTrainingSettings.courseId),
+  day: integer("day_no").notNull(),
+  title: text("title").notNull(),
+  materialUrl: text("material_url"),
+  quizUrl: text("canvas_quiz_url"),
+}, table => [primaryKey({ columns: [table.courseId, table.day] })]);
+
 export const submissions = pgTable("submissions", {
   id: text("id").primaryKey(),
   courseId: text("course_id"),

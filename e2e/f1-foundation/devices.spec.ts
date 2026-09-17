@@ -1,13 +1,13 @@
 import { expect, test } from "@playwright/test";
-import { resetStore, setRole } from "../helpers";
+import { deviceHeaders, prepareDevices, setDeviceRole as setRole } from "../device-helpers";
 
 /**
  * S9 デバイス割当のE2E（F1基盤・docs/画面仕様書.md S9）。
  * 4パス: 正常系 / 入力エラー系 / 権限系 / 境界値
  */
 
-test.beforeEach(async ({ request }) => {
-  await resetStore(request);
+test.beforeEach(async () => {
+  await prepareDevices();
 });
 
 test("S9-N1 正常系: 予備機へ切替でき、監査ログに記録される", async ({ page }) => {
@@ -30,16 +30,16 @@ test("S9-N1 正常系: 予備機へ切替でき、監査ログに記録される
 test("S9-E1 入力エラー: usingBackupが真偽値でないと400", async ({ request }) => {
   const res = await request.post("/api/devices/1/backup", {
     data: { usingBackup: "yes" },
-    headers: { cookie: "role=teacher" },
+    headers: await deviceHeaders(),
   });
   expect(res.status()).toBe(400);
 });
 
 test("S9-P1 権限系: 受講生・ゲストの切替APIは403", async ({ request }) => {
-  for (const role of ["student", "guest"]) {
+  for (const role of ["student", "guest"] as const) {
     const res = await request.post("/api/devices/1/backup", {
       data: { usingBackup: true },
-      headers: { cookie: `role=${role}` },
+      headers: await deviceHeaders(role),
     });
     expect(res.status()).toBe(403);
   }
@@ -48,13 +48,13 @@ test("S9-P1 権限系: 受講生・ゲストの切替APIは403", async ({ reques
 test("S9-B1 境界値: 座席16は切替でき、座席17は404", async ({ request }) => {
   const ok = await request.post("/api/devices/16/backup", {
     data: { usingBackup: true },
-    headers: { cookie: "role=teacher" },
+    headers: await deviceHeaders(),
   });
   expect(ok.status()).toBe(200);
 
   const notFound = await request.post("/api/devices/17/backup", {
     data: { usingBackup: true },
-    headers: { cookie: "role=teacher" },
+    headers: await deviceHeaders(),
   });
   expect(notFound.status()).toBe(404);
 });
@@ -88,7 +88,7 @@ test("S9-N2 正常系: 座席の受講生を変更でき、監査ログに記録
 test("S9-N3 正常系: 空席に戻せる", async ({ page, request }) => {
   const res = await request.post("/api/devices/1/student", {
     data: { studentId: null },
-    headers: { cookie: "role=teacher" },
+    headers: await deviceHeaders(),
   });
   expect(res.status()).toBe(200);
 
@@ -100,29 +100,29 @@ test("S9-N3 正常系: 空席に戻せる", async ({ page, request }) => {
 test("S9-E2 入力エラー: 名簿にない受講生・型違いは400", async ({ request }) => {
   const notOnRoster = await request.post("/api/devices/1/student", {
     data: { studentId: "存在しないID" },
-    headers: { cookie: "role=teacher" },
+    headers: await deviceHeaders(),
   });
   expect(notOnRoster.status()).toBe(400);
 
   const wrongType = await request.post("/api/devices/1/student", {
     data: { studentId: 42 },
-    headers: { cookie: "role=teacher" },
+    headers: await deviceHeaders(),
   });
   expect(wrongType.status()).toBe(400);
 
   // 未指定は「空席にする（null）」と区別できないため弾く
   const missing = await request.post("/api/devices/1/student", {
     data: {},
-    headers: { cookie: "role=teacher" },
+    headers: await deviceHeaders(),
   });
   expect(missing.status()).toBe(400);
 });
 
 test("S9-P2 権限系: 受講生・ゲストの割当APIは403", async ({ request }) => {
-  for (const role of ["student", "guest"]) {
+  for (const role of ["student", "guest"] as const) {
     const res = await request.post("/api/devices/1/student", {
       data: { studentId: null },
-      headers: { cookie: `role=${role}` },
+      headers: await deviceHeaders(role),
     });
     expect(res.status()).toBe(403);
   }
@@ -131,13 +131,13 @@ test("S9-P2 権限系: 受講生・ゲストの割当APIは403", async ({ reques
 test("S9-B2 境界値: 座席16は割当でき、座席17は404", async ({ request }) => {
   const ok = await request.post("/api/devices/16/student", {
     data: { studentId: "student-demo" },
-    headers: { cookie: "role=teacher" },
+    headers: await deviceHeaders(),
   });
   expect(ok.status()).toBe(200);
 
   const notFound = await request.post("/api/devices/17/student", {
     data: { studentId: "student-demo" },
-    headers: { cookie: "role=teacher" },
+    headers: await deviceHeaders(),
   });
   expect(notFound.status()).toBe(404);
 });

@@ -11,7 +11,9 @@ import { INTEGRATION_TOKEN, integrationHeaders, resetStore, type Role } from "..
  *
  * **判定の方針**: このスペックが見るのは「認可を通過したか」だけである。
  * - 非許可ロール → **403ちょうど**（proxy.ts が返す）
- * - 許可ロール   → **403以外**（その先の入力検証で400等になるのは正常。
+ * - LTI設定・Originを必要とする経路は、ロールCookieだけでは許可ロールでも403。
+ *   正しい署名・Originの正常系は署名付きデバイス・保持期限・週次生成テストで検証する。
+ * - その他の許可ロール → **403以外**（その先の入力検証で400等になるのは正常。
  *                  ここで200を要求すると、認可ではなく各APIの正常系を
  *                  二重にテストすることになり、壊れやすくなる）
  *
@@ -26,6 +28,8 @@ type Endpoint = {
   path: string;
   /** 認可を通過できるロール。ここに無いロールは403でなければならない */
   allowed: Role[];
+  /** This legacy-role request intentionally has neither LTI configuration nor Origin. */
+  requiresLaunchContext?: boolean;
   /** 副作用を最小にする、または認可判定へ到達させるための本文 */
   body?: Record<string, unknown>;
 };
@@ -43,13 +47,15 @@ const ENDPOINTS: Endpoint[] = [
     name: "週次レポート生成",
     method: "POST",
     path: "/api/admin/reports/weekly",
+    requiresLaunchContext: true,
     allowed: ["admin"],
   },
   {
     name: "退会者データ削除",
     method: "POST",
     path: "/api/admin/retention/purge",
-    // 破壊的操作なので confirm を立てない。管理者でも400で止まる（=認可は通過）
+    requiresLaunchContext: true,
+    // 誤設定でも削除を実行しない。今回は送信元確認で403になる。
     body: { confirm: false, withdrawals: [] },
     allowed: ["admin"],
   },
@@ -65,6 +71,7 @@ const ENDPOINTS: Endpoint[] = [
     name: "予備機への切替",
     method: "POST",
     path: "/api/devices/1/backup",
+    requiresLaunchContext: true,
     body: { usingBackup: false },
     allowed: ["teacher", "admin"],
   },
@@ -72,6 +79,7 @@ const ENDPOINTS: Endpoint[] = [
     name: "座席への受講生割当",
     method: "POST",
     path: "/api/devices/1/student",
+    requiresLaunchContext: true,
     body: { studentId: null },
     allowed: ["teacher", "admin"],
   },
@@ -120,8 +128,8 @@ test.beforeEach(async ({ request }) => {
 
 for (const role of ROLES) {
   for (const ep of ENDPOINTS) {
-    const permitted = ep.allowed.includes(role);
-    const label = permitted ? "403以外（認可通過）" : "403";
+    const permitted = ep.allowed.includes(role) && !ep.requiresLaunchContext;
+    const label = permitted ? "403以外（認可通過）" : ep.requiresLaunchContext ? "403（ロールCookieのみ）" : "403";
 
     test(`SEC-1b: ${role} が ${ep.name}（${ep.method} ${ep.path}）→ ${label}`, async ({
       request,

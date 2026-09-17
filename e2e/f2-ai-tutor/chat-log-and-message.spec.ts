@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { resetStore, setRole } from "../helpers";
+import { deviceHeaders, prepareDevices, setDeviceRole } from "../device-helpers";
 
 /**
  * 会話ログの保存（F2）と、講師から受講生への一言（S6の介入導線）のE2E。
@@ -14,8 +15,16 @@ import { resetStore, setRole } from "../helpers";
 
 const STUDENT = "student-demo";
 
-test.beforeEach(async ({ request }) => {
-  await resetStore(request);
+test.beforeEach(async ({ request }, info) => {
+  if (info.title.startsWith("LOG-A1 ")) {
+    await prepareDevices();
+    const ready = await request.post("/api/chat", {
+      headers: await deviceHeaders("student"), data: { question: "" },
+    });
+    expect(ready.status()).toBe(400);
+  } else {
+    await resetStore(request);
+  }
 });
 
 // ---------- 会話ログ: 正常系 ----------
@@ -24,7 +33,11 @@ test("LOG-N1 正常系: AI講師への質問が会話ログに残り、講師が
   await setRole(page, "student");
   await page.goto("/chat");
   await page.getByLabel("質問（しつもん）").fill("見積書の承認フローを作りたい");
+  const answered = page.waitForResponse(response =>
+    response.request().method() === "POST" &&
+    new URL(response.url()).pathname === "/api/chat");
   await page.getByRole("button", { name: "きく" }).click();
+  expect((await answered).status()).toBe(200);
   await expect(page.getByText("AI講師:")).toBeVisible();
 
   await setRole(page, "teacher");
@@ -117,13 +130,14 @@ test("MSG-E1 入力エラー: 空のメッセージは送れない", async ({ re
   expect(await res.text()).toContain("メッセージを入力してください");
 });
 
-test("MSG-E2 入力エラー: 名簿にない受講生へは送れない", async ({ request }) => {
+test("MSG-E2 宛先の権限: 名簿にない受講生へは送れない（403）", async ({ request }) => {
   const res = await request.post("/api/teacher/message", {
     headers: { cookie: "role=teacher", "content-type": "application/json" },
     data: { studentId: "存在しない受講生", body: "テスト" },
   });
-  expect(res.status()).toBe(400);
-  expect(await res.text()).toContain("名簿にありません");
+  // The course-scoped API must not disclose whether an out-of-scope user exists.
+  expect(res.status()).toBe(403);
+  expect(await res.text()).toBe("このコースへの操作権限がありません");
 });
 
 // ---------- 権限系 ----------
@@ -176,19 +190,20 @@ test("LOG-A1 退会者データの削除で、会話ログと講師メッセー�
   page,
   request,
 }) => {
-  await setRole(page, "student");
+  await setDeviceRole(page, "student");
   await page.goto("/chat");
   await page.getByLabel("質問（しつもん）").fill("削除確認用の質問");
   await page.getByRole("button", { name: "きく" }).click();
   await expect(page.getByText("AI講師:")).toBeVisible();
 
-  await request.post("/api/teacher/message", {
-    headers: { cookie: "role=teacher", "content-type": "application/json" },
+  const sent = await request.post("/api/teacher/message", {
+    headers: await deviceHeaders("teacher"),
     data: { studentId: STUDENT, body: "削除確認用のメッセージ" },
   });
+  expect(sent.status()).toBe(200);
 
   const purge = await request.post("/api/admin/retention/purge", {
-    headers: { cookie: "role=admin", "content-type": "application/json" },
+    headers: await deviceHeaders("admin"),
     data: {
       confirm: true,
       withdrawals: [{ studentId: STUDENT, withdrawnAt: "2020-01-01" }],
@@ -199,11 +214,11 @@ test("LOG-A1 退会者データの削除で、会話ログと講師メッセー�
   expect(purged.purged[0].deletedChatLogs).toBe(1);
   expect(purged.purged[0].deletedTeacherMessages).toBe(1);
 
-  await setRole(page, "teacher");
+  await setDeviceRole(page, "teacher");
   await page.goto("/teacher/chat-logs");
   await expect(page.getByText("質問: 削除確認用の質問")).toBeHidden();
 
-  await setRole(page, "student");
+  await setDeviceRole(page, "student");
   await page.goto("/");
   await expect(page.getByLabel("講師からのメッセージ")).toBeHidden();
 });

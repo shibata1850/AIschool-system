@@ -5,6 +5,9 @@ import { listTeacherMessages } from "@/lib/f2/chatLog";
 import { listActiveSubmissionsForStudent, hasAssignmentsForStudent } from "@/lib/f3/store";
 import { emptyAssignmentLabel } from "@/lib/f3/allocationPolicy";
 import { STATUS_LABELS, type ExerciseStatus } from "@/lib/f3/types";
+import { readTrainingSettings } from "@/lib/course/trainingStore";
+import { trainingHome, type TrainingHome } from "@/lib/course/trainingPolicy";
+import { trainingLinkPolicy } from "@/lib/course/trainingLinks";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +41,13 @@ export default async function Home() {
   const access = courseAccess(actor);
   if (!access) return <main><p>Canvasのコースから起動してください。</p></main>;
 
+  let training: TrainingHome = { state: "legacy" };
+  if (access.courseId) {
+    let stored: unknown;
+    try { stored = await readTrainingSettings(actor, access.courseId); } catch { stored = undefined; }
+    training = trainingHome(stored, access.courseId, trainingLinkPolicy(access.courseId));
+  }
+
   const [items, messages, hasAssignments] = await Promise.all([
     listActiveSubmissionsForStudent(userId, access.courseId),
     listTeacherMessages(userId, 20, access.courseId),
@@ -47,7 +57,14 @@ export default async function Home() {
   return (
     <main>
       <h1>今日やること</h1>
-      <p className="lead">未提出の課題を、締切が近い順に並べています。</p>
+      {training.state === "legacy" && <p className="lead">未提出の課題を、締切が近い順に並べています。</p>}
+      {(training.state === "error" || training.state === "unselected") &&
+        <p role={training.state === "error" ? "alert" : "status"}>{training.message}</p>}
+      {training.state === "ready" && <section aria-label="現在の授業">
+        <h2>第{training.lesson.day}回：{training.lesson.title}</h2>
+        <p>{training.lesson.materialUrl ? <a href={training.lesson.materialUrl}>教材を開く</a> : "教材：準備中"}</p>
+        <p>{training.lesson.quizUrl ? <a href={training.lesson.quizUrl}>小テストを開く</a> : "小テスト：準備中"}</p>
+      </section>}
 
       {messages.length > 0 && (
         <section aria-label="講師からのメッセージ" style={{ margin: "1rem 0" }}>
@@ -76,12 +93,13 @@ export default async function Home() {
         </section>
       )}
 
-      {items.length === 0 ? (
+      {training.state !== "legacy" && items.length > 0 && <h2>割り当てられた演習</h2>}
+      {items.length === 0 ? (training.state === "legacy" ? (
         <div className="banner banner--ok">
           <p className="banner__title">{emptyAssignmentLabel(hasAssignments)}</p>
           <p className="muted">新しい課題が出ると、ここに表示されます。</p>
         </div>
-      ) : (
+      ) : null) : (
         <ul className="card-list">
           {items.map(({ submission, assignment }) => (
             <li key={submission.id}>
@@ -125,6 +143,7 @@ export default async function Home() {
           <h2>講師用メニュー</h2>
           <ul className="card-list">
             {[
+              { href: "/teacher/training", title: "授業設定", desc: "" },
               { href: "/teacher/assignments", title: "課題の割当", desc: "受講生を選んで課題を配布" },
               { href: "/teacher/monitor", title: "授業中モニタリング", desc: "16席の状態を色で把握" },
               { href: "/teacher/attendance", title: "出席の記録", desc: "この授業の出席をつける" },
