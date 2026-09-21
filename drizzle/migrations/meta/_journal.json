@@ -120,6 +120,20 @@
       "when": 1789084800004,
       "tag": "0016_course_training",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1789776000000,
+      "tag": "0017_canvas_quiz_review",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1789776000001,
+      "tag": "0018_canvas_quiz_decisions",
+      "breakpoints": true
     }
   ]
 }

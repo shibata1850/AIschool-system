@@ -9,6 +9,7 @@ export default defineConfig({
   testDir: "./e2e",
   // These suites require the isolated DB harness and their dedicated configs.
   testIgnore: [
+    "**/2026-09-19-quiz-review.spec.ts",
     "**/2026-09-16-training.spec.ts",
     "**/2026-09-10-grading-json.spec.ts",
     "**/2026-09-10-assignment-display.spec.ts",

@@ -20,7 +20,7 @@ RUN npm run build
 # こうすると実行時に tsx / drizzle-kit が不要になる（外部依存は pg と drizzle-orm のみ＝
 # どちらも本番依存）。scripts/*.ts のままだと実行に tsx が要り、tsx は esbuild の
 # Goバイナリを持ち込む。
-RUN npx esbuild scripts/migrate.ts scripts/seed.ts scripts/generate-weekly-report.ts \
+RUN npx esbuild scripts/migrate.ts scripts/seed.ts scripts/generate-weekly-report.ts scripts/purge-quiz-reviews.ts \
       --bundle --platform=node --format=esm --target=node22 \
       --packages=external --alias:@=./src \
       --outdir=dist-scripts --out-extension:.js=.mjs

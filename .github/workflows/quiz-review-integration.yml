@@ -1,0 +1,77 @@
+name: Quiz review integration
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-quiz-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: aischool_admin
+          POSTGRES_DB: aischool_test
+          # Disposable runner fixture only. Never used on a deployed server.
+          POSTGRES_PASSWORD: fixture-only-quiz-ci
+        ports:
+          - 55442:5432
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U aischool_admin -d aischool_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      TRAINING_DB_TEST: "1"
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: 隔離DBの役割と接続設定
+        env:
+          PGPASSWORD: fixture-only-quiz-ci
+        run: |
+          psql -h 127.0.0.1 -p 55442 -U aischool_admin -d aischool_test -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE aischool_app WITH LOGIN PASSWORD 'fixture-only-quiz-ci';
+          GRANT CONNECT ON DATABASE aischool_test TO aischool_app;
+          GRANT USAGE ON SCHEMA public TO aischool_app;
+          SQL
+          cat > .env.test <<'ENV'
+          DATABASE_URL=postgres://aischool_app:fixture-only-quiz-ci@127.0.0.1:55442/aischool_test
+          DATABASE_ADMIN_URL=postgres://aischool_admin:fixture-only-quiz-ci@127.0.0.1:55442/aischool_test
+          ENV
+          node --env-file=.env.test --import tsx scripts/migrate.ts
+      - name: 型検査と単体テスト
+        run: |
+          npx next typegen
+          npm run typecheck
+          npm run test:unit
+      - name: 関連E2Eを3表示条件で実行
+        run: |
+          npx playwright install --with-deps chromium
+          node node_modules/@playwright/test/cli.js test --config playwright.quiz-review.config.ts
+      - name: Dockerイメージのビルド（配備しない）
+        run: docker build --tag quiz-review-ci:check .
+      - name: 実行用コマンドの同梱と設定不足時の拒否を確認
+        run: |
+          docker run --rm --network none quiz-review-ci:check node --input-type=module -e "import {existsSync} from 'node:fs'; if(!existsSync('dist-scripts/purge-quiz-reviews.mjs')) process.exit(1)"
+          set +e
+          docker run --rm --network none quiz-review-ci:check node dist-scripts/purge-quiz-reviews.mjs --apply
+          result=$?
+          set -e
+          test "$result" -eq 1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quiz-review-fictional-test-results
+          path: test-results/
+          retention-days: 7

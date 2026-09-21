@@ -144,6 +144,7 @@ export default async function Home() {
           <ul className="card-list">
             {[
               { href: "/teacher/training", title: "授業設定", desc: "" },
+              ...(process.env.CANVAS_REVIEW_INSTANCE ? [{href:"/teacher/quiz-review",title:"小テスト結果の確認",desc:"Canvasの結果を確認待ちとして保存"}] : []),
               { href: "/teacher/assignments", title: "課題の割当", desc: "受講生を選んで課題を配布" },
               { href: "/teacher/monitor", title: "授業中モニタリング", desc: "16席の状態を色で把握" },
               { href: "/teacher/attendance", title: "出席の記録", desc: "この授業の出席をつける" },

@@ -43,6 +43,8 @@ export default async function AchievementPage() {
   return (
     <main>
       <h1>自分の到達度</h1>
+      {actor.role==='student'&&actor.viaLti&&process.env.QUIZ_REVIEW_PUBLICATION_ENABLED==='true'&&
+        <p><a href="/achievement/quizzes">講師確認済みの小テスト記録を見る</a></p>}
 
       {unscheduledCount > 0 && <p role="status">対象週未設定の課題: {unscheduledCount}件（週ごとの集計対象外）</p>}
 
