@@ -9,6 +9,7 @@ const env = {
   DATABASE_ADMIN_URL: "postgres://aischool_admin:fixture-only-list@127.0.0.1:55442/aischool_test",
   LTI_TOOL_URL: "http://localhost:3000",
   LTI_SESSION_SECRET: "fictional-list-only-session-key-not-used-to-sign-anything",
+  ANTHROPIC_BASE_URL: "http://127.0.0.1:3400",
 };
 function list(config, mode) {
   const result = spawnSync(process.execPath, ["node_modules/@playwright/test/cli.js", "test", "--list", "--reporter=json", "--config", config], {
@@ -32,11 +33,12 @@ function list(config, mode) {
 const baseline = list("playwright.config.ts");
 const demo = list("playwright.ci.config.ts", "demo");
 const signed = list("playwright.ci.config.ts", "signed");
-const combined = new Set([...demo, ...signed]);
+const tutor = list("playwright.ci.config.ts", "tutor");
+const combined = new Set([...demo, ...signed, ...tutor]);
 const missing = [...baseline].filter(key => !combined.has(key));
 const extra = [...combined].filter(key => !baseline.has(key));
-const overlap = [...demo].filter(key => signed.has(key));
-if (!demo.size || !signed.size || missing.length || extra.length || overlap.length) {
+const overlap = [...demo].filter(key => signed.has(key) || tutor.has(key)).concat([...signed].filter(key => tutor.has(key)));
+if (!demo.size || !signed.size || !tutor.size || missing.length || extra.length || overlap.length) {
   throw new Error(JSON.stringify({ missing, extra, overlap }));
 }
-console.log(JSON.stringify({ baseline: baseline.size, demo: demo.size, signed: signed.size, missing: 0, extra: 0, overlap: 0 }));
+console.log(JSON.stringify({ baseline: baseline.size, demo: demo.size, signed: signed.size, tutor: tutor.size, missing: 0, extra: 0, overlap: 0 }));

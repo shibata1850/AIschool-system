@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [demo, signed]
+        mode: [demo, signed, tutor]
     services:
       postgres:
         image: postgres:16-alpine
@@ -78,7 +78,7 @@ jobs:
         run: node tools/ci/check-e2e-partition.mjs
 
       - name: E2Eテスト（正常・入力エラー・権限・境界値）
-        run: npx playwright test --config playwright.ci.config.ts
+        run: node tools/ci/run-e2e.mjs
         env:
           CI: "1"
           CI_LTI_MODE: ${{ matrix.mode }}
