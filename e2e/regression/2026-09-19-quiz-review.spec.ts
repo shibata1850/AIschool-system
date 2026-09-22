@@ -127,7 +127,8 @@ test("candidate save/reload, duplicates, revisions, errors, authorization and ex
       ['newer','older_attempt','Canvasに新しい受験回があります。この結果は最新の受験回ではありません。'],
       ['pending','incomplete','受験中・未採点・免除などのため、採点済み結果として照合できません。'],
       ['questions','structure_changed','設問構成または配点が登録済み教材と異なります。教材との対応を確認してください。'],
-      ['offline','unavailable','必要なCanvas情報を確認できませんでした。時間をおいて再度照合してください。'],
+      ['missing-history','unavailable','Canvasの照合情報が不足しているか、取得できませんでした。再度照合しても同じ場合は、Canvasの答案画面で受講者・受験回・各設問の得点を確認してください。確認できない結果は採用しないでください。'],
+      ['offline','unavailable','Canvasの照合情報が不足しているか、取得できませんでした。再度照合しても同じ場合は、Canvasの答案画面で受講者・受験回・各設問の得点を確認してください。確認できない結果は採用しないでください。'],
     ]) {
       await scenario(mode);await verifyButton.click();await expect(page.getByText(text,{exact:true})).toBeVisible();
       if(mode==='practice') {

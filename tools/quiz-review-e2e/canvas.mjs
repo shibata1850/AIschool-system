@@ -53,7 +53,7 @@ http.createServer((req,res)=>{
     if(url.pathname.endsWith('/questions')) return json(questions);
     if(url.pathname==='/api/v1/courses/1/quizzes/4') return json({id:4,assignment_id:mode==='practice'?null:904,quiz_type:mode==='practice'?'practice_quiz':'assignment',version_number:1,question_count:12,points_possible:12});
     if(url.pathname==='/api/v1/courses/1/assignments/904/submissions/9001') return json({id:8801,user_id:9001,assignment_id:904,
-      workflow_state:'graded',grade_matches_current_submission:true,excused:false,submission_history:[{id:9901,user_id:9001,assignment_id:904,attempt,
+      workflow_state:'graded',grade_matches_current_submission:true,excused:false,submission_history:mode==='missing-history'?[null]:[{id:9901,user_id:9001,assignment_id:904,attempt,
         workflow_state:'complete',score,submission_data:questions.map((q,i)=>({question_id:q.id,points:mode==='regraded'&&i===0?0:1,correct:'true',text:'PRIVATE RESPONSE'}))}]});
     if(url.pathname==='/api/v1/courses/1/quizzes/4/submissions/9901') return json({quiz_submissions:[{id:9901,quiz_id:4,user_id:9001,submission_id:8801,
       attempt,score,fudge_points:0,workflow_state:mode==='pending'?'pending_review':'complete',finished_at:'2026-09-19T00:00:00Z'}]});
