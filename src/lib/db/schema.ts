@@ -8,6 +8,8 @@ import {
   text,
   timestamp,
   unique,
+  foreignKey,
+  uuid,
 } from "drizzle-orm/pg-core";
 
 /**
@@ -219,6 +221,40 @@ export const studentCourses = pgTable("student_courses", {
   courseId: text("course_id").notNull(),
   lastSeenAt: timestamp("last_seen_at", {withTimezone:true}).notNull(),
 }, t => [primaryKey({columns:[t.studentId,t.courseId]})]);
+
+/** Temporary teacher-only import candidates. Canvas remains the grade authority. */
+export const quizReviewCandidates = pgTable("canvas_quiz_review_candidates", {
+  courseId: text("course_id").notNull(),
+  sourceKey: text("source_key").notNull(),
+  revision: text("revision").notNull(),
+  studentId: text("student_id").notNull(),
+  sourceInstance: text("source_instance").notNull(),
+  canvasCourseId: integer("canvas_course_id").notNull(),
+  snapshot: jsonb("snapshot").$type<import("@/lib/quiz-review/policy").ReviewRecord>().notNull(),
+  importedAt: timestamp("imported_at", {withTimezone:true}).notNull(),
+  expiresAt: timestamp("expires_at", {withTimezone:true}).notNull(),
+}, t => [primaryKey({columns:[t.courseId,t.sourceKey,t.revision]}),
+  foreignKey({columns:[t.studentId,t.courseId], foreignColumns:[studentCourses.studentId,studentCourses.courseId]}).onDelete("cascade")]);
+
+/** Durable grade revisions. No foreign key to expiring review candidates. */
+export const quizGradeEvents = pgTable("canvas_quiz_grade_events", {
+  sequence:serial("sequence").primaryKey(),token:uuid("token").notNull().unique(),
+  courseId:text("course_id").notNull(),studentId:text("student_id").notNull(),
+  sourceInstance:text("source_instance").notNull(),quizId:integer("quiz_id").notNull(),
+  snapshot:jsonb("snapshot").$type<import("@/lib/quiz-review/achievement-records").FormalQuizGrade>().notNull(),
+  sourceKey:text("source_key").notNull(),revision:text("revision").notNull(),
+  confirmedAt:timestamp("confirmed_at",{withTimezone:true}).notNull(),confirmedBy:text("confirmed_by").notNull(),
+},t=>[foreignKey({columns:[t.studentId,t.courseId],foreignColumns:[studentCourses.studentId,studentCourses.courseId]}).onDelete('cascade')]);
+
+/** Teacher-selected reference results; deleted together with the temporary candidate. */
+export const quizReviewDecisions = pgTable("canvas_quiz_review_decisions", {
+  courseId:text("course_id").notNull(),studentId:text("student_id").notNull(),
+  sourceInstance:text("source_instance").notNull(),quizId:integer("quiz_id").notNull(),
+  sourceKey:text("source_key").notNull(),revision:text("revision").notNull(),
+  token:uuid("token").notNull(),state:text("state").$type<'adopted'|'withdrawn'>().notNull(),
+  decidedAt:timestamp("decided_at",{withTimezone:true}).notNull(),decidedBy:text("decided_by").notNull(),
+},t=>[primaryKey({columns:[t.courseId,t.studentId,t.sourceInstance,t.quizId]}),
+  foreignKey({columns:[t.courseId,t.sourceKey,t.revision],foreignColumns:[quizReviewCandidates.courseId,quizReviewCandidates.sourceKey,quizReviewCandidates.revision]}).onDelete('cascade')]);
 
 /**
  * AI講師との会話ログ（F2）。

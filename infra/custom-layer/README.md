@@ -136,6 +136,8 @@ docker compose exec app node -e "fetch(process.env.CANVAS_BASE_URL+'/login').the
 
 ## 定期実行（cron）
 
+小テストの確認待ちコピー（30日）の削除は [専用の配備・実行手順](quiz-review-retention.md) を参照してください。初期状態は削除しない確認モードで、退会者の正式な学習履歴とは独立した処理です。
+
 サーバー側で登録する定期処理。いずれもコンテナ内で実行する。
 
 | 時刻 | 処理 | コマンド |

@@ -9,6 +9,8 @@ export default defineConfig({
   testDir: "./e2e",
   // These suites require the isolated DB harness and their dedicated configs.
   testIgnore: [
+    "**/2026-09-22-formal-quiz.spec.ts", // Runs in playwright.formal-quiz.config.ts with its Canvas fixture.
+    "**/2026-09-19-quiz-review.spec.ts",
     "**/2026-09-16-training.spec.ts",
     "**/2026-09-10-grading-json.spec.ts",
     "**/2026-09-10-assignment-display.spec.ts",
@@ -66,3 +68,4 @@ export default defineConfig({
     },
   },
 });
+

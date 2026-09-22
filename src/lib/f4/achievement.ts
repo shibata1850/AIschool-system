@@ -27,7 +27,7 @@ export const DEFAULT_WEIGHTS: AchievementWeights = {
 /** 授業コマ1回分の学習記録 */
 export interface LessonRecord {
   /** Legacy records omit this and contribute to both denominators. */
-  source?: "attendance" | "assignment";
+  source?: "attendance" | "assignment" | "quiz";
   lessonId: string;
   /** 週の月曜（ISO日付）。週次集計のキー */
   weekStart: string;
@@ -96,15 +96,16 @@ export function computeWeeklyAchievements(
         };
       }
 
-      const attendance = usable.filter(r => r.source !== "assignment");
-      const assignments = usable.filter(r => r.source !== "attendance");
+      // Quizzes contribute only to the score component, never to attendance or submission rates.
+      const attendance = usable.filter(r => r.source === undefined || r.source === "attendance");
+      const assignments = usable.filter(r => r.source === undefined || r.source === "assignment");
       const attendanceRate = attendance.length ? round1(
         (attendance.filter((r) => r.attended).length / attendance.length) * 100,
       ) : null;
       const submissionRate = assignments.length ? round1(
         (assignments.filter((r) => r.submitted).length / assignments.length) * 100,
       ) : null;
-      const scores = assignments
+      const scores = usable.filter(r => r.source !== "attendance")
         .map((r) => r.score)
         .filter((s): s is number => s !== null);
       const averageScore =

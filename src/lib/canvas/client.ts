@@ -7,6 +7,10 @@
  * ストア差し替えとE2Eを行う — 手順は docs/Canvasステージング構築手順.md。
  */
 
+import { isObject, positiveId, evidenceSignature, requiresManualReviewQuizType, type QuizEvidence } from "../quiz-review/verification";
+import {readExistingReport} from "../quiz-review/report";
+import {prepareReport} from "../quiz-review/preparation";
+
 export class CanvasApiError extends Error {
   constructor(
     public status: number,
@@ -139,6 +143,12 @@ const NETWORK_HINTS: Record<string, string> = {
 };
 
 export class CanvasClient {
+  prepareQuizReport(courseId:number,quizId:number,expectedOrigin:string,requestCreation:boolean) {
+    return prepareReport({baseUrl:this.baseUrl,apiToken:this.apiToken,fetchFn:this.fetchFn},courseId,quizId,expectedOrigin,requestCreation);
+  }
+  readExistingQuizReport(courseId:number,quizId:number,expectedOrigin:string) {
+    return readExistingReport({baseUrl:this.baseUrl,apiToken:this.apiToken,fetchFn:this.fetchFn},courseId,quizId,expectedOrigin);
+  }
   private baseUrl: string;
   private apiToken: string;
   private fetchFn: typeof fetch;
@@ -249,6 +259,75 @@ export class CanvasClient {
     return this.requestAllPages<CanvasUser>(
       `/api/v1/courses/${courseId}/users?enrollment_type[]=student&per_page=100`,
     );
+  }
+
+  /** Fail closed: recorded LTI membership alone is not current enrollment. */
+  async hasActiveEnrollment(courseId: number, userId: number, kind: "student" | "teacher"): Promise<boolean> {
+    if (![courseId, userId].every(id => Number.isSafeInteger(id) && id > 0)) return false;
+    const type = kind === "student" ? "StudentEnrollment" : "TeacherEnrollment";
+    const rows = await this.request<Array<{user_id: number; course_id: number; type: string; enrollment_state: string}>>(
+      `/api/v1/courses/${courseId}/enrollments?user_id=${userId}&type[]=${type}&state[]=active&per_page=100`,
+    );
+    return Array.isArray(rows) && rows.some(row => row.user_id === userId && row.course_id === courseId &&
+      row.type === type && row.enrollment_state === "active");
+  }
+
+  /** Read-only, single-user Classic Quiz evidence. Never follow external paging URLs. */
+  async readQuizReviewEvidence(courseId:number, quizId:number, userId:number):Promise<QuizEvidence> {
+    const invalid=():never=>{throw new CanvasApiError(0,"Canvasの照合情報を確認できません");};
+    if(![courseId,quizId,userId].every(positiveId)) return invalid();
+    const init:RequestInit={cache:"no-store",redirect:"error",signal:AbortSignal.timeout(20000)};
+    const prefix=`/api/v1/courses/${courseId}/quizzes/${quizId}`;
+    const quiz=await this.request<unknown>(prefix,init);
+    if(!isObject(quiz)||quiz.id!==quizId) return invalid();
+    // Practice quizzes have no assignment submission history. Do not retry as a network failure
+    // or silently change their grading type merely to make this adapter work.
+    if(requiresManualReviewQuizType(quiz.quiz_type)) return {quiz,submission:null,current:null,questions:null,attemptQuestions:null};
+    if(!positiveId(quiz.assignment_id)) return invalid();
+    const submissionPath=`/api/v1/courses/${courseId}/assignments/${quiz.assignment_id}/submissions/${userId}?include[]=submission_history`;
+    const submission=await this.request<unknown>(submissionPath,init);
+    if(!isObject(submission)||submission.user_id!==userId||submission.assignment_id!==quiz.assignment_id||
+        !Array.isArray(submission.submission_history)||submission.submission_history.length>100) return invalid();
+    const history=submission.submission_history;
+    if(!history.length||history.some(h=>!isObject(h)||!positiveId(h.attempt)||!positiveId(h.id))) return invalid();
+    const latest=Math.max(...history.map(h=>(h as Record<string,number>).attempt));
+    const candidates=history.filter(h=>h.attempt===latest);
+    if(candidates.length!==1) return invalid();
+    const submissionId=candidates[0].id;
+    const currentPath=prefix+`/submissions/${submissionId}`;
+    const readCurrent=async()=>{
+      const payload=await this.request<unknown>(currentPath,init);
+      if(!isObject(payload)||!Array.isArray(payload.quiz_submissions)||payload.quiz_submissions.length!==1) return invalid();
+      return payload.quiz_submissions[0];
+    };
+    const current=await readCurrent();
+    if(!isObject(current)||!positiveId(current.attempt)) return invalid();
+    const questionsPath=prefix+"/questions";
+    const readQuestions=async(query:string)=>{
+      const all:unknown[]=[];const seen=new Set<string>();
+      let url:string|null=this.baseUrl+questionsPath+query;
+      for(let page=0;url && page<10;page++) {
+        const parsed=new URL(url),base=new URL(this.baseUrl);
+        if(parsed.origin!==base.origin||parsed.pathname!==questionsPath||parsed.username||parsed.password||seen.has(url)) return invalid();
+        seen.add(url);
+        const res=await this.requestRaw(url,init),body:unknown=await res.json();
+        if(!Array.isArray(body)||all.length+body.length>100) return invalid();
+        all.push(...body);
+        const link=res.headers.get("link"),next=parseNextLink(link);
+        if(link?.includes('rel="next"')&&!next) return invalid();
+        url=next;
+      }
+      if(url) return invalid();
+      return all;
+    };
+    const questions=await readQuestions("?per_page=100");
+    const attemptQuestions=await readQuestions(`?per_page=100&quiz_submission_id=${submissionId}&quiz_submission_attempt=${current.attempt}`);
+    const evidence={quiz,submission,current,questions,attemptQuestions};
+    // A regrade or new attempt during these reads must not produce a green result.
+    const after={...evidence,quiz:await this.request<unknown>(prefix,init),
+      submission:await this.request<unknown>(submissionPath,init),current:await readCurrent()};
+    if(evidenceSignature(evidence)!==evidenceSignature(after)) return invalid();
+    return evidence;
   }
 
   /**

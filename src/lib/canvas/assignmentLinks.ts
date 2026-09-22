@@ -1,7 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 import type { CurrentUser } from "@/lib/auth";
 import { getDb } from "@/lib/db/client";
-import { assignments, auditLog, canvasAssignmentLinks } from "@/lib/db/schema";
+import { assignments, auditLog, canvasAssignmentLinks, quizGradeEvents } from "@/lib/db/schema";
 import { createCanvasClient, type CanvasClient } from "./client";
 import { AssignmentLinkError, validateAssignmentLink } from "./assignmentLinkPolicy";
 
@@ -39,6 +39,10 @@ export async function createCanvasAssignmentLink(
     if (existing.some(item => item.canvasAssignmentId === canvasAssignmentId)) {
       throw new AssignmentLinkError("このCanvas課題は別の演習に対応済みです", 409);
     }
+    // Even withdrawn quiz revisions retain provenance. Do not repurpose their Canvas target.
+    const used=await tx.select({token:quizGradeEvents.token}).from(quizGradeEvents).where(and(
+      eq(quizGradeEvents.courseId,link.courseId),sql`${quizGradeEvents.snapshot}->>'canvasAssignmentId' = ${String(canvasAssignmentId)}`)).limit(1);
+    if(used.length)throw new AssignmentLinkError("このCanvas課題は最終小テストの成績記録に使用済みです",409);
     const at = new Date();
     await tx.insert(canvasAssignmentLinks).values({ ...link, createdAt: at, createdBy: actor.userId });
     await tx.insert(auditLog).values({ at, actorRole: actor.role, actorId: actor.userId,

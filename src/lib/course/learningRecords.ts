@@ -1,6 +1,8 @@
-import { and, count, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, count, eq, isNotNull, isNull, inArray, sql } from "drizzle-orm";
 import { getDb, type DbExecutor } from "@/lib/db/client";
-import { courseLessonRecords, submissions } from "@/lib/db/schema";
+import { courseLessonRecords, submissions, canvasAssignmentLinks, students } from "@/lib/db/schema";
+import {readCurrentQuizGrades} from '../quiz-review/grade-store';
+import {quizAchievementRecords} from '../quiz-review/achievement-records';
 import type { LessonRecord } from "@/lib/f4/achievement";
 import { isReportWeek } from "@/lib/f4/reportWeek";
 
@@ -48,5 +50,22 @@ export async function readCourseLearningRecords(courseId: string, studentId?: st
       status: submissions.status, submittedAt: submissions.submittedAt, teacherScore: submissions.teacherScore })
       .from(submissions).where(and(eq(submissions.courseId, courseId), isNotNull(submissions.targetWeek),
         studentId === undefined ? undefined : eq(submissions.studentId, studentId)));
-  return buildCourseLearningRecords(attendance, assignments);
+  const records=buildCourseLearningRecords(attendance, assignments);
+  if(process.env.QUIZ_ACHIEVEMENT_ENABLED==='true'){
+    const instance=process.env.CANVAS_REVIEW_INSTANCE;
+    if(!instance)throw new Error('小テスト成績の保存元を確認してください');
+    const saved=await readCurrentQuizGrades(courseId,studentId,instance,db);
+    const identities=saved.length?await db.select({id:students.id,canvasId:students.canvasUserId}).from(students).where(and(
+      inArray(students.id,[...new Set(saved.map(g=>g.studentId))]),
+      sql`(SELECT count(*) FROM students s WHERE s.canvas_user_id = ${students.canvasUserId}) = 1`)):[];
+    const grades=saved.filter(g=>identities.some(p=>p.id===g.studentId&&p.canvasId!==null&&p.canvasId===g.snapshot.canvasUserId));
+    const links=await db.select({id:canvasAssignmentLinks.canvasAssignmentId}).from(canvasAssignmentLinks).where(eq(canvasAssignmentLinks.courseId,courseId));
+    for(const id of new Set(grades.map(g=>g.studentId))){
+      const converted=quizAchievementRecords(grades.filter(g=>g.studentId===id).map(g=>g.snapshot),{
+        courseId,studentId:id,sourceInstance:instance,linkedAssignmentIds:links.map(l=>l.id)});
+      const rows=[...(records.get(id)??[]),...converted.records];
+      rows.sort((a,b)=>a.weekStart.localeCompare(b.weekStart)||a.lessonId.localeCompare(b.lessonId));records.set(id,rows);
+    }
+  }
+  return records;
 }

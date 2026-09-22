@@ -5,10 +5,38 @@ on:
     branches: ["**"]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [demo, signed, tutor]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: aischool_admin
+          POSTGRES_DB: aischool_test
+          # Disposable GitHub runner only; never a deployed credential.
+          POSTGRES_PASSWORD: fixture-only-quiz-ci
+        ports:
+          - 55442:5432
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U aischool_admin -d aischool_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      TRAINING_DB_TEST: "1"
+      NEXT_TELEMETRY_DISABLED: "1"
+      DATABASE_URL: postgres://aischool_app:fixture-only-quiz-ci@127.0.0.1:55442/aischool_test
+      DATABASE_ADMIN_URL: postgres://aischool_admin:fixture-only-quiz-ci@127.0.0.1:55442/aischool_test
+      LTI_TOOL_URL: http://localhost:3000
     steps:
       - uses: actions/checkout@v4
 
@@ -20,8 +48,22 @@ jobs:
       - name: 依存関係のインストール
         run: npm ci
 
+      - name: 使い捨てDBと検証用セッションの準備
+        env:
+          PGPASSWORD: fixture-only-quiz-ci
+        run: |
+          psql -h 127.0.0.1 -p 55442 -U aischool_admin -d aischool_test -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE aischool_app WITH LOGIN PASSWORD 'fixture-only-quiz-ci';
+          GRANT CONNECT ON DATABASE aischool_test TO aischool_app;
+          GRANT USAGE ON SCHEMA public TO aischool_app;
+          SQL
+          node --import tsx scripts/migrate.ts
+          node -e 'const key = require("node:crypto").randomBytes(48).toString("hex"); console.log("::add-mask::" + key); require("node:fs").appendFileSync(process.env.GITHUB_ENV, "LTI_SESSION_SECRET=" + key + "\n");'
+
       - name: 型チェック
-        run: npm run typecheck
+        run: |
+          npx next typegen
+          npm run typecheck
 
       - name: 単体テスト
         run: npm run test:unit
@@ -32,15 +74,19 @@ jobs:
       - name: Playwrightブラウザのインストール
         run: npx playwright install --with-deps chromium
 
+      - name: 分類後も元のE2Eが全件含まれることを確認
+        run: node tools/ci/check-e2e-partition.mjs
+
       - name: E2Eテスト（正常・入力エラー・権限・境界値）
-        run: npx playwright test
+        run: node tools/ci/run-e2e.mjs
         env:
           CI: "1"
+          CI_LTI_MODE: ${{ matrix.mode }}
 
       - name: 失敗時のトレースを保存
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-traces
+          name: playwright-traces-${{ matrix.mode }}
           path: test-results/
           retention-days: 7

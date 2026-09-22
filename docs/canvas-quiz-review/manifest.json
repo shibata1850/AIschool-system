@@ -1,0 +1,255 @@
+{
+  "base_head": "6740d7b5ca27a7365b863b155fb948f9c9867fcb",
+  "files": [
+    {
+      "path": ".github/workflows/quiz-review-integration.yml",
+      "base_sha256": null,
+      "updated_sha256": "141cf67b70b23045d67f3394727e4e791ba15cd2ed7b210f56cf935b3f207edd"
+    },
+    {
+      "path": "app/achievement/page.tsx",
+      "base_sha256": "b38793897552cde55e0125ef3a132ee306522bc643c3aca652fb27655613a434",
+      "updated_sha256": "ef83d8e86901a0f60e26b7cdd2e3a13a63cd0368aadc33a87aadf882f7cdebb8"
+    },
+    {
+      "path": "app/achievement/quizzes/page.tsx",
+      "base_sha256": null,
+      "updated_sha256": "a9f58481ebecacbba2c1572a484558745bdae8dca3feed20de2b2eb936caef32"
+    },
+    {
+      "path": "app/api/quiz-results/route.ts",
+      "base_sha256": null,
+      "updated_sha256": "4e38a2c376b383c1d32f05749e387c7131ea4e113c98b2f8b11e646d0dc705c1"
+    },
+    {
+      "path": "app/api/teacher/quiz-review/decision/route.ts",
+      "base_sha256": null,
+      "updated_sha256": "e54af2e20dd3be64d54827ea114d2ef371607733473ccafee86846d9e091e2b6"
+    },
+    {
+      "path": "app/teacher/quiz-review/decision-controls.tsx",
+      "base_sha256": null,
+      "updated_sha256": "ffad08d3fbee473e39d3cd5bf5c78bec440f0d8e1277a1a5c0584b50086af012"
+    },
+    {
+      "path": "drizzle/migrations/0018_canvas_quiz_decisions.sql",
+      "base_sha256": null,
+      "updated_sha256": "ad762745628d3ed394c3f821ffa56fd63b9a470cf1faf013eec69bffec22d6e7"
+    },
+    {
+      "path": "Dockerfile",
+      "base_sha256": "092df4c4be49dcd59c8662bdca65bce96d579440780298fd769b150b5c32831d",
+      "updated_sha256": "811958b3b31c81a36e2df1b55adeb736cd14569a534652e7d2521961a4b91e1b"
+    },
+    {
+      "path": "scripts/purge-quiz-reviews.ts",
+      "base_sha256": null,
+      "updated_sha256": "c40f1c9ff489dc28dad36aa46a0cf4f5341e80a4920f2a7f5377141eaae8c7a9"
+    },
+    {
+      "path": "infra/custom-layer/quiz-review-retention.md",
+      "base_sha256": null,
+      "updated_sha256": "71ecc5e079f38073473b6105f74ef8fe03a97db9ecf3f5cb471ef60fc811012b"
+    },
+    {
+      "path": "infra/custom-layer/README.md",
+      "base_sha256": "a4844f1841cc68f2b93dbd24df08081d4b2957c2a338e9a1440b38d645b19c44",
+      "updated_sha256": "4a986b3060d70c5436462ba2e7a322591283932c0299833c7e61f556ca9537a8"
+    },
+    {
+      "path": "app/api/teacher/quiz-review/acquire/route.ts",
+      "base_sha256": null,
+      "updated_sha256": "d5d655f219432dd5181f5d5f670dc217d67544c8c405cf25d195d3183f9ae406"
+    },
+    {
+      "path": "app/api/teacher/quiz-review/prepare/route.ts",
+      "base_sha256": null,
+      "updated_sha256": "b3d70f81f933fbff6ed2f967b88d8106f52e5a2c89deca91485aa2aef78fd16f"
+    },
+    {
+      "path": "app/page.tsx",
+      "base_sha256": "c29d0e0cb4b9115ddebc5ece36af9a74e4a4d0473e11de02b6abe36e063396f5",
+      "updated_sha256": "6fe286e8a3f3090a5a6f8bf558201e36f8ff1031a31c3b1e8ca5b4a84d0f558f"
+    },
+    {
+      "path": "app/api/teacher/quiz-review/route.ts",
+      "base_sha256": null,
+      "updated_sha256": "1096180f81a4ccbe8ec2ef352cfd4360b1cffdddf1243ddfa0ba46521ce8dd8d"
+    },
+    {
+      "path": "app/api/teacher/quiz-review/verify/route.ts",
+      "base_sha256": null,
+      "updated_sha256": "400b29d766486e9d1ab31e89159b7fcd88157029c3d0dbaee382134a72cf2254"
+    },
+    {
+      "path": "app/teacher/quiz-review/page.tsx",
+      "base_sha256": null,
+      "updated_sha256": "f9070ec2adb3df11a30f4f33ce6e14834351725a2ed1505faaa106ebfc5cb2c4"
+    },
+    {
+      "path": "app/teacher/quiz-review/review-form.tsx",
+      "base_sha256": null,
+      "updated_sha256": "239eb92d13c4a005bbf63d9a1bb5dcfe877c72875aa4a8939232fe19501013fc"
+    },
+    {
+      "path": "app/teacher/quiz-review/verification-button.tsx",
+      "base_sha256": null,
+      "updated_sha256": "2031e28c5f5bd54c2a16936599fe66e81a72667f72618ee1481c439fc8b4f356"
+    },
+    {
+      "path": "src/lib/canvas/client.ts",
+      "base_sha256": "de0333d947a37f9a758200105808fd63d99e1aa199fc10d12d44514c7214a41a",
+      "updated_sha256": "417bf1c0e91522d1d08992d415eafa4226fde9ba416d72694af21a6fec17a2a5"
+    },
+    {
+      "path": "src/lib/db/schema.ts",
+      "base_sha256": "ab447b911ffef5d054d5cc5c6f77edb4126c2ae771ffc36d16937528a8df3b1d",
+      "updated_sha256": "a69556f275531fb90b94e0a167d5f9e8ee33fd075462c7e416e314b336221474"
+    },
+    {
+      "path": "drizzle/migrations/0017_canvas_quiz_review.sql",
+      "base_sha256": null,
+      "updated_sha256": "1172183018ecdc6e8abca2790e0732cf6f965bae6e85d0f5929c591988da8a9a"
+    },
+    {
+      "path": "drizzle/migrations/meta/_journal.json",
+      "base_sha256": "f9a0dfe4f66d38421ddad04cdf417c035590b660859a948b98aaa9011827bd73",
+      "updated_sha256": "db980a60478eee65d862bf5b53377c90093afd9fbef8b5eaf40ee89f4fd4d143"
+    },
+    {
+      "path": "playwright.config.ts",
+      "base_sha256": "116b7d2b8c7351af93a61e507dcdda366ca16951e2af764e8cefe9630d606af0",
+      "updated_sha256": "d35acc01126e3a91d0e730da54e77c6814b97e9999f93f438760630e9042dba2"
+    },
+    {
+      "path": "playwright.quiz-review.config.ts",
+      "base_sha256": null,
+      "updated_sha256": "5ed6ef79c31f1b11f97d86cf859b79e5ddafe8cfed1d9b92cc657e2f311dd992"
+    },
+    {
+      "path": "tools/quiz-review-e2e/canvas.mjs",
+      "base_sha256": null,
+      "updated_sha256": "eef736ac19f8fb2f4a60e9885d7c542c73cc891c23bff99ce23e7ac313dd8c04"
+    },
+    {
+      "path": "tools/quiz-review-e2e/start.mjs",
+      "base_sha256": null,
+      "updated_sha256": "24ce58bfbdecd659b6727c3388f4747bf3c3039234ba41366056b7e07960ed99"
+    },
+    {
+      "path": "e2e/regression/2026-09-19-quiz-review.spec.ts",
+      "base_sha256": null,
+      "updated_sha256": "a1beb5e82c2d3eeeadf55330d336b8cc6d0c03fc9438c3460eeff0cc69fb20d5"
+    },
+    {
+      "path": "src/lib/quiz-review/catalog.json",
+      "base_sha256": null,
+      "updated_sha256": "60575c36009c3ceecc28e1f13ffa6106a48998acde3eed7f414810f23a1a1fe1"
+    },
+    {
+      "path": "src/lib/quiz-review/converter.fixture.json",
+      "base_sha256": null,
+      "updated_sha256": "4e198487d3182d6a7133b29252627ae180b1e2e21c641c3d2d42e505356a5c6d"
+    },
+    {
+      "path": "src/lib/quiz-review/csv.test.ts",
+      "base_sha256": null,
+      "updated_sha256": "75dc7d4458c545b06aec677154b33de361fef4f7baf8a994b1841b38ed8089ca"
+    },
+    {
+      "path": "src/lib/quiz-review/csv.ts",
+      "base_sha256": null,
+      "updated_sha256": "a16b5e448105d196deba95faf31ae8a0f0f519b3ad8f2dc3ba1e5669ce7b161c"
+    },
+    {
+      "path": "src/lib/quiz-review/decision-policy.ts",
+      "base_sha256": null,
+      "updated_sha256": "2bdb5586d39b2e2172368e59b88a36a6051e2cbcfa400cc68e46e656016b07be"
+    },
+    {
+      "path": "src/lib/quiz-review/decisions.test.ts",
+      "base_sha256": null,
+      "updated_sha256": "bda7272614dcfc73e99c9dcf10fd0bd89de9121edffcf4def12eba8498b9d513"
+    },
+    {
+      "path": "src/lib/quiz-review/decisions.ts",
+      "base_sha256": null,
+      "updated_sha256": "2439b795dea052d9594bb49cbb4a7027211a968af416694b38d075449aa37466"
+    },
+    {
+      "path": "src/lib/quiz-review/enrollment.test.ts",
+      "base_sha256": null,
+      "updated_sha256": "55aa0e8c4beb7d19f0ed1133d8f136635c782ddd91ea15094e2d76f105e5a18c"
+    },
+    {
+      "path": "src/lib/quiz-review/fixtures.ts",
+      "base_sha256": null,
+      "updated_sha256": "915ad4a508d316f97e31d3d67220447dddb9004d96ef17bd87a1187b38784d9f"
+    },
+    {
+      "path": "src/lib/quiz-review/labels.ts",
+      "base_sha256": null,
+      "updated_sha256": "45a0fc6fd1359f15daaf7e653876c2b5ab236ed69633a98a7f219bb3adb88207"
+    },
+    {
+      "path": "src/lib/quiz-review/policy.test.ts",
+      "base_sha256": null,
+      "updated_sha256": "191dd5393c4b60d9e38d799ee4146a9cba51dfb8160ae5d55e2bfea6fc0a4e85"
+    },
+    {
+      "path": "src/lib/quiz-review/policy.ts",
+      "base_sha256": null,
+      "updated_sha256": "8b2cc2cd8815655fe8ee4d892e4cf15fcd224f62d205f33e05b0e3d099255d31"
+    },
+    {
+      "path": "src/lib/quiz-review/preparation.test.ts",
+      "base_sha256": null,
+      "updated_sha256": "fbfd3ce7bfd612d6bec71f98f8aa44338a0b6c3f2be472bd237569ade1f7af3c"
+    },
+    {
+      "path": "src/lib/quiz-review/preparation.ts",
+      "base_sha256": null,
+      "updated_sha256": "020ab391ca691dcea0e07442ea2a0c654a101f961d9d46a2f15d7bc7c5ceea62"
+    },
+    {
+      "path": "src/lib/quiz-review/reader.test.ts",
+      "base_sha256": null,
+      "updated_sha256": "244d4530e0d43714df8cd2d6973ffaae56981ebd15378e012a1668c6df74e27a"
+    },
+    {
+      "path": "src/lib/quiz-review/report.test.ts",
+      "base_sha256": null,
+      "updated_sha256": "70fb9b9ce9f2a7bbbe50ab7e2b7f7570e565359e31356f5da234f100d61448c1"
+    },
+    {
+      "path": "src/lib/quiz-review/report.ts",
+      "base_sha256": null,
+      "updated_sha256": "6bf8abdc3cfd20a64e0d135c3dfe92b184fac88f41394754982f3673268b1272"
+    },
+    {
+      "path": "src/lib/quiz-review/retention.test.ts",
+      "base_sha256": null,
+      "updated_sha256": "cbeb2dae1818895f6676120f44a49aa7da61034742aa792c0a9847f8e7d51b2b"
+    },
+    {
+      "path": "src/lib/quiz-review/retention.ts",
+      "base_sha256": null,
+      "updated_sha256": "a560c3db921b1379a824bf3dce20776b4eb3decb7be0be20dd6b6b46e11b6d70"
+    },
+    {
+      "path": "src/lib/quiz-review/service.ts",
+      "base_sha256": null,
+      "updated_sha256": "c34ee3ca2195d99f29538f215712897e8dd424b57cf71b11d438d0e94098a4d4"
+    },
+    {
+      "path": "src/lib/quiz-review/verification.test.ts",
+      "base_sha256": null,
+      "updated_sha256": "e5cb26aaa5f6304f3b765d44c59dd8aa06d308d4ed27e3c28c130392b73880ae"
+    },
+    {
+      "path": "src/lib/quiz-review/verification.ts",
+      "base_sha256": null,
+      "updated_sha256": "e22bef8ac33ac1ec671b37297f8d414a0163e02575932f723ad433eae2bf34f5"
+    }
+  ]
+}

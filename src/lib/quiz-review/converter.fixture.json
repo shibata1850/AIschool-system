@@ -1,0 +1,112 @@
+{
+  "schema": "ngas.canvas-csv-review.v1",
+  "source_origin": "https://canvas.example.test",
+  "source_instance": "test-canvas",
+  "course_id": 1,
+  "quiz_id": 4,
+  "record_count": 1,
+  "status": "converted_for_review_only",
+  "private_student_data": true,
+  "all_attempts_export_verified": false,
+  "source_provenance": "caller_supplied_csv_and_origin_not_independently_authenticated",
+  "records": [
+    {
+      "source_record_key": "canvas-csv:0bbc4022003395d5aa2263f42b2705680165990c9d2e6359113043a50d396079",
+      "revision_key": "ef5faca4fad62e0f475cf653a978e5d4af6d1786e6b5189fcea380dc64837484",
+      "identity": {
+        "source_instance": "test-canvas",
+        "canvas_course_id": 1,
+        "canvas_quiz_id": 4,
+        "canvas_user_id": 9001,
+        "attempt": 1,
+        "step": "STEP01",
+        "stage": "F",
+        "canvas_submission_id": null
+      },
+      "catalog_fingerprint": "1ce8131379f7eebeaeee2da1ec5abf9c4e3eee7331f80314b9230c0eeb091b2a",
+      "content_versions": [
+        "0.1.0-draft"
+      ],
+      "scores": {
+        "STEP01/F01": 1.0,
+        "STEP01/F02": 1.0,
+        "STEP01/F03": 1.0,
+        "STEP01/F04": 1.0,
+        "STEP01/F05": 1.0,
+        "STEP01/F06": 1.0,
+        "STEP01/F07": 1.0,
+        "STEP01/F08": 1.0,
+        "STEP01/F09": 1.0,
+        "STEP01/F10": 1.0,
+        "STEP01/F11": 1.0,
+        "STEP01/F12": 1.0
+      },
+      "skills": [
+        {
+          "skill_key": "STEP01/capability",
+          "earned": 3.0,
+          "possible": 3,
+          "score_percent": 100.0,
+          "ungraded": 0,
+          "status": "scored",
+          "question_keys": [
+            "STEP01/F01",
+            "STEP01/F02",
+            "STEP01/F03"
+          ]
+        },
+        {
+          "skill_key": "STEP01/information",
+          "earned": 3.0,
+          "possible": 3,
+          "score_percent": 100.0,
+          "ungraded": 0,
+          "status": "scored",
+          "question_keys": [
+            "STEP01/F07",
+            "STEP01/F08",
+            "STEP01/F09"
+          ]
+        },
+        {
+          "skill_key": "STEP01/operation",
+          "earned": 3.0,
+          "possible": 3,
+          "score_percent": 100.0,
+          "ungraded": 0,
+          "status": "scored",
+          "question_keys": [
+            "STEP01/F10",
+            "STEP01/F11",
+            "STEP01/F12"
+          ]
+        },
+        {
+          "skill_key": "STEP01/verification",
+          "earned": 3.0,
+          "possible": 3,
+          "score_percent": 100.0,
+          "ungraded": 0,
+          "status": "scored",
+          "question_keys": [
+            "STEP01/F04",
+            "STEP01/F05",
+            "STEP01/F06"
+          ]
+        }
+      ],
+      "total": {
+        "earned": 12.0,
+        "possible": 12.0,
+        "reported": 12.0,
+        "consistency": "matched"
+      },
+      "status": "scored",
+      "receiver_student_id": null,
+      "receiver_unit_mapping": null,
+      "delivery_status": "not_sent"
+    }
+  ],
+  "grades_imported": 0,
+  "live_sync": false
+}
