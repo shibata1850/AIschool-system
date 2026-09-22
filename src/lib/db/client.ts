@@ -1,7 +1,7 @@
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import * as schema from "./schema";
-export type DbExecutor = Pick<NodePgDatabase<typeof schema>, "select" | "selectDistinct" | "insert" | "update" | "delete" | "execute">;
+export type DbExecutor = Pick<NodePgDatabase<typeof schema>, "select" | "selectDistinct" | "selectDistinctOn" | "insert" | "update" | "delete" | "execute">;
 
 /**
  * 実行時アプリ用のDB接続（権限を絞った aischool_app ロール）。

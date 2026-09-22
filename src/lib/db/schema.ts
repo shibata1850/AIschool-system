@@ -236,6 +236,16 @@ export const quizReviewCandidates = pgTable("canvas_quiz_review_candidates", {
 }, t => [primaryKey({columns:[t.courseId,t.sourceKey,t.revision]}),
   foreignKey({columns:[t.studentId,t.courseId], foreignColumns:[studentCourses.studentId,studentCourses.courseId]}).onDelete("cascade")]);
 
+/** Durable grade revisions. No foreign key to expiring review candidates. */
+export const quizGradeEvents = pgTable("canvas_quiz_grade_events", {
+  sequence:serial("sequence").primaryKey(),token:uuid("token").notNull().unique(),
+  courseId:text("course_id").notNull(),studentId:text("student_id").notNull(),
+  sourceInstance:text("source_instance").notNull(),quizId:integer("quiz_id").notNull(),
+  snapshot:jsonb("snapshot").$type<import("@/lib/quiz-review/achievement-records").FormalQuizGrade>().notNull(),
+  sourceKey:text("source_key").notNull(),revision:text("revision").notNull(),
+  confirmedAt:timestamp("confirmed_at",{withTimezone:true}).notNull(),confirmedBy:text("confirmed_by").notNull(),
+},t=>[foreignKey({columns:[t.studentId,t.courseId],foreignColumns:[studentCourses.studentId,studentCourses.courseId]}).onDelete('cascade')]);
+
 /** Teacher-selected reference results; deleted together with the temporary candidate. */
 export const quizReviewDecisions = pgTable("canvas_quiz_review_decisions", {
   courseId:text("course_id").notNull(),studentId:text("student_id").notNull(),

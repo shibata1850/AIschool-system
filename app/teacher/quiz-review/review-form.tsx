@@ -6,9 +6,10 @@ import VerificationButton from "./verification-button";
 import type {PreparationResult} from "@/lib/quiz-review/preparation";
 import DecisionControls from './decision-controls';
 import type {DecisionView} from '@/lib/quiz-review/decision-policy';
+import FormalControls from './formal-controls';
 type Row = {snapshot:ReviewRecord; importedAt:string;expiresAt:string;decision:DecisionView|null};
 const stages:Record<string,string> = {D:"事前診断",A:"途中確認A",B:"途中確認B",F:"最終テスト",R:"復習"};
-export default function ReviewForm({quizzes,publicationEnabled}:{quizzes:{id:number;step:string;stage:string}[];publicationEnabled:boolean}) {
+export default function ReviewForm({quizzes,publicationEnabled,achievementEnabled=false}:{quizzes:{id:number;step:string;stage:string}[];publicationEnabled:boolean;achievementEnabled?:boolean}) {
   const [quizId,setQuizId]=useState("");
   const [preparation,setPreparation]=useState<PreparationResult|null>(null),[requestUncertain,setRequestUncertain]=useState(false);
   const [rows,setRows] = useState<Row[]>([]), [message,setMessage] = useState("読み込み中です"),
@@ -82,6 +83,7 @@ export default function ReviewForm({quizzes,publicationEnabled}:{quizzes:{id:num
       onChange={e=>setFile(e.target.files?.[0]??null)} style={{display:"block",maxWidth:"100%",padding:"12px 0"}} />
     <button disabled={!file||busy} onClick={save} style={{minHeight:44,padding:".7rem 1.2rem"}}>確認待ちとして保存</button>
     <p role="status" aria-live="polite">{message}</p>
+    {achievementEnabled&&<FormalControls candidates={rows.map(r=>r.snapshot)} />}
     <h2>保存した確認用データ</h2>
     <p>最大100件を表示します。再採点で内容が変わった場合は両方を残します。上にある結果が最新の成績とは限りません。</p>
     <p>練習用小テストは、Canvasの答案画面で得点と最新の受験回を確認してください。「Canvasと照合」に対応するのは採点用小テストです。照合結果はこの画面だけに表示され、受講者への公開や成績の確定は行いません。</p>

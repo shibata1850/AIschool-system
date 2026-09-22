@@ -38,6 +38,7 @@ http.createServer((req,res)=>{
   if(url.pathname==='/api/v1/courses/1/quizzes/4/reports/81')return json(report);
   if(url.pathname==='/api/v1/progress/82')return json({workflow_state:mode==='csv-running'?'running':mode==='prepare-queued'?'queued':mode==='prepare-failed'?'failed':'completed'});
   if(url.pathname==='/files/83/download'){res.writeHead(200,{'content-type':'text/csv; charset=utf-8'});return res.end(csv);}
+  if(url.pathname==='/api/v1/courses/1/assignments')return json(mode==='assignment-repurposed'?[{id:904,name:'架空の再利用課題',published:true,points_possible:100}]:[]);
   if(url.pathname==='/api/v1/courses/lti_context_id:quiz-context') return json({id:1,name:'架空コース',lti_context_id:'quiz-context'});
   if(url.pathname==='/api/v1/courses/lti_context_id:other-context') return json({id:2,name:'別の架空コース',lti_context_id:'other-context'});
   if(/^\/api\/v1\/courses\/[12]\/enrollments$/.test(url.pathname)) {

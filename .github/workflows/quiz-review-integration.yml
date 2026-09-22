@@ -59,6 +59,7 @@ jobs:
         run: |
           npx playwright install --with-deps chromium
           node node_modules/@playwright/test/cli.js test --config playwright.quiz-review.config.ts
+          node node_modules/@playwright/test/cli.js test --config playwright.formal-quiz.config.ts
       - name: Dockerイメージのビルド（配備しない）
         run: docker build --tag quiz-review-ci:check .
       - name: 実行用コマンドの同梱と設定不足時の拒否を確認
