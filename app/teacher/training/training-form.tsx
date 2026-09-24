@@ -1,9 +1,9 @@
 "use client";
 import { useRef, useState } from "react";
 import { postJson } from "@/lib/client/postJson";
-import { parseTrainingSettings, type TrainingSettings } from "@/lib/course/trainingPolicy";
+import { parseTrainingSettings, type TrainingSettings, type TrainingLinkPolicy } from "@/lib/course/trainingPolicy";
 
-export function TrainingForm({ initial }: { initial: TrainingSettings }) {
+export function TrainingForm({ initial, links }: { initial: TrainingSettings; links: TrainingLinkPolicy }) {
   const [value, setValue] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -23,7 +23,7 @@ export function TrainingForm({ initial }: { initial: TrainingSettings }) {
       setReloadRequired(result.status === 409 || result.status === undefined || result.status >= 500);
       return;
     }
-    const saved = parseTrainingSettings(result.data, initial.courseId, { materialUrls: [], quizUrls: [] });
+    const saved = parseTrainingSettings(result.data, initial.courseId, links);
     if (!saved || saved.revision !== value.revision + 1) {
       setError("保存結果を確認できません。再読み込みしてください。"); setReloadRequired(true); return;
     }
@@ -47,6 +47,18 @@ export function TrainingForm({ initial }: { initial: TrainingSettings }) {
         <label htmlFor={`training-title-${day.day}`}>第{day.day}回の授業名</label>
         <input id={`training-title-${day.day}`} style={control} required maxLength={120} value={day.title}
           onChange={e => change({ ...value, days: value.days.map(item => item.day === day.day ? { ...item, title: e.target.value } : item) })} />
+        <label htmlFor={`training-material-${day.day}`}>教材</label>
+        <select id={`training-material-${day.day}`} style={control} value={day.materialUrl ?? ""}
+          onChange={e => change({ ...value, days: value.days.map(item => item.day === day.day ? { ...item, materialUrl: e.target.value || null } : item) })}>
+          <option value="">未設定</option>
+          {links.materialUrls.map(url => <option key={url} value={url}>{url}</option>)}
+        </select>
+        <label htmlFor={`training-quiz-${day.day}`}>小テスト</label>
+        <select id={`training-quiz-${day.day}`} style={control} value={day.quizUrl ?? ""}
+          onChange={e => change({ ...value, days: value.days.map(item => item.day === day.day ? { ...item, quizUrl: e.target.value || null } : item) })}>
+          <option value="">未設定</option>
+          {links.quizUrls.map(url => <option key={url} value={url}>{url}</option>)}
+        </select>
       </div>)}
       <button type="submit">{busy ? "保存中…" : "保存"}</button>
     </fieldset>
