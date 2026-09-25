@@ -1,5 +1,26 @@
 # BtoB link release checkpoint - 2026-09-25
 
+## Current status (2026-09-25 17:00 JST)
+
+This section supersedes the pending statuses in the chronological checkpoints below.
+
+- Production app: 8fb6dd66ac8419a29288a79a10e76d24a5f43e61, image ngas-quiz-selector:8fb6dd6 (sha256:54f3e5bc233a220a1e5e881c644f67f4ef451d36016a6a5f3ad5e73c7ea81d39). Last deployment checks: app Up on 127.0.0.1:3001, DB healthy, local/public HTTP200.
+- Course2 published for enrolled users only; Tokyo timezone. Existing teacher-test/user19 and fictional demo student01/user2 accepted invitations. Current lesson remains unselected. STEP02-09 quizzes remain unpublished.
+- Ten material links and nine final-quiz links saved. STEP05 spans lessons5-6; lesson5 intentionally has no final quiz. External lesson links open separate tabs; verified in actual student LTI. Teacher quiz selector distinguishes course and quiz IDs, verified as teacher-test.
+- Fictional student submitted quiz100 attempt1 using U (unknown) on all12 questions; Canvas score0/12. Teacher acquired one CSV record and verified latest attempt, question IDs, points and per-question scores against Canvas.
+- Following explicit user approval, teacher adopted this result ONLY for learner display at17:00:37. Student LTI showed attempt1, total0/12, four skills0/3, teacher confirmation17:00:37, expiry2026/10/25 15:25:34 Japan time.
+- Separate formal-achievement page displayed まだ採用記録はありません。 No formal achievement adoption or subsequent Canvas score edits. Returned to administrator; stop-masquerade link absent.
+- End-to-end submission -> CSV -> verification -> teacher selection -> learner display is accepted for this fictional case. Do not claim formal achievement adoption, all-course testing or all-step publication as completed.
+
+## Remaining work and boundaries
+
+1. Distinguish intentional no-quiz lessons from pending configuration. Current TrainingDay has only quizUrl:null, so the UI cannot safely infer intent. Add an explicit backward-compatible status and teacher control; do not hard-code lesson5 or treat every null as not required. Test save/reload, legacy records, validation and learner rendering before deployment.
+2. Formal achievement adoption requires separate explicit approval with the fictional learner, quiz, attempt and target teaching week specified. The approval for learner display does not cover it.
+3. STEP02-09 publication and acceptance remain separate operations; do not publish automatically. Keep the current unselected lesson until an instructor chooses the actual lesson.
+4. Quest native Japanese speech remains low priority. Hardware VR/MR interaction and teaching-video playback were user-verified; speech fallback was not implemented in this release.
+
+Latest pre-update DB backup: /home/ubuntu/backups/aischool-before-quiz-selector-20260925-151710.sql.gz (21488 bytes, mode600, gzip integrity passed; restore untested). Rollback app image ngas-btob-popup:1bf8a00 and override backup /home/ubuntu/backups/quiz-selector-override-before-8fb6dd6.yml retained. No environment edits or migrations in these follow-up deployments.
+
 ## Scope
 
 - Course-2-only approved material/final-quiz selections and saved student-home links.
