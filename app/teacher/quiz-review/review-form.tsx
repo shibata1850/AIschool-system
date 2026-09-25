@@ -9,7 +9,7 @@ import type {DecisionView} from '@/lib/quiz-review/decision-policy';
 import FormalControls from './formal-controls';
 type Row = {snapshot:ReviewRecord; importedAt:string;expiresAt:string;decision:DecisionView|null};
 const stages:Record<string,string> = {D:"事前診断",A:"途中確認A",B:"途中確認B",F:"最終テスト",R:"復習"};
-export default function ReviewForm({quizzes,publicationEnabled,achievementEnabled=false}:{quizzes:{id:number;step:string;stage:string}[];publicationEnabled:boolean;achievementEnabled?:boolean}) {
+export default function ReviewForm({quizzes,publicationEnabled,achievementEnabled=false}:{quizzes:{id:number;courseId:number;step:string;stage:string}[];publicationEnabled:boolean;achievementEnabled?:boolean}) {
   const [quizId,setQuizId]=useState("");
   const [preparation,setPreparation]=useState<PreparationResult|null>(null),[requestUncertain,setRequestUncertain]=useState(false);
   const [rows,setRows] = useState<Row[]>([]), [message,setMessage] = useState("読み込み中です"),
@@ -68,7 +68,7 @@ export default function ReviewForm({quizzes,publicationEnabled,achievementEnable
     <label htmlFor="report-quiz">取得する小テスト</label>{" "}
     <select id="report-quiz" value={quizId} disabled={busy} onChange={e=>{setQuizId(e.target.value);setPreparation(null);setRequestUncertain(false);setMessage("");}} style={{minHeight:44,maxWidth:"100%",marginBottom:12}}>
       <option value="">小テストを選択</option>
-      {quizzes.map(q=><option key={q.id} value={q.id}>{q.step} · {stages[q.stage]}</option>)}
+      {quizzes.map(q=><option key={q.id} value={q.id}>コース{q.courseId} · {q.step} · {stages[q.stage]} · 小テスト{q.id}</option>)}
     </select>{" "}
     <div style={{display:"flex",flexWrap:"wrap",gap:12}}>
       <button disabled={!quizId||busy||requestUncertain||preparation?.state==="queued"||preparation?.state==="running"||preparation?.state==="incomplete"} onClick={()=>prepare(true)} style={{minHeight:44,padding:".7rem 1.2rem"}}>CSVの作成を依頼</button>

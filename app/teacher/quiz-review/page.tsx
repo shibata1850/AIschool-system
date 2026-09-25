@@ -10,7 +10,7 @@ export default async function QuizReviewPage() {
     <h1>小テスト結果の確認</h1>
     <p>Canvasの分析CSVを取得して確認待ちで保存します。講師が答案を確認して採用すると、本人の小テスト記録に表示されます。</p>
     <p>正式な成績はCanvasで確認してください。確認用データの表示期間は保存から30日です。</p>
-    <ReviewForm achievementEnabled={process.env.QUIZ_ACHIEVEMENT_ENABLED==='true'} publicationEnabled={process.env.QUIZ_REVIEW_PUBLICATION_ENABLED==='true'} quizzes={[...new Map(catalog.questions.map(q=>[q.canvas_quiz_id,{id:q.canvas_quiz_id,step:q.step,stage:q.stage}])).values()]} />
+    <ReviewForm achievementEnabled={process.env.QUIZ_ACHIEVEMENT_ENABLED==='true'} publicationEnabled={process.env.QUIZ_REVIEW_PUBLICATION_ENABLED==='true'} quizzes={[...new Map(catalog.questions.map(q=>[q.canvas_quiz_id,{id:q.canvas_quiz_id,courseId:q.canvas_course_id,step:q.step,stage:q.stage}])).values()]} />
     <p><a href="/">ホームへ戻る</a></p>
   </main>;
 }

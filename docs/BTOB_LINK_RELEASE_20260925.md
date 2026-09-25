@@ -49,3 +49,11 @@ This checkpoint is not evidence of LMS production deployment. Course publication
 - Added an offline iframe browser regression with intercepted destinations: verifies popup URL, null opener, and preserved home. Actual Canvas popup acceptance remains a post-deployment gate.
 - Follow-up verification: 74 isolated training tests and all 20 browser tests passed across four viewport profiles. TypeScript passed after the browser server stopped; an earlier concurrent check collided with regenerated Next.js type files. Local test database stopped successfully.
 - STEP02-09 quizzes remain unpublished. Teacher-specific result/adoption workflow and deliberate fictional quiz submission are still pending.
+
+## Production popup acceptance and teacher selector follow-up
+
+- Deployed 1bf8a00 as ngas-btob-popup:1bf8a00; app Up on port 3001, DB healthy, local/public HTTP 200. Guarded image-only override change; backup retained; no migration or environment edits.
+- Actual fictional-student clicks opened course-2 quiz100 and BtoB materials in separate top-level tabs; original LTI home remained. No quiz attempt started. Restored unselected lesson and administrator session.
+- Masqueraded as existing teacher-test (user19), launched course2 LTI, confirmed teacher menu and absence of administrator menu. Results page was accessible and had no saved review data.
+- Found two identical STEP01 final-test selector labels with values 4 and 100. Did not request a CSV or adopt a result while selection was ambiguous. Ended masquerade.
+- Follow-up labels include catalog course ID and quiz ID while preserving all-course teacher access. No authorization, acquisition, or grading changes. Focused selector/catalog tests: 4 passed; TypeScript passed. This selector change is not yet deployed or browser-verified.
