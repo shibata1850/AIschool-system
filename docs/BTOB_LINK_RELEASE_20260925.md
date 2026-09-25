@@ -38,3 +38,14 @@
 7. On failure, restore the prior app image and verify HTTP. Do not remove containers, volumes, or database records.
 
 This checkpoint is not evidence of LMS production deployment. Course publication, quiz publication, enrollment, lesson URL saving, and fictional-student acceptance are separate remaining operations.
+
+## Subsequent production acceptance
+
+- Deployed 7cf767a as ngas-btob-links:7cf767a. App port remains 127.0.0.1:3001; DB healthy; local/public HTTP 200. Existing proxy configuration and environment retained, no migrations.
+- Saved all ten material links and nine final-test links. Lesson 5 intentionally has no final test; lesson 6 uses STEP05 final test. Current lesson restored to unselected after checks.
+- With explicit approval, published course 2 with course-only visibility, selected Tokyo timezone, and enrolled existing teacher-test and fictional demo student 01. Both invitations accepted; no new accounts.
+- Student LTI shows the selected lesson without teacher/admin menus. Material renders; quiz 100 shows its 12-question start page. No answer attempt or grade adoption performed.
+- Found nested Canvas navigation when the quiz link opens inside the LTI iframe. Follow-up code opens both external lesson links in a separate tab with noopener/noreferrer, retaining the original home. This follow-up is NOT yet deployed.
+- Added an offline iframe browser regression with intercepted destinations: verifies popup URL, null opener, and preserved home. Actual Canvas popup acceptance remains a post-deployment gate.
+- Follow-up verification: 74 isolated training tests and all 20 browser tests passed across four viewport profiles. TypeScript passed after the browser server stopped; an earlier concurrent check collided with regenerated Next.js type files. Local test database stopped successfully.
+- STEP02-09 quizzes remain unpublished. Teacher-specific result/adoption workflow and deliberate fictional quiz submission are still pending.

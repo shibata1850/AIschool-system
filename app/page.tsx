@@ -62,8 +62,8 @@ export default async function Home() {
         <p role={training.state === "error" ? "alert" : "status"}>{training.message}</p>}
       {training.state === "ready" && <section aria-label="現在の授業">
         <h2>第{training.lesson.day}回：{training.lesson.title}</h2>
-        <p>{training.lesson.materialUrl ? <a href={training.lesson.materialUrl}>教材を開く</a> : "教材：準備中"}</p>
-        <p>{training.lesson.quizUrl ? <a href={training.lesson.quizUrl}>小テストを開く</a> : "小テスト：準備中"}</p>
+        <p>{training.lesson.materialUrl ? <a href={training.lesson.materialUrl} target="_blank" rel="noopener noreferrer">教材を開く</a> : "教材：準備中"}</p>
+        <p>{training.lesson.quizUrl ? <a href={training.lesson.quizUrl} target="_blank" rel="noopener noreferrer">小テストを開く</a> : "小テスト：準備中"}</p>
       </section>}
 
       {messages.length > 0 && (

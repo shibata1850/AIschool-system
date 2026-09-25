@@ -22,8 +22,8 @@ it("renders approved saved lesson links for the student", async () => {
   mocks.settings.mockResolvedValue({ ...settings,
     days: [{ ...settings.days[0], materialUrl, quizUrl }] });
   const html = renderToStaticMarkup(await Home());
-  expect(html).toContain(`href="${materialUrl}">教材を開く`);
-  expect(html).toContain(`href="${quizUrl}">小テストを開く`);
+  expect(html).toContain(`href="${materialUrl}" target="_blank" rel="noopener noreferrer">教材を開く`);
+  expect(html).toContain(`href="${quizUrl}" target="_blank" rel="noopener noreferrer">小テストを開く`);
   expect(html).not.toContain("準備中");
   expect(html).not.toContain('href="/teacher/training"');
 });

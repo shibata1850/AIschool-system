@@ -30,8 +30,32 @@ test("approved BtoB links survive save and reload without leaking to other cours
   await page.goto("/");
   await expect(page.getByRole("link", { name: "教材を開く", exact: true })).toHaveAttribute("href", material);
   await expect(page.getByRole("link", { name: "小テストを開く", exact: true })).toHaveAttribute("href", quiz);
+  for (const name of ["教材を開く", "小テストを開く"]) {
+    const link = page.getByRole("link", { name, exact: true });
+    await expect(link).toHaveAttribute("target", "_blank");
+    await expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  }
   await expect(page.getByRole("link", { name: "授業設定", exact: true })).toHaveCount(0);
   await page.screenshot({ path: info.outputPath("approved-links-home.png"), fullPage: true, caret: "initial" });
+  // Keep this regression offline while exercising navigation out of an LTI frame.
+  for (const url of [material, quiz]) {
+    await context.route(url, route => route.fulfill({ contentType: "text/html", body: "<h1>External destination fixture</h1>" }));
+  }
+  await page.route("**/lti-frame-fixture", route => route.fulfill({
+    contentType: "text/html", body: '<iframe title="LTI fixture" src="/"></iframe>',
+  }));
+  await page.goto("/lti-frame-fixture");
+  const home = page.frameLocator('iframe[title="LTI fixture"]');
+  for (const [name, url] of [["教材を開く", material], ["小テストを開く", quiz]]) {
+    const popupReady = page.waitForEvent("popup");
+    await home.getByRole("link", { name, exact: true }).click();
+    const popup = await popupReady;
+    await expect(popup).toHaveURL(url);
+    await expect(popup.getByRole("heading")).toHaveText("External destination fixture");
+    expect(await popup.evaluate(() => window.opener === null)).toBe(true);
+    await expect(home.getByRole("heading", { name: "今日やること", exact: true })).toBeVisible();
+    await popup.close();
+  }
   await login("teacher", `unapproved-links-${info.project.name}`);
   await page.goto("/teacher/training");
   await page.getByRole("radio", { name: "BtoB研修型" }).check();
