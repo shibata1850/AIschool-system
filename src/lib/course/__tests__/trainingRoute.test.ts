@@ -1,5 +1,6 @@
 import { beforeEach, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ actor: vi.fn(), config: vi.fn(), save: vi.fn() }));
+const mocks = vi.hoisted(() => ({ actor: vi.fn(), config: vi.fn(), save: vi.fn(), links: vi.fn() }));
+vi.mock("../trainingLinks", () => ({ trainingLinkPolicy: mocks.links }));
 vi.mock("@/lib/auth", () => ({ getCurrentUser: mocks.actor }));
 vi.mock("@/lib/lti/config", () => ({ getLtiConfig: mocks.config }));
 vi.mock("../trainingStore", async importOriginal => ({
@@ -17,6 +18,7 @@ beforeEach(() => {
   mocks.actor.mockResolvedValue(actor);
   mocks.config.mockReturnValue({ toolUrl: "https://app.example.test" });
   mocks.save.mockResolvedValue({ revision: 1 });
+  mocks.links.mockReturnValue({ materialUrls: [], quizUrls: [] });
 });
 it.each(["student", "guest"])("denies %s", async role => {
   mocks.actor.mockResolvedValue({ ...actor, role });
@@ -46,6 +48,17 @@ it("uses only server-controlled link policy", async () => {
   expect(response.status).toBe(200);
   expect(response.headers.get("cache-control")).toBe("no-store");
   expect(mocks.save).toHaveBeenCalledWith(actor, {}, { materialUrls: [], quizUrls: [] });
+});
+it("passes the actor course policy even when the request supplies another allowlist", async () => {
+  const links = {
+    materialUrls: ["https://material.example.test/step01/"],
+    quizUrls: ["https://canvas.example.test/courses/2/quizzes/50"],
+  };
+  mocks.links.mockReturnValue(links);
+  const body = { courseId: "course-b", links: { materialUrls: ["https://evil.example.test/"] } };
+  expect((await POST(request(undefined, JSON.stringify(body)))).status).toBe(200);
+  expect(mocks.links).toHaveBeenCalledWith(actor.courseId);
+  expect(mocks.save).toHaveBeenCalledWith(actor, body, links);
 });
 it.each([400, 403, 409] as const)("preserves expected status %s", async status => {
   mocks.save.mockRejectedValue(new TrainingSettingsError("テスト", status));

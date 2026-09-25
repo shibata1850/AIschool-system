@@ -2,6 +2,43 @@ import { test, expect } from "@playwright/test";
 import { signSession } from "../../src/lib/lti/session";
 import pg from "pg";
 
+test("approved BtoB links survive save and reload without leaking to other courses", async ({ page, context, baseURL }, info) => {
+  const courseId = "f97330a96452fc363a34e0ef6d8d0d3e9e1007d2";
+  const material = "https://ngas-step01-pc-review.vercel.app/btob/step02/";
+  const quiz = "https://canvas.133-125-225-64.sslip.io/courses/2/quizzes/129";
+  async function login(role: "teacher" | "student", course = courseId) {
+    const value = await signSession({ sub: `fictional-links-${role}`, role, courseId: course }, process.env.LTI_SESSION_SECRET!);
+    await context.addCookies([{ name: "lti_session", value, url: baseURL! }]);
+  }
+  await login("teacher");
+  await page.goto("/teacher/training");
+  await page.getByRole("radio", { name: "BtoB研修型" }).check();
+  await page.getByLabel("第1回の授業名", { exact: true }).fill(`Link verification ${info.project.name}`);
+  await page.getByLabel("現在の授業", { exact: true }).selectOption("1");
+  await expect(page.locator("#training-material-1 option")).toHaveCount(10);
+  await expect(page.locator("#training-quiz-1 option")).toHaveCount(10);
+  await page.locator("#training-material-1").selectOption(material);
+  await page.locator("#training-quiz-1").selectOption(quiz);
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(page.getByRole("status")).toHaveText("保存しました");
+  await page.reload();
+  await expect(page.locator("#training-material-1")).toHaveValue(material);
+  await expect(page.locator("#training-quiz-1")).toHaveValue(quiz);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: info.outputPath("approved-links-settings.png"), fullPage: true, caret: "initial" });
+  await login("student");
+  await page.goto("/");
+  await expect(page.getByRole("link", { name: "教材を開く", exact: true })).toHaveAttribute("href", material);
+  await expect(page.getByRole("link", { name: "小テストを開く", exact: true })).toHaveAttribute("href", quiz);
+  await expect(page.getByRole("link", { name: "授業設定", exact: true })).toHaveCount(0);
+  await page.screenshot({ path: info.outputPath("approved-links-home.png"), fullPage: true, caret: "initial" });
+  await login("teacher", `unapproved-links-${info.project.name}`);
+  await page.goto("/teacher/training");
+  await page.getByRole("radio", { name: "BtoB研修型" }).check();
+  await expect(page.locator("#training-material-1 option")).toHaveCount(1);
+  await expect(page.locator("#training-quiz-1 option")).toHaveCount(1);
+});
+
 test("signed roster seat reassignment, monitor and authorization", async ({ page, context, baseURL }, info) => {
   const url = new URL(process.env.DATABASE_ADMIN_URL!);
   if (process.env.TRAINING_DB_TEST !== "1" || url.hostname !== "127.0.0.1" || url.pathname !== "/aischool_test") {

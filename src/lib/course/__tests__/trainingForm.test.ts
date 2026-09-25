@@ -29,3 +29,16 @@ it("does not invent links when none are approved", () => {
   expect(html).not.toContain("https://");
   expect(html).toContain('id="training-material-1"');
 });
+
+it("preserves saved approved selections when editing settings", () => {
+  const materialUrl = "https://material.example.test/step01/";
+  const quizUrl = "https://canvas.example.test/courses/2/quizzes/50";
+  const html = renderToStaticMarkup(createElement(TrainingForm, {
+    initial: { ...initial, currentDay: 1,
+      days: [{ ...initial.days[0], materialUrl, quizUrl }] },
+    links: { materialUrls: [materialUrl], quizUrls: [quizUrl] },
+  }));
+  expect(html).toContain(`value="${materialUrl}" selected=""`);
+  expect(html).toContain(`value="${quizUrl}" selected=""`);
+  expect(html).toContain('value="1" selected=""');
+});

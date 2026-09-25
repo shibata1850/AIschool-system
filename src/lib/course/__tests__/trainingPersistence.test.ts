@@ -11,9 +11,11 @@ describe("training persistence on isolated PostgreSQL", () => {
     if (url.hostname !== "127.0.0.1" || url.pathname !== "/aischool_test") throw new Error("Isolated DB required");
     const admin = new Pool({ connectionString: url.href });
     const actor: CurrentUser = { role: "teacher", userId: "fictional-training-teacher", viaLti: true, courseId: "training-a" };
-    const policy = { materialUrls: [], quizUrls: [] };
+    const materialUrl = "https://material.example.test/step01/";
+    const quizUrl = "https://canvas.example.test/courses/2/quizzes/50";
+    const policy = { materialUrls: [materialUrl], quizUrls: [quizUrl] };
     const input = { courseId: "training-a", mode: "btob", currentDay: 1, revision: 0,
-      days: [{ day: 1, title: "授業1", materialUrl: null, quizUrl: null }] };
+      days: [{ day: 1, title: "授業1", materialUrl, quizUrl }] };
     try {
       const results = await Promise.allSettled([
         saveTrainingSettings(actor, input, policy), saveTrainingSettings(actor, input, policy),

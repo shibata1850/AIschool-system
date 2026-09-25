@@ -1,6 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-const mocks = vi.hoisted(() => ({ actor: vi.fn(), settings: vi.fn() }));
+const mocks = vi.hoisted(() => ({ actor: vi.fn(), settings: vi.fn(), links: vi.fn() }));
+vi.mock("../trainingLinks", () => ({ trainingLinkPolicy: mocks.links }));
 vi.mock("@/lib/auth", () => ({ getCurrentUser: mocks.actor }));
 vi.mock("../trainingStore", () => ({ readTrainingSettings: mocks.settings }));
 vi.mock("@/lib/f2/chatLog", () => ({ listTeacherMessages: async () => [] }));
@@ -10,8 +11,21 @@ import Home from "../../../../app/page";
 const settings = { courseId: "fictional-course", mode: "btob", revision: 1, currentDay: 1,
   days: [{ day: 1, title: "研修初日", materialUrl: null, quizUrl: null }] };
 beforeEach(() => {
+  mocks.links.mockReturnValue({ materialUrls: [], quizUrls: [] });
   mocks.actor.mockResolvedValue({ role: "student", viaLti: true, userId: "fictional-student", courseId: "fictional-course" });
   mocks.settings.mockResolvedValue(settings);
+});
+it("renders approved saved lesson links for the student", async () => {
+  const materialUrl = "https://material.example.test/step01/";
+  const quizUrl = "https://canvas.example.test/courses/2/quizzes/50";
+  mocks.links.mockReturnValue({ materialUrls: [materialUrl], quizUrls: [quizUrl] });
+  mocks.settings.mockResolvedValue({ ...settings,
+    days: [{ ...settings.days[0], materialUrl, quizUrl }] });
+  const html = renderToStaticMarkup(await Home());
+  expect(html).toContain(`href="${materialUrl}">教材を開く`);
+  expect(html).toContain(`href="${quizUrl}">小テストを開く`);
+  expect(html).not.toContain("準備中");
+  expect(html).not.toContain('href="/teacher/training"');
 });
 it("shows the selected lesson and pending links without claiming completion", async () => {
   const html = renderToStaticMarkup(await Home());
