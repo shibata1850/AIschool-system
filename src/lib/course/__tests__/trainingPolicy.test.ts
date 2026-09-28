@@ -5,9 +5,21 @@ const material = "https://materials.example.test/student/day1.html";
 const quiz = "https://canvas.example.test/courses/12/quizzes/34";
 const policy = { materialUrls: [material], quizUrls: [quiz] };
 const setting = () => ({ courseId: "lti-context-12", mode: "btob", currentDay: 1, revision: 0,
-  days: [{ day: 1, title: "AI基礎", materialUrl: material, quizUrl: quiz }] });
+  days: [{ day: 1, title: "AI基礎", materialUrl: material, quizUrl: quiz, quizRequired: true }] });
 
 describe("training settings", () => {
+  it("defaults legacy days to required and accepts explicit absence", () => {
+    const value = setting();
+    const legacy = { ...value, days: [{ day: 1, title: "AI基礎", materialUrl: null, quizUrl: null }] };
+    expect(parseTrainingSettings(legacy, value.courseId, policy)?.days[0].quizRequired).toBe(true);
+    const absent = { ...legacy, days: [{ ...legacy.days[0], quizRequired: false }] };
+    expect(parseTrainingSettings(absent, value.courseId, policy)).toEqual(absent);
+    expect(parseTrainingSettings({ ...value, days: [{ ...value.days[0], quizRequired: false }] }, value.courseId, policy)).toBeNull();
+  });
+  it.each([null, "false", 0, {}, []])("rejects invalid quizRequired %s", quizRequired => {
+    const value = setting();
+    expect(parseTrainingSettings({ ...value, days: [{ ...value.days[0], quizRequired }] }, value.courseId, policy)).toBeNull();
+  });
   it.each([undefined, null, "", "student", ["btob"], { toString: () => "btob" }])("rejects invalid mode %s", mode => {
     expect(parseTrainingSettings({ ...setting(), mode }, "lti-context-12", policy)).toBeNull();
   });
@@ -76,7 +88,7 @@ describe("training home states", () => {
     expect(trainingHome({ ...setting(), currentDay: null, days: [] }, "lti-context-12", policy).state).toBe("unselected");
   });
   it("allows a selected lesson with both links pending", () => {
-    const value = { ...setting(), days: [{ day: 1, title: "AI基礎", materialUrl: null, quizUrl: null }] };
+    const value = { ...setting(), days: [{ day: 1, title: "AI基礎", materialUrl: null, quizUrl: null, quizRequired: true }] };
     expect(trainingHome(value, value.courseId, policy)).toEqual({ state: "ready", lesson: value.days[0] });
   });
   it("does not expose a different course's lesson", () => {

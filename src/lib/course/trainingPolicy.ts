@@ -3,6 +3,7 @@ export interface TrainingDay {
   title: string;
   materialUrl: string | null;
   quizUrl: string | null;
+  quizRequired?: boolean;
 }
 
 export interface TrainingSettings {
@@ -67,8 +68,11 @@ export function parseTrainingSettings(
     const materialUrl = approvedLink(value.materialUrl, links.materialUrls);
     const quizUrl = approvedLink(value.quizUrl, links.quizUrls);
     if (materialUrl === undefined || quizUrl === undefined) return null;
+    if (value.quizRequired !== undefined && typeof value.quizRequired !== "boolean") return null;
+    const quizRequired = value.quizRequired ?? true;
+    if (!quizRequired && quizUrl !== null) return null;
     seen.add(value.day);
-    days.push({ day: value.day, title: value.title.trim(), materialUrl, quizUrl });
+    days.push({ day: value.day, title: value.title.trim(), materialUrl, quizUrl, quizRequired });
   }
   if (input.currentDay !== null && !seen.has(input.currentDay as number)) return null;
   return {

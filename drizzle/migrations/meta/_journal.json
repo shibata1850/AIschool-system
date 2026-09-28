@@ -141,6 +141,13 @@
       "when": 1790035200000,
       "tag": "0019_canvas_quiz_grade_events",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790348400000,
+      "tag": "0020_training_quiz_required",
+      "breakpoints": true
     }
   ]
 }

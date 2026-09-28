@@ -4,7 +4,8 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { existsSync } from 'node:fs';
-import { writeFile, unlink, mkdtemp } from 'node:fs/promises';
+import { writeFile, unlink, mkdtemp, readFile } from 'node:fs/promises';
+import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import net from 'node:net';
 
@@ -67,6 +68,35 @@ try {
     await client.query('CREATE DATABASE aischool_test');
     await client.query(`CREATE ROLE aischool_app WITH LOGIN PASSWORD ${client.escapeLiteral(password)}`);
   } finally { await client.end(); }
+  const upgrade = new pg.Client({ connectionString: env.DATABASE_ADMIN_URL });
+  await upgrade.connect();
+  try {
+    // Exercise the actual old DDL and new migration without touching the public schema.
+    await upgrade.query('BEGIN');
+    await upgrade.query('CREATE SCHEMA training_upgrade_check');
+    await upgrade.query('SET LOCAL search_path TO training_upgrade_check');
+    await upgrade.query(await readFile(resolve(repo, 'drizzle/migrations/0016_course_training.sql'), 'utf8'));
+    await upgrade.query("INSERT INTO course_training_settings VALUES ('upgrade-test', 'btob', NULL, 1, now(), 'fictional-teacher')");
+    await upgrade.query("INSERT INTO course_training_days VALUES ('upgrade-test', 1, 'Existing quiz', 'https://example.test/material', 'https://example.test/quiz'), ('upgrade-test', 2, 'Unconfigured quiz', NULL, NULL)");
+    const before = (await upgrade.query('SELECT * FROM course_training_days ORDER BY day_no')).rows;
+    await upgrade.query(await readFile(resolve(repo, 'drizzle/migrations/0020_training_quiz_required.sql'), 'utf8'));
+    const after = (await upgrade.query('SELECT * FROM course_training_days ORDER BY day_no')).rows;
+    assert.deepEqual(after, before.map(row => ({ ...row, quiz_required: true })));
+    await upgrade.query("UPDATE course_training_days SET quiz_required = false WHERE day_no = 2");
+    assert.equal((await upgrade.query('SELECT quiz_required FROM course_training_days WHERE day_no = 2')).rows[0].quiz_required, false);
+    for (const [sql, code] of [
+      ['UPDATE course_training_days SET quiz_required = false WHERE day_no = 1', '23514'],
+      ['UPDATE course_training_days SET quiz_required = NULL WHERE day_no = 2', '23502'],
+    ]) {
+      await upgrade.query('SAVEPOINT invalid_setting');
+      await assert.rejects(upgrade.query(sql), error => error.code === code);
+      await upgrade.query('ROLLBACK TO SAVEPOINT invalid_setting');
+    }
+    console.log('TRAINING_UPGRADE_CHECK_PASSED: existing rows preserved, defaults and constraints verified');
+  } finally {
+    await upgrade.query('ROLLBACK');
+    await upgrade.end();
+  }
   await run(process.execPath, ['node_modules/tsx/dist/cli.mjs', 'scripts/migrate.ts'], repo);
   await run(process.execPath, ['node_modules/tsx/dist/cli.mjs', 'scripts/migrate.ts'], repo);
   await run(process.execPath, ['node_modules/vitest/vitest.mjs', 'run', ...(process.argv.includes('--all') ? [] : ['src/lib/course/__tests__/trainingPolicy.test.ts', 'src/lib/course/__tests__/trainingStore.test.ts', 'src/lib/course/__tests__/trainingPersistence.test.ts', 'src/lib/course/__tests__/trainingRoute.test.ts', 'src/lib/course/__tests__/trainingHomeRender.test.ts'])], repo);

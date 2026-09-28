@@ -15,7 +15,7 @@ describe("training persistence on isolated PostgreSQL", () => {
     const quizUrl = "https://canvas.example.test/courses/2/quizzes/50";
     const policy = { materialUrls: [materialUrl], quizUrls: [quizUrl] };
     const input = { courseId: "training-a", mode: "btob", currentDay: 1, revision: 0,
-      days: [{ day: 1, title: "授業1", materialUrl, quizUrl }] };
+      days: [{ day: 1, title: "授業1", materialUrl, quizUrl, quizRequired: true }] };
     try {
       const results = await Promise.allSettled([
         saveTrainingSettings(actor, input, policy), saveTrainingSettings(actor, input, policy),
@@ -25,6 +25,10 @@ describe("training persistence on isolated PostgreSQL", () => {
       expect(rejected.reason.status).toBe(409);
       expect(await readTrainingSettings(actor, "training-a")).toEqual({ ...input, revision: 1 });
       await saveTrainingSettings({ ...actor, courseId: "training-b" }, { ...input, courseId: "training-b" }, policy);
+      const absent = { ...input, courseId: "training-b", revision: 1,
+        days: [{ ...input.days[0], quizRequired: false, quizUrl: null }] };
+      await saveTrainingSettings({ ...actor, courseId: "training-b" }, absent, policy);
+      expect(await readTrainingSettings(actor, "training-b")).toEqual({ ...absent, revision: 2 });
       const next = { ...input, revision: 1, currentDay: null, days: [] };
       expect(await saveTrainingSettings(actor, next, policy)).toEqual({ ...next, revision: 2 });
       expect((await readTrainingSettings(actor, "training-b"))?.days).toHaveLength(1);

@@ -9,7 +9,7 @@ import { auditLog, courseTrainingDays, courseTrainingSettings } from "@/lib/db/s
 const teacher: CurrentUser = { role: "teacher", userId: "fictional-teacher", viaLti: true, courseId: "course-a" };
 const policy = { materialUrls: [], quizUrls: [] };
 const input = () => ({ courseId: "course-a", mode: "btob", currentDay: 1, revision: 0,
-  days: [{ day: 1, title: "授業1", materialUrl: null, quizUrl: null }] });
+  days: [{ day: 1, title: "授業1", materialUrl: null, quizUrl: null, quizRequired: true }] });
 
 function database(rows: unknown[] = []) {
   const where = vi.fn().mockResolvedValue(rows);

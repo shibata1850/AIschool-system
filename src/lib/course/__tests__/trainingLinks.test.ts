@@ -20,7 +20,7 @@ describe("production training links", () => {
   it("accepts saved approved links but rejects a demo course quiz", () => {
     const links = trainingLinkPolicy(context);
     const settings = { courseId: context, mode: "btob", currentDay: 1, revision: 1,
-      days: [{ day: 1, title: "Lesson 1", materialUrl: links.materialUrls[0], quizUrl: links.quizUrls[0] }] };
+      days: [{ day: 1, title: "Lesson 1", materialUrl: links.materialUrls[0], quizUrl: links.quizUrls[0], quizRequired: true }] };
     expect(parseTrainingSettings(settings, context, links)).toEqual(settings);
     settings.days[0].quizUrl = "https://canvas.133-125-225-64.sslip.io/courses/1/quizzes/4";
     expect(parseTrainingSettings(settings, context, links)).toBeNull();

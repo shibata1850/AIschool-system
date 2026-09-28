@@ -34,6 +34,13 @@ it("shows the selected lesson and pending links without claiming completion", as
   expect(html).toContain("小テスト：準備中");
   expect(html).not.toContain("すべて完了");
 });
+it("distinguishes an explicitly absent quiz from pending setup", async () => {
+  mocks.settings.mockResolvedValue({ ...settings, days: [{ ...settings.days[0], quizRequired: false }] });
+  const html = renderToStaticMarkup(await Home());
+  expect(html).toContain("小テスト：この回は実施しません");
+  expect(html).not.toContain("小テスト：準備中");
+  expect(html).not.toContain("小テストを開く");
+});
 it("does not infer day one when no lesson is selected", async () => {
   mocks.settings.mockResolvedValue({ ...settings, currentDay: null });
   const html = renderToStaticMarkup(await Home());

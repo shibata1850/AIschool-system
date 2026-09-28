@@ -18,7 +18,7 @@ async function readSettings(db: DbExecutor, courseId: string) {
   if (!rows.length) return null;
   const { mode, currentDay, revision } = rows[0].settings;
   return { courseId, mode, currentDay, revision, days: rows.flatMap(({ day }) => day ? [{
-    day: day.day, title: day.title, materialUrl: day.materialUrl, quizUrl: day.quizUrl,
+    day: day.day, title: day.title, materialUrl: day.materialUrl, quizUrl: day.quizUrl, quizRequired: day.quizRequired,
   }] : []).sort((a, b) => a.day - b.day) };
 }
 

@@ -54,7 +54,14 @@ export function TrainingForm({ initial, links }: { initial: TrainingSettings; li
           {links.materialUrls.map(url => <option key={url} value={url}>{url}</option>)}
         </select>
         <label htmlFor={`training-quiz-${day.day}`}>小テスト</label>
+        <label style={{ display: "block", minHeight: 44 }}>
+          <input type="checkbox" aria-label={`第${day.day}回に小テストを実施する`} checked={day.quizRequired !== false}
+            onChange={e => change({ ...value, days: value.days.map(item => item.day === day.day
+              ? { ...item, quizRequired: e.target.checked, quizUrl: e.target.checked ? item.quizUrl : null } : item) })} />
+          小テストを実施する
+        </label>
         <select id={`training-quiz-${day.day}`} style={control} value={day.quizUrl ?? ""}
+          disabled={day.quizRequired === false}
           onChange={e => change({ ...value, days: value.days.map(item => item.day === day.day ? { ...item, quizUrl: e.target.value || null } : item) })}>
           <option value="">未設定</option>
           {links.quizUrls.map(url => <option key={url} value={url}>{url}</option>)}

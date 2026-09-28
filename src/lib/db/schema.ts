@@ -1,5 +1,6 @@
 import {
   boolean,
+  check,
   integer,
   jsonb,
   pgTable,
@@ -11,6 +12,7 @@ import {
   foreignKey,
   uuid,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 /**
  * データ永続化層のスキーマ（要件定義書 6.1 のエンティティに対応）。
@@ -43,7 +45,9 @@ export const courseTrainingDays = pgTable("course_training_days", {
   title: text("title").notNull(),
   materialUrl: text("material_url"),
   quizUrl: text("canvas_quiz_url"),
-}, table => [primaryKey({ columns: [table.courseId, table.day] })]);
+  quizRequired: boolean("quiz_required").notNull().default(true),
+}, table => [primaryKey({ columns: [table.courseId, table.day] }),
+  check("training_quiz_required_url", sql`${table.quizRequired} OR ${table.quizUrl} IS NULL`)]);
 
 export const submissions = pgTable("submissions", {
   id: text("id").primaryKey(),
