@@ -1,6 +1,24 @@
 # Explicit no-quiz lesson setting
 
-Status: implemented and tested locally; not deployed. Production database and settings remain unchanged.
+Status: application and migration 0020 deployed on 2026-09-28. Course2 lesson5 setting saved through Canvas on 2026-09-29. Final human acceptance is pending.
+
+## Course setting completed on 2026-09-29
+
+- A fresh Chrome tab restored browser control after attachment to the older tab timed out.
+- In course2's training settings, changed only lesson5 quizRequired from true to false. Its quiz URL was already unconfigured and remains unconfigured; the quiz selector is now disabled.
+- The save response visibly showed "保存しました". Lesson6 remained required with quiz130; current lesson remained unselected. Other displayed lesson values were unchanged.
+- No student impersonation, test submission, publication, server restart or full test rerun was performed. Final student-facing acceptance remains assigned to a human, per the user's request.
+
+## Production result on 2026-09-28
+
+- HEAD: af4cacbe03787915e0794b6438671e51c0ce51a8. Image: ngas-no-quiz:af4cacb.
+- Before deployment, all 20 existing migration hashes/timestamps matched the candidate journal; only 0020 was pending.
+- Backup: /home/ubuntu/backups/aischool-before-no-quiz-20260928-130715.sql.gz (22372 bytes, mode 600, gzip integrity verified; restore rehearsal not performed).
+- Build completed before migration. Migration 0020 completed with bounded lock/statement timeouts. Ledger count became 21, training-day row count was preserved, and all existing quiz_required values were true.
+- App Up on 127.0.0.1:3001 -> 3000; database Up (healthy). Local and public application HTTP status: 200.
+- Canvas code, .env, Caddy configuration, quiz publication and formal achievement adoption were not changed. Only the custom-app image changed in the compose override. The exited migration container was retained.
+- Browser attachment to the existing Canvas tab timed out twice. No course setting or impersonation action was performed. Course2 lesson5 still needs its checkbox cleared and saved; lesson6 quiz130 must remain unchanged.
+- Per the user's 2026-09-28 instruction, no full test rerun or automated final UI acceptance was performed. Final screen/operation acceptance is reserved for a human.
 
 ## Production approval
 
