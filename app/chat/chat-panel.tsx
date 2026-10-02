@@ -5,8 +5,10 @@ import { postJson } from "@/lib/client/postJson";
 import { QUESTION_LIMIT } from "@/lib/f2/constants";
 import { OutageNoticeBox, type OutageNotice } from "./outage-notice";
 import { TimedReply } from "./timed-reply";
+import type { MaterialSource } from '@/lib/f2/materials';
 
 interface ChatEntry {
+  sources?: MaterialSource[];
   startedAt: number;
   question: string; // マスキング済みの質問のみ保持する
   reply?: string;
@@ -15,6 +17,7 @@ interface ChatEntry {
 }
 
 interface ChatResponse {
+  sources?: MaterialSource[];
   maskedQuestion: string;
   piiDetected: boolean;
   blocked: boolean;
@@ -102,6 +105,7 @@ export function ChatPanel({ initialOutage }: { initialOutage: OutageNotice | nul
         reply: answer.reply,
         blocked: answer.blocked,
         piiDetected: answer.piiDetected,
+        sources: answer.sources,
       },
     ]);
     setQuestion("");
@@ -130,6 +134,14 @@ export function ChatPanel({ initialOutage }: { initialOutage: OutageNotice | nul
               </p>
             ) : (
               <TimedReply reply={entry.reply} startedAt={entry.startedAt} />
+            )}
+            {!entry.blocked && !!entry.sources?.length && (
+              <div aria-label="AIに渡した参照教材">
+                <p>参照教材</p>
+                <ul>{entry.sources.map(source => <li key={source.id}>
+                  <a href={source.url} target="_blank" rel="noopener noreferrer">{source.title}</a>
+                </li>)}</ul>
+              </div>
             )}
           </li>
         ))}

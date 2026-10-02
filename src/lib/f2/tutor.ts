@@ -2,6 +2,7 @@ import { createAiClient, type AiClient } from "@/lib/ai";
 import { QUESTION_LIMIT } from "./constants";
 import { filterContent } from "./contentFilter";
 import { maskPersonalInfo } from "./masking";
+import { findTeachingMaterials, teachingContext, type MaterialSource } from './materials';
 
 /**
  * AI講師の応答パイプライン(F2)。
@@ -39,8 +40,8 @@ export const TUTOR_SYSTEM_PROMPT = [
   "",
   "【確かでないことは言わない】",
   "・確信が持てないことは、推測で埋めずに「確かではありません」と述べる",
-  "・**本校のカリキュラム・教材・課題の内容**は、あなたには渡されていない。",
-  "  聞かれたら想像で答えず、講師に確認するよう案内する",
+  "・本校の教材については、このリクエストに添付された参照教材だけを根拠にする。",
+  "  教材がない場合や答えが記載されていない場合は想像で答えず、講師に確認するよう案内する",
   "・**BASE44の画面操作の具体的な手順**は、実際の画面と食い違っている可能性がある。",
   "  答える場合は「画面で確認してください」と必ず添える",
   "",
@@ -68,6 +69,7 @@ export interface TutorAnswer {
   /** blocked=false のときのみ講評テキストが入る */
   reply?: string;
   model?: string;
+  sources?: MaterialSource[];
 }
 
 export async function answerQuestion(
@@ -91,8 +93,9 @@ export async function answerQuestion(
     return { maskedQuestion: masked, piiDetected, blocked: true };
   }
 
+  const materials = findTeachingMaterials(masked);
   const result = await client.complete({
-    system: TUTOR_SYSTEM_PROMPT,
+    system: TUTOR_SYSTEM_PROMPT + teachingContext(materials),
     messages: [{ role: "user", content: masked }],
     signal,
   });
@@ -108,5 +111,6 @@ export async function answerQuestion(
     blocked: false,
     reply: result.content,
     model: result.model,
+    sources: materials.map(({ id, title, url }) => ({ id, title, url })),
   };
 }
