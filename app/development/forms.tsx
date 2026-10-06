@@ -23,7 +23,7 @@ function useSave() {
     }
     setMessage("保存しました"); return result.data.revision;
   }
-  return { save, busy, locked, feedback: <>
+  return { save, busy, locked, clear: () => { setMessage(""); setError(""); }, feedback: <>
     {message && <p role="status">{message}</p>}{error && <p role="alert">{error}</p>}
     {locked && <button type="button" onClick={() => window.location.reload()}>再読み込み</button>}
   </> };
@@ -33,7 +33,7 @@ export function ProjectForm({ scope, initial }: { scope: Scope; initial: { name:
   const [value, setValue] = useState(initial ?? { name: "", problem: "", editorUrl: null, previewUrl: null, revision: 0 });
   const action = useSave();
   const router = useRouter();
-  return <form onSubmit={async e => { e.preventDefault(); const revision = await action.save({ ...scope, ...value, kind: "project" }); if (revision) { setValue({ ...value, revision }); router.refresh(); } }}>
+  return <form onChange={action.clear} onSubmit={async e => { e.preventDefault(); const revision = await action.save({ ...scope, ...value, kind: "project" }); if (revision) { setValue({ ...value, revision }); router.refresh(); } }}>
     <fieldset disabled={action.busy || action.locked} className="development-fields">
       <legend>自分のシステム</legend>
       <label>システム名<input maxLength={120} value={value.name} onChange={e => setValue({ ...value, name: e.target.value })} /></label>
@@ -49,7 +49,7 @@ export function SessionForm({ scope, day, initial }: { scope: Scope; day: number
   const [value, setValue] = useState<NonNullable<typeof initial>>(initial ?? { mode: null, difficulty: "", nextStep: "", help: "none", revision: 0 });
   const [requestHelp, setRequestHelp] = useState(value.help === "requested");
   const action = useSave();
-  return <form onSubmit={async e => {
+  return <form onChange={action.clear} onSubmit={async e => {
     e.preventDefault(); const revision = await action.save({ ...scope, ...value, requestHelp, day, kind: "session" });
     if (revision) setValue({ ...value, revision, help: requestHelp ? "requested" : value.help === "resolved" ? "resolved" : "none" });
   }}>
@@ -72,7 +72,7 @@ export function SessionForm({ scope, day, initial }: { scope: Scope; day: number
 export function AttendanceForm({ scope, day, initial }: { scope: Scope; day: number; initial: { status: Attendance; revision: number } | null }) {
   const [status, setStatus] = useState<Attendance>(initial?.status ?? "unset"), [revision, setRevision] = useState(initial?.revision ?? 0);
   const action = useSave(), router = useRouter();
-  return <form onSubmit={async e => { e.preventDefault(); const next = await action.save({ ...scope, day, status, revision, kind: "attendance" }); if (next) { setRevision(next); router.refresh(); } }}>
+  return <form onChange={action.clear} onSubmit={async e => { e.preventDefault(); const next = await action.save({ ...scope, day, status, revision, kind: "attendance" }); if (next) { setRevision(next); router.refresh(); } }}>
     <fieldset disabled={action.busy || action.locked} className="development-fields">
       <legend>出席記録</legend>
       <select aria-label="出席状態" value={status} onChange={e => setStatus(e.target.value as Attendance)}>

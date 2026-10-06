@@ -17,3 +17,5 @@
 .development td, .development th { vertical-align: top; overflow-wrap: anywhere; }
 .development-detail { white-space: pre-wrap; overflow-wrap: anywhere; }
 .development .actions { flex-wrap: wrap; }
+.development select, .development input:not([type=radio]):not([type=checkbox]) { min-height: 44px; padding: .4rem .6rem; border: 1px solid var(--line); background: var(--bg-panel); color: var(--fg); border-radius: 4px; font: inherit; max-width: 100%; }
+.development button { min-height: 44px; }
