@@ -19,3 +19,7 @@
 .development .actions { flex-wrap: wrap; }
 .development select, .development input:not([type=radio]):not([type=checkbox]) { min-height: 44px; padding: .4rem .6rem; border: 1px solid var(--line); background: var(--bg-panel); color: var(--fg); border-radius: 4px; font: inherit; max-width: 100%; }
 .development button { min-height: 44px; }
+.development-qr { margin: 1rem 0; }
+.development-qr summary { min-height: 44px; cursor: pointer; padding: .6rem 0; }
+.development-qr img { display: block; width: 320px; max-width: 100%; height: auto; aspect-ratio: 1; margin: .5rem 0; }
+.development-qr a { display: block; overflow-wrap: anywhere; }

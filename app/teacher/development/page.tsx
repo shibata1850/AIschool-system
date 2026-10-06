@@ -8,6 +8,7 @@ import { trainingLinkPolicy } from "@/lib/course/trainingLinks";
 import { listDevelopment } from "@/lib/development/store";
 import { attendanceLabels, helpLabels, workLabels, projectUrl } from "@/lib/development/policy";
 import { AttendanceForm, ResolveButton, RefreshButton } from "../../development/forms";
+import { ProjectQr } from "../../development/project-qr";
 import "../../development/style.css";
 export const dynamic = "force-dynamic";
 function time(value: Date | undefined) { return value ? value.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" }) : "未更新"; }
@@ -39,6 +40,7 @@ export default async function DevelopmentTeacher({ searchParams }: { searchParam
       <h3>解決したい困りごと</h3><p className="development-detail">{detail.project?.problem || "未登録"}</p>
       <div className="actions">{projectUrl(detail.project?.editorUrl ?? null) && <a href={detail.project!.editorUrl!} target="_blank" rel="noopener noreferrer">編集画面を開く</a>}
         {projectUrl(detail.project?.previewUrl ?? null) && <a href={detail.project!.previewUrl!} target="_blank" rel="noopener noreferrer">利用・確認画面を開く</a>}</div>
+      <ProjectQr url={detail.project?.previewUrl ?? null} />
       <h3>今困っている点</h3><p className="development-detail">{detail.session?.difficulty || "未記入"}</p>
       <h3>次に進めること</h3><p className="development-detail">{detail.session?.nextStep || "未記入"}</p>
       <p>作業状態：{detail.session?.mode ? workLabels[detail.session.mode] : "未設定"} / {helpLabels[detail.session?.help ?? "none"]}</p>

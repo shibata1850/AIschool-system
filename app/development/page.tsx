@@ -8,6 +8,7 @@ import { trainingLinkPolicy } from "@/lib/course/trainingLinks";
 import { readDevelopment } from "@/lib/development/store";
 import { attendanceLabels, projectUrl } from "@/lib/development/policy";
 import { ProjectForm, SessionForm, RefreshButton } from "./forms";
+import { ProjectQr } from "./project-qr";
 import "./style.css";
 export const dynamic = "force-dynamic";
 
@@ -44,7 +45,7 @@ export default async function DevelopmentPage() {
       <section id="project"><div className="actions">
         {projectUrl(data.project?.editorUrl ?? null) && <a href={data.project!.editorUrl!} target="_blank" rel="noopener noreferrer">編集画面を開く</a>}
         {projectUrl(data.project?.previewUrl ?? null) && <a href={data.project!.previewUrl!} target="_blank" rel="noopener noreferrer">システムを開く</a>}
-      </div><ProjectForm scope={{ courseId, studentId: actor.userId }} initial={data.project} /></section>
+      </div><ProjectQr url={data.project?.previewUrl ?? null} /><ProjectForm scope={{ courseId, studentId: actor.userId }} initial={data.project} /></section>
     </>}
   </main>;
 }
