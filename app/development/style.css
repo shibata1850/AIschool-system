@@ -1,0 +1,19 @@
+.development { max-width: 1100px; }
+.development section { border-top: 1px solid var(--line); padding: 1.5rem 0; margin-top: 1rem; }
+.development h1 { font-size: 1.6rem; letter-spacing: 0; }
+.development h2, .development legend { font-size: 1.2rem; font-weight: 600; letter-spacing: 0; }
+.development h3 { font-size: 1rem; }
+.development-fields { border: 0; padding: .5rem 0; min-width: 0; display: grid; gap: .8rem; }
+.development-fields label { display: block; min-width: 0; }
+.development-fields input:not([type=radio]):not([type=checkbox]), .development-fields textarea, .development-fields select { display: block; width: 100%; min-width: 0; font: inherit; }
+.development-fields button { justify-self: start; min-height: 44px; }
+.development-modes { display: flex; gap: 1rem; flex-wrap: wrap; }
+.development-modes label { min-height: 44px; padding: .3rem; }
+.development-materials { display: flex; flex-wrap: wrap; gap: 1rem 2rem; padding: .5rem 1.2rem; }
+.development-lesson { padding: 1rem 0; }
+.development-lesson ul { padding-left: 1.2rem; }
+.development-table { overflow-x: auto; }
+.development-table table { min-width: 750px; width: 100%; }
+.development td, .development th { vertical-align: top; overflow-wrap: anywhere; }
+.development-detail { white-space: pre-wrap; overflow-wrap: anywhere; }
+.development .actions { flex-wrap: wrap; }

@@ -37,6 +37,8 @@ export function TrainingForm({ initial, links }: { initial: TrainingSettings; li
         onChange={() => change({ ...value, mode: "legacy" })} /> 従来の演習型</label>
       <label style={{ minHeight: 44 }}><input type="radio" name="mode" checked={value.mode === "btob"}
         onChange={() => change({ ...value, mode: "btob" })} /> BtoB研修型</label>
+      <label style={{ minHeight: 44 }}><input type="radio" name="mode" checked={value.mode === "development"}
+        onChange={() => change({ ...value, mode: "development" })} /> システム開発コース</label>
       <label htmlFor="training-current-day">現在の授業</label>
       <select id="training-current-day" style={control} value={value.currentDay ?? ""}
         onChange={e => change({ ...value, currentDay: e.target.value ? Number(e.target.value) : null })}>
@@ -47,13 +49,18 @@ export function TrainingForm({ initial, links }: { initial: TrainingSettings; li
         <label htmlFor={`training-title-${day.day}`}>第{day.day}回の授業名</label>
         <input id={`training-title-${day.day}`} style={control} required maxLength={120} value={day.title}
           onChange={e => change({ ...value, days: value.days.map(item => item.day === day.day ? { ...item, title: e.target.value } : item) })} />
-        <label htmlFor={`training-material-${day.day}`}>教材</label>
+        <label htmlFor={`training-material-${day.day}`}>{value.mode === "development" ? "全員向け要点" : "教材"}</label>
         <select id={`training-material-${day.day}`} style={control} value={day.materialUrl ?? ""}
           onChange={e => change({ ...value, days: value.days.map(item => item.day === day.day ? { ...item, materialUrl: e.target.value || null } : item) })}>
           <option value="">未設定</option>
           {links.materialUrls.map(url => <option key={url} value={url}>{url}</option>)}
         </select>
-        <label htmlFor={`training-quiz-${day.day}`}>小テスト</label>
+        {value.mode === "development" && ([['referenceUrl', '必要な人向け'], ['supplementUrl', '補足']] as const).map(([key, label]) => <label key={key}>
+          {label}<select style={control} value={day[key] ?? ""} onChange={e => change({ ...value, days: value.days.map(item => item.day === day.day ? { ...item, [key]: e.target.value || null } : item) })}>
+            <option value="">未設定</option>{links.materialUrls.map(url => <option key={url} value={url}>{url}</option>)}
+          </select>
+        </label>)}
+        {value.mode !== "development" && <><label htmlFor={`training-quiz-${day.day}`}>小テスト</label>
         <label style={{ display: "block", minHeight: 44 }}>
           <input type="checkbox" aria-label={`第${day.day}回に小テストを実施する`} checked={day.quizRequired !== false}
             onChange={e => change({ ...value, days: value.days.map(item => item.day === day.day
@@ -65,7 +72,7 @@ export function TrainingForm({ initial, links }: { initial: TrainingSettings; li
           onChange={e => change({ ...value, days: value.days.map(item => item.day === day.day ? { ...item, quizUrl: e.target.value || null } : item) })}>
           <option value="">未設定</option>
           {links.quizUrls.map(url => <option key={url} value={url}>{url}</option>)}
-        </select>
+        </select></>}
       </div>)}
       <button type="submit">{busy ? "保存中…" : "保存"}</button>
     </fieldset>

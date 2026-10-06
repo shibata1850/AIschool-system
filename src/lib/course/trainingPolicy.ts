@@ -4,11 +4,13 @@ export interface TrainingDay {
   materialUrl: string | null;
   quizUrl: string | null;
   quizRequired?: boolean;
+  referenceUrl?: string | null;
+  supplementUrl?: string | null;
 }
 
 export interface TrainingSettings {
   courseId: string;
-  mode: "legacy" | "btob";
+  mode: "legacy" | "btob" | "development";
   currentDay: number | null;
   revision: number;
   days: TrainingDay[];
@@ -54,7 +56,7 @@ export function parseTrainingSettings(
   links: TrainingLinkPolicy,
 ): TrainingSettings | null {
   if (!verifiedCourseId.trim() || !record(input) || input.courseId !== verifiedCourseId ||
-      (input.mode !== "legacy" && input.mode !== "btob") ||
+      (input.mode !== "legacy" && input.mode !== "btob" && input.mode !== "development") ||
       (input.currentDay !== null && !dayNumber(input.currentDay)) ||
       !Number.isSafeInteger(input.revision) || (input.revision as number) < 0 ||
       !Array.isArray(input.days) || input.days.length > 10) return null;
@@ -67,12 +69,14 @@ export function parseTrainingSettings(
         /[\u0000-\u001f\u007f]/u.test(value.title)) return null;
     const materialUrl = approvedLink(value.materialUrl, links.materialUrls);
     const quizUrl = approvedLink(value.quizUrl, links.quizUrls);
-    if (materialUrl === undefined || quizUrl === undefined) return null;
+    const referenceUrl = approvedLink(value.referenceUrl ?? null, links.materialUrls);
+    const supplementUrl = approvedLink(value.supplementUrl ?? null, links.materialUrls);
+    if (materialUrl === undefined || quizUrl === undefined || referenceUrl === undefined || supplementUrl === undefined) return null;
     if (value.quizRequired !== undefined && typeof value.quizRequired !== "boolean") return null;
     const quizRequired = value.quizRequired ?? true;
     if (!quizRequired && quizUrl !== null) return null;
     seen.add(value.day);
-    days.push({ day: value.day, title: value.title.trim(), materialUrl, quizUrl, quizRequired });
+    days.push({ day: value.day, title: value.title.trim(), materialUrl, quizUrl, quizRequired, referenceUrl, supplementUrl });
   }
   if (input.currentDay !== null && !seen.has(input.currentDay as number)) return null;
   return {

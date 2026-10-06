@@ -19,6 +19,7 @@ async function readSettings(db: DbExecutor, courseId: string) {
   const { mode, currentDay, revision } = rows[0].settings;
   return { courseId, mode, currentDay, revision, days: rows.flatMap(({ day }) => day ? [{
     day: day.day, title: day.title, materialUrl: day.materialUrl, quizUrl: day.quizUrl, quizRequired: day.quizRequired,
+    referenceUrl: day.referenceUrl, supplementUrl: day.supplementUrl,
   }] : []).sort((a, b) => a.day - b.day) };
 }
 

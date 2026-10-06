@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { courseAccess } from "@/lib/course/access";
 import { listTeacherMessages } from "@/lib/f2/chatLog";
@@ -6,7 +7,7 @@ import { listActiveSubmissionsForStudent, hasAssignmentsForStudent } from "@/lib
 import { emptyAssignmentLabel } from "@/lib/f3/allocationPolicy";
 import { STATUS_LABELS, type ExerciseStatus } from "@/lib/f3/types";
 import { readTrainingSettings } from "@/lib/course/trainingStore";
-import { trainingHome, type TrainingHome } from "@/lib/course/trainingPolicy";
+import { parseTrainingSettings, trainingHome, type TrainingHome } from "@/lib/course/trainingPolicy";
 import { trainingLinkPolicy } from "@/lib/course/trainingLinks";
 
 export const dynamic = "force-dynamic";
@@ -45,6 +46,7 @@ export default async function Home() {
   if (access.courseId) {
     let stored: unknown;
     try { stored = await readTrainingSettings(actor, access.courseId); } catch { stored = undefined; }
+    if (parseTrainingSettings(stored, access.courseId, trainingLinkPolicy(access.courseId))?.mode === "development") redirect("/development");
     training = trainingHome(stored, access.courseId, trainingLinkPolicy(access.courseId));
   }
 

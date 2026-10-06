@@ -148,6 +148,13 @@
       "when": 1790348400000,
       "tag": "0020_training_quiz_required",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1791241200000,
+      "tag": "0021_development_course",
+      "breakpoints": true
     }
   ]
 }

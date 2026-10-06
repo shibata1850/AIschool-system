@@ -44,6 +44,8 @@ export const courseTrainingDays = pgTable("course_training_days", {
   day: integer("day_no").notNull(),
   title: text("title").notNull(),
   materialUrl: text("material_url"),
+  referenceUrl: text("reference_url"),
+  supplementUrl: text("supplement_url"),
   quizUrl: text("canvas_quiz_url"),
   quizRequired: boolean("quiz_required").notNull().default(true),
 }, table => [primaryKey({ columns: [table.courseId, table.day] }),
@@ -225,6 +227,36 @@ export const studentCourses = pgTable("student_courses", {
   courseId: text("course_id").notNull(),
   lastSeenAt: timestamp("last_seen_at", {withTimezone:true}).notNull(),
 }, t => [primaryKey({columns:[t.studentId,t.courseId]})]);
+
+export const developmentProjects = pgTable("development_projects", {
+  courseId: text("course_id").notNull(), studentId: text("student_id").notNull(),
+  name: text("name").notNull(), problem: text("problem").notNull(),
+  editorUrl: text("editor_url"), previewUrl: text("preview_url"),
+  revision: integer("revision").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+  updatedBy: text("updated_by").notNull(),
+}, t => [primaryKey({ columns: [t.courseId, t.studentId] }),
+  foreignKey({ columns: [t.studentId, t.courseId], foreignColumns: [studentCourses.studentId, studentCourses.courseId] }).onDelete("cascade")]);
+
+export const developmentSessions = pgTable("development_sessions", {
+  courseId: text("course_id").notNull(), studentId: text("student_id").notNull(), day: integer("day_no").notNull(),
+  mode: text("mode").$type<"reading" | "developing" | null>(),
+  difficulty: text("difficulty").notNull(), nextStep: text("next_step").notNull(),
+  help: text("help").$type<"none" | "requested" | "resolved">().notNull(),
+  revision: integer("revision").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+  updatedBy: text("updated_by").notNull(),
+}, t => [primaryKey({ columns: [t.courseId, t.studentId, t.day] }),
+  foreignKey({ columns: [t.studentId, t.courseId], foreignColumns: [studentCourses.studentId, studentCourses.courseId] }).onDelete("cascade")]);
+
+export const developmentAttendance = pgTable("development_attendance", {
+  courseId: text("course_id").notNull(), studentId: text("student_id").notNull(), day: integer("day_no").notNull(),
+  status: text("status").$type<"present" | "absent" | "late" | "left_early" | "unset">().notNull(),
+  revision: integer("revision").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+  updatedBy: text("updated_by").notNull(),
+}, t => [primaryKey({ columns: [t.courseId, t.studentId, t.day] }),
+  foreignKey({ columns: [t.studentId, t.courseId], foreignColumns: [studentCourses.studentId, studentCourses.courseId] }).onDelete("cascade")]);
 
 /** Temporary teacher-only import candidates. Canvas remains the grade authority. */
 export const quizReviewCandidates = pgTable("canvas_quiz_review_candidates", {
