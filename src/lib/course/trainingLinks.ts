@@ -9,7 +9,9 @@ export function trainingLinkPolicy(courseId: string): TrainingLinkPolicy {
   if (courseId !== btobContext) return { materialUrls: [], quizUrls: [] };
   return {
     materialUrls: [materialBase, ...Array.from({ length: 8 }, (_, i) =>
-      `${materialBase}step${String(i + 2).padStart(2, "0")}/`)],
+      `${materialBase}step${String(i + 2).padStart(2, "0")}/`),
+      ...Array.from({ length: 10 }, (_, i) =>
+        `${materialBase}development-review/day${String(i + 1).padStart(2, "0")}/index.html`)],
     quizUrls: finalQuizIds.map(id =>
       `https://canvas.133-125-225-64.sslip.io/courses/2/quizzes/${id}`),
   };
